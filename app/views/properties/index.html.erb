@@ -1,0 +1,39 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Propiedades</h1>
+        <%= link_to 'Nueva Propiedad', new_property_path, class: 'btn btn-primary' %>
+      </div>
+
+      <div class="row">
+        <% @properties.each do |property| %>
+          <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <h5 class="card-title"><%= property.title %></h5>
+                <p class="card-text"><%= truncate(property.description, length: 100) %></p>
+                <p class="text-success fw-bold">$<%= number_with_delimiter(property.price) %></p>
+                <div class="small text-muted">
+                  <i class="bi bi-geo-alt"></i> <%= property.city %>, <%= property.state %><br>
+                  <i class="bi bi-house"></i> <%= property.bedrooms %> rec. / <%= property.bathrooms %> baños<br>
+                  <i class="bi bi-rulers"></i> <%= property.built_area_m2 %> m²
+                </div>
+              </div>
+              <div class="card-footer">
+                <%= link_to 'Ver', property_path(property), class: 'btn btn-sm btn-outline-primary' %>
+                <%= link_to 'Editar', edit_property_path(property), class: 'btn btn-sm btn-outline-secondary' %>
+                <%= link_to 'Eliminar', property_path(property), method: :delete, 
+                           data: { 
+                             confirm: '¿Estás seguro?',
+                             turbo: false 
+                           }, 
+                           class: 'btn btn-sm btn-outline-danger' %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

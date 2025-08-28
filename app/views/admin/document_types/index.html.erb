@@ -1,0 +1,32 @@
+<h1>Tipos de Documento</h1>
+<%= link_to 'Nuevo Tipo', new_admin_document_type_path, class: 'btn btn-primary mb-3' %>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Categoría</th>
+      <th>Vigencia</th>
+      <th>Activo</th>
+      <th class="text-end">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @document_types.each do |dt| %>
+      <tr>
+        <td><%= dt.name %></td>
+        <td><%= dt.category %></td>
+        <td><%= dt.valid_from %> – <%= dt.valid_until.presence || '∞' %></td>
+        <td><%= dt.is_active ? 'Sí' : 'No' %></td>
+        <td class="text-end">
+          <%= link_to 'Ver', admin_document_type_path(dt), class: 'btn btn-sm btn-outline-primary' %>
+          <%= link_to 'Editar', edit_admin_document_type_path(dt), class: 'btn btn-sm btn-outline-secondary' %>
+          <%= link_to 'Eliminar', admin_document_type_path(dt),
+                      method: :delete,
+                      data: { confirm: '¿Eliminar este tipo?' },
+                      class: 'btn btn-sm btn-outline-danger' %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

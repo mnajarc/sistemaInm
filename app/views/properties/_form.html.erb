@@ -1,0 +1,128 @@
+<%= form_with(model: property, local: true, data: { turbo: false }) do |form| %>
+  <% if property.errors.any? %>
+    <div class="alert alert-danger">
+      <h4><%= pluralize(property.errors.count, "error") %> impidieron guardar esta propiedad:</h4>
+      <ul class="mb-0">
+        <% property.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="mb-3">
+        <%= form.label :title, "Título", class: "form-label" %>
+        <%= form.text_field :title, class: "form-control" %>
+      </div>
+
+      <div class="mb-3">
+        <%= form.label :description, "Descripción", class: "form-label" %>
+        <%= form.text_area :description, rows: 4, class: "form-control" %>
+      </div>
+
+      <div class="mb-3">
+        <%= form.label :address, "Dirección", class: "form-label" %>
+        <%= form.text_area :address, rows: 2, class: "form-control" %>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :price, "Precio (MXN)", class: "form-label" %>
+        <%= form.number_field :price, step: 0.01, class: "form-control" %>
+      </div>
+
+      <div class="mb-3">
+        <%= form.label :property_type, "Tipo", class: "form-label" %>
+        <%= form.select :property_type, 
+            options_for_select([
+              ['Casa', 'casa'],
+              ['Departamento', 'departamento'], 
+              ['Terreno', 'terreno'],
+              ['Local Comercial', 'local_comercial'],
+              ['Oficina', 'oficina']
+            ], property.property_type), 
+            { prompt: 'Selecciona tipo' }, 
+            { class: "form-select" } %>
+      </div>
+
+      <div class="mb-3">
+        <%= form.label :status, "Estatus", class: "form-label" %>
+        <%= form.select :status,
+            options_for_select([
+              ['Disponible', 'disponible'],
+              ['En Proceso', 'en_proceso'],
+              ['Vendida', 'vendida'],
+              ['Suspendida', 'suspendida']
+            ], property.status),
+            { prompt: 'Selecciona estatus' },
+            { class: "form-select" } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :city, "Ciudad", class: "form-label" %>
+        <%= form.text_field :city, class: "form-control" %>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :state, "Estado", class: "form-label" %>
+        <%= form.text_field :state, class: "form-control" %>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :postal_code, "Código Postal", class: "form-label" %>
+        <%= form.text_field :postal_code, class: "form-control" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3">
+      <div class="mb-3">
+        <%= form.label :bedrooms, "Recámaras", class: "form-label" %>
+        <%= form.number_field :bedrooms, class: "form-control" %>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="mb-3">
+        <%= form.label :bathrooms, "Baños", class: "form-label" %>
+        <%= form.number_field :bathrooms, step: 0.5, class: "form-control" %>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="mb-3">
+        <%= form.label :built_area_m2, "Área construida (m²)", class: "form-label" %>
+        <%= form.number_field :built_area_m2, step: 0.01, class: "form-control" %>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="mb-3">
+        <%= form.label :lot_area_m2, "Área del terreno (m²)", class: "form-label" %>
+        <%= form.number_field :lot_area_m2, step: 0.01, class: "form-control" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :year_built, "Año de construcción", class: "form-label" %>
+        <%= form.number_field :year_built, class: "form-control" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <%= form.submit "Guardar Propiedad", class: "btn btn-success" %>
+    <%= link_to 'Cancelar', properties_path, class: "btn btn-secondary" %>
+  </div>
+<% end %>
+

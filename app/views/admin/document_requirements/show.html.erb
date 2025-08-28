@@ -1,0 +1,16 @@
+<h1>Requisito: <%= @requirement.document_type.name %></h1>
+
+<ul class="list-group mb-3">
+  <li class="list-group-item"><strong>Propiedad:</strong> <%= @requirement.property_type %></li>
+  <li class="list-group-item"><strong>Transacción:</strong> <%= @requirement.transaction_type %></li>
+  <li class="list-group-item"><strong>Cliente:</strong> <%= @requirement.client_type %></li>
+  <li class="list-group-item"><strong>Persona:</strong> <%= @requirement.person_type %></li>
+  <li class="list-group-item"><strong>Vigencia:</strong>
+    <%= @requirement.valid_from %> – <%= @requirement.valid_until.presence || '∞' %>
+  </li>
+  <li class="list-group-item"><strong>Requerido:</strong> <%= @requirement.is_required ? 'Sí' : 'No' %></li>
+  <li class="list-group-item"><strong>Aplica a:</strong> <%= @requirement.applies_to %></li>
+</ul>
+
+<%= link_to 'Editar', edit_admin_document_requirement_path(@requirement), class: 'btn btn-primary me-2' %>
+<%= link_to 'Volver', admin_document_requirements_path, class: 'btn btn-secondary' %>

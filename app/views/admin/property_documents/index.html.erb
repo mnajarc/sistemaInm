@@ -1,0 +1,33 @@
+<h1>Documentos Subidos</h1>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Propiedad</th>
+      <th>Documento</th>
+      <th>Usuario</th>
+      <th>Emitido</th>
+      <th>Expira</th>
+      <th>Estado</th>
+      <th class="text-end">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @documents.each do |doc| %>
+      <tr>
+        <td><%= link_to doc.property.title, property_path(doc.property) %></td>
+        <td><%= doc.document_type.name %></td>
+        <td><%= doc.user.email %></td>
+        <td><%= doc.issued_at %></td>
+        <td><%= doc.expires_at %></td>
+        <td><%= doc.status %></td>
+        <td class="text-end">
+          <%= link_to 'Ver', admin_property_document_path(doc), class: 'btn btn-sm btn-outline-primary' %>
+          <%= link_to 'Eliminar', admin_property_document_path(doc),
+                      method: :delete,
+                      data: { confirm: '¿Eliminar este documento?' },
+                      class: 'btn btn-sm btn-outline-danger' %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
