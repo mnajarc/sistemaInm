@@ -2,7 +2,7 @@ Rails.application.routes.draw do
   # get "home/index"
   devise_for :users
   # Ruta adicional GET para logout (más confiable)
-  get '/logout', to: 'sessions#destroy', as: :logout
+  delete '/logout', to: 'devise/sessions#destroy', as: :logout
   
   root "home#index"
 

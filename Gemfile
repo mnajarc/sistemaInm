@@ -51,15 +51,17 @@ gem "thruster", require: false
 # Incluye validaciones no sólo a nivel de la aplicación sino también a nivel de la base de datos
 gem 'database_validations'
 
+# Static analysis for security vulnerabilities [https://brakemanscanner.org/]
+gem "brakeman", require: false
+gem "bundler-audit", require: false
+gem "rack-attack", require: false
+
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 # gem "image_processing", "~> 1.2"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
-
-  # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
-  gem "brakeman", require: false
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false

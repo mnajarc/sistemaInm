@@ -1,4 +1,5 @@
 class PropertiesController < ApplicationController
+  authorize_resource
   before_action :set_property, only: [:show, :edit, :update, :destroy]
   
   def index
@@ -42,6 +43,8 @@ class PropertiesController < ApplicationController
 
   def set_property
     @property = Property.find(params[:id])
+    authorize! :read, @property
+
   end
 
   def property_params
