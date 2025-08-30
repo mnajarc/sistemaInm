@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_28_033446) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,6 +54,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_033446) do
     t.index ["user_id"], name: "index_agents_on_user_id"
   end
 
+  create_table "clients", force: :cascade do |t|
+    t.string "name"
+    t.string "email"
+    t.string "phone"
+    t.text "address"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "commissions", force: :cascade do |t|
     t.bigint "property_id", null: false
     t.bigint "agent_id", null: false
@@ -65,6 +74,19 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_033446) do
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_commissions_on_agent_id"
     t.index ["property_id"], name: "index_commissions_on_property_id"
+  end
+
+  create_table "contracts", force: :cascade do |t|
+    t.bigint "client_id", null: false
+    t.bigint "property_id", null: false
+    t.date "start_date"
+    t.date "end_date"
+    t.decimal "amount"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_contracts_on_client_id"
+    t.index ["property_id"], name: "index_contracts_on_property_id"
   end
 
   create_table "document_requirements", force: :cascade do |t|
@@ -177,6 +199,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_033446) do
   add_foreign_key "agents", "users"
   add_foreign_key "commissions", "agents"
   add_foreign_key "commissions", "properties"
+  add_foreign_key "contracts", "clients"
+  add_foreign_key "contracts", "properties"
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "properties", "users"

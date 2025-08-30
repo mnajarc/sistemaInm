@@ -35,11 +35,13 @@ class Ability
       can :manage, :all
     when 'agent'
       can :read, :all
-      can :create, :properties
-      can :update, :properties, agent: user
+      can :create, Property
+      can [:update, :destroy], Property, user: user
     when 'client'
-      can :read, :properties
-      can :create, :inquiries
+      can :read, Property
+    else
+      # Usuario guest o sin rol
+      can :read, Property
     end
 
 

@@ -16,9 +16,18 @@ class Property < ApplicationRecord
   validate :sanitize_input
   
   private
-  
+  # Alternativa más robusta
   def sanitize_input
-    self.title = ActionController::Base.helpers.sanitize(title) if title.present?
-    self.description = ActionController::Base.helpers.sanitize(description) if description.present?
+    self.title = Rails::Html::FullSanitizer.new.sanitize(title) if title.present?
+    self.description = Rails::Html::WhiteListSanitizer.new.sanitize(
+      description, 
+      tags: %w[p br strong em],
+      attributes: []
+    ) if description.present?
   end
+
+  # def sanitize_input
+    # self.title = ActionController::Base.helpers.sanitize(title) if title.present?
+    # self.description = ActionController::Base.helpers.sanitize(description) if description.present?
+  # end
 end

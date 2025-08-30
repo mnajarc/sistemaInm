@@ -8,7 +8,18 @@ threads_count = Integer(ENV['RAILS_MAX_THREADS'] || 3)
 threads threads_count, threads_count
 
 # Bind a todas las interfaces para acceso externo
-bind 'tcp://0.0.0.0:3000'
+# config/puma.rb
+if Rails.env.development?
+  ssl_bind '0.0.0.0', '3001', {
+    key: 'localhost+3-key.pem',
+    cert: 'localhost+3.pem'
+  }
+  bind 'tcp://0.0.0.0:3000'  # HTTP también disponible
+else
+  bind "tcp://127.0.0.1:3000"
+end
+
+# bind 'tcp://0.0.0.0:3000'
 
 # Configuración de ambiente
 environment ENV.fetch('RAILS_ENV', 'development')

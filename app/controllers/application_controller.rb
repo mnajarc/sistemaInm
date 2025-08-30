@@ -1,8 +1,12 @@
 class ApplicationController < ActionController::Base
   # Rate limiting más específico por tipo de acción
-  rate_limit to: 10, within: 1.minute, only: [:create], name: "create_actions"
-  rate_limit to: 50, within: 1.minute, only: [:update, :destroy], name: "modify_actions"  
-  rate_limit to: 100, within: 1.minute, except: [:create, :update, :destroy], name: "read_actions"
+  # rate_limit to: 10, within: 1.minute, only: [:create], name: "create_actions",
+           # with: -> { 
+             # Rails.logger.warn "Rate limit exceeded for IP: #{request.remote_ip}"
+             # head :too_many_requests 
+           # }
+  # rate_limit to: 50, within: 1.minute, only: [:update, :destroy], name: "modify_actions"  
+  # rate_limit to: 100, within: 1.minute, except: [:create, :update, :destroy], name: "read_actions"
 
   protect_from_forgery with: :exception
   before_action :authenticate_user!

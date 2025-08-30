@@ -1,5 +1,6 @@
 # app/controllers/admin/document_types_controller.rb
 class Admin::DocumentTypesController < Admin::BaseController
+  before_action :ensure_admin
   before_action :set_document_type, only: [:show, :edit, :update, :destroy]
 
   def index
@@ -31,6 +32,7 @@ class Admin::DocumentTypesController < Admin::BaseController
     else
       render :edit
     end
+
   end
 
   def destroy
@@ -39,6 +41,10 @@ class Admin::DocumentTypesController < Admin::BaseController
   end
 
   private
+
+  def ensure_admin
+    redirect_to root_path, alert: "Acceso denegado" unless current_user&.admin?
+  end
 
   def set_document_type
     @document_type = DocumentType.find(params[:id])

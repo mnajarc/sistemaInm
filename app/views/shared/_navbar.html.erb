@@ -1,60 +1,59 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container-fluid">
-    <!-- Marca / Logo -->
     <%= link_to "Sistema Inmobiliario", root_path, class: "navbar-brand" %>
-
-    <!-- Botón hamburguesa móvil -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+    
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+            data-bs-target="#mainNavbar" aria-controls="mainNavbar" 
+            aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-
-    <!-- Menú colapsable -->
+    
     <div class="collapse navbar-collapse" id="mainNavbar">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <% if user_signed_in? %>
+          <!-- Link simple - SE CIERRA la hamburguesa -->
           <li class="nav-item">
             <%= link_to "Propiedades", properties_path, class: "nav-link" %>
           </li>
+          
           <% if can? :create, Property %>
             <li class="nav-item">
               <%= link_to "Nueva Propiedad", new_property_path, class: "nav-link" %>
             </li>
           <% end %>
+          
           <% if can? :manage, :all %>
-            <li class="nav-item">
-              <%= link_to "Administración", admin_document_types_path, class: "nav-link" %>
+            <!-- Dropdown/Submenu - NO SE CIERRA la hamburguesa -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" 
+                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Administración
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                <li><%= link_to "Tipos de Documento", admin_document_types_path, class: "dropdown-item" %></li>
+                <!-- Futuros submenús aquí -->
+              </ul>
             </li>
           <% end %>
         <% end %>
       </ul>
-
-      <!-- Sección de usuario / logout -->
+      
+      <!-- Usuario dropdown -->
       <ul class="navbar-nav mb-2 mb-lg-0">
         <% if user_signed_in? %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" 
+               role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <%= current_user.email %>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li>
-                <%= link_to "Perfil", edit_user_registration_path, class: "dropdown-item" %>
-              </li>
+              <li><%= link_to "Perfil", edit_user_registration_path, class: "dropdown-item" %></li>
               <li><hr class="dropdown-divider"></li>
-              <li>
-                <%= button_to "Cerrar Sesión", destroy_user_session_path,
-                              method: :delete,
-                              form: { data: { turbo: false }, class: "d-inline" },
-                              class: "dropdown-item" %>
-              </li>
+              <li><%= button_to "Cerrar Sesión", destroy_user_session_path,
+                                method: :delete,
+                                form: { data: { turbo: false }, class: "d-inline" },
+                                class: "dropdown-item" %></li>
             </ul>
-          </li>
-        <% else %>
-          <li class="nav-item">
-            <%= link_to "Iniciar Sesión", new_user_session_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Registrarse", new_user_registration_path, class: "nav-link" %>
           </li>
         <% end %>
       </ul>
