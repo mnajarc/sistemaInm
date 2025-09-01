@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_01_195720) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -130,6 +130,24 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
     t.check_constraint "validity_period_months > 0", name: "validity_period_positive"
   end
 
+  create_table "menu_items", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.string "path"
+    t.string "icon"
+    t.integer "parent_id"
+    t.integer "sort_order", default: 0
+    t.integer "minimum_role_level", default: 999
+    t.boolean "active", default: true
+    t.boolean "system_menu", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["minimum_role_level"], name: "index_menu_items_on_minimum_role_level"
+    t.index ["name"], name: "index_menu_items_on_name", unique: true
+    t.index ["parent_id"], name: "index_menu_items_on_parent_id"
+    t.index ["sort_order"], name: "index_menu_items_on_sort_order"
+  end
+
   create_table "properties", force: :cascade do |t|
     t.string "title"
     t.text "description"
@@ -181,6 +199,41 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
     t.index ["property_id"], name: "index_property_exclusivities_on_property_id"
   end
 
+  create_table "role_change_logs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.integer "old_role"
+    t.integer "new_role"
+    t.datetime "changed_at", precision: nil, null: false
+    t.string "changed_by_ip"
+    t.text "notes"
+    t.index ["user_id"], name: "index_role_change_logs_on_user_id"
+  end
+
+  create_table "role_menu_permissions", force: :cascade do |t|
+    t.bigint "role_id", null: false
+    t.bigint "menu_item_id", null: false
+    t.boolean "can_view", default: true
+    t.boolean "can_edit", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["menu_item_id"], name: "index_role_menu_permissions_on_menu_item_id"
+    t.index ["role_id", "menu_item_id"], name: "idx_role_menu_unique", unique: true
+    t.index ["role_id"], name: "index_role_menu_permissions_on_role_id"
+  end
+
+  create_table "roles", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.integer "level", default: 999, null: false
+    t.boolean "active", default: true
+    t.boolean "system_role", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["level"], name: "index_roles_on_level"
+    t.index ["name"], name: "index_roles_on_name", unique: true
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -190,6 +243,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "role"
+    t.boolean "active", default: true, null: false
+    t.integer "sign_in_count", default: 0, null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.string "current_sign_in_ip"
+    t.string "last_sign_in_ip"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
@@ -203,10 +262,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_204059) do
   add_foreign_key "contracts", "properties"
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_validity_rules", "document_types"
+  add_foreign_key "menu_items", "menu_items", column: "parent_id"
   add_foreign_key "properties", "users"
   add_foreign_key "property_documents", "document_types"
   add_foreign_key "property_documents", "properties"
   add_foreign_key "property_documents", "users"
   add_foreign_key "property_exclusivities", "agents"
   add_foreign_key "property_exclusivities", "properties"
+  add_foreign_key "role_change_logs", "users"
+  add_foreign_key "role_menu_permissions", "menu_items"
+  add_foreign_key "role_menu_permissions", "roles"
 end

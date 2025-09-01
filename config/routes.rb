@@ -1,18 +1,22 @@
 Rails.application.routes.draw do
   # get "home/index"
   devise_for :users
-  # Ruta adicional GET para logout (más confiable)
-  delete '/logout', to: 'devise/sessions#destroy', as: :logout
-  
   root "home#index"
-
-namespace :admin do
+  
+  namespace :admin do
     resources :document_types
     resources :document_requirements
     resources :document_validity_rules
     resources :property_documents, only: [:index, :show, :destroy]
+    resources :users do
+      member do
+        patch :change_role
+      end
+    end
   end
-
+ 
+ # Ruta adicional GET para logout (más confiable)
+  delete '/logout', to: 'devise/sessions#destroy', as: :logout
 
   resources :properties
 

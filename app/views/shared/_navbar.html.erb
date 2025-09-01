@@ -1,59 +1,93 @@
+<!-- app/views/shared/_navbar.html.erb -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container-fluid">
     <%= link_to "Sistema Inmobiliario", root_path, class: "navbar-brand" %>
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
-            data-bs-target="#mainNavbar" aria-controls="mainNavbar" 
-            aria-expanded="false" aria-label="Toggle navigation">
+            data-bs-target="#mainNavbar">
       <span class="navbar-toggler-icon"></span>
     </button>
     
     <div class="collapse navbar-collapse" id="mainNavbar">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <% if user_signed_in? %>
-          <!-- Link simple - SE CIERRA la hamburguesa -->
+      <!-- ✅ MENÚS PRINCIPALES (Reemplazar el render_menu_tree temporalmente) -->
+      <% if user_signed_in? %>
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <!-- Propiedades - Todos pueden ver -->
           <li class="nav-item">
             <%= link_to "Propiedades", properties_path, class: "nav-link" %>
           </li>
           
-          <% if can? :create, Property %>
+          <!-- Nueva Propiedad - Solo agentes y arriba -->
+          <% if current_user.agent? || current_user.admin? || current_user.superadmin? %>
             <li class="nav-item">
               <%= link_to "Nueva Propiedad", new_property_path, class: "nav-link" %>
             </li>
           <% end %>
           
-          <% if can? :manage, :all %>
-            <!-- Dropdown/Submenu - NO SE CIERRA la hamburguesa -->
+          <!-- ✅ ADMINISTRACIÓN - Solo admin y superadmin -->
+          <% if can_access_admin? %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" 
                  role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Administración
               </a>
               <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                <li><%= link_to "Tipos de Documento", admin_document_types_path, class: "dropdown-item" %></li>
-                <!-- Futuros submenús aquí -->
+                <li>
+                  <%= link_to admin_document_types_path, class: "dropdown-item" do %>
+                    <i class="bi bi-file-text"></i> Tipos de Documento
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to admin_users_path, class: "dropdown-item" do %>
+                    <i class="bi bi-people"></i> Gestión de Usuarios
+                  <% end %>
+                </li>
+                
+                <!-- ✅ SUPERADMIN: Menús adicionales -->
+                <% if can_access_superadmin? %>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <%= link_to "#", class: "dropdown-item text-warning" do %>
+                      <i class="bi bi-shield-lock"></i> Configuración de Menús <small>(próximamente)</small>
+                    <% end %>
+                  </li>
+                  <li>
+                    <%= link_to "#", class: "dropdown-item text-warning" do %>
+                      <i class="bi bi-person-badge"></i> Configuración de Roles <small>(próximamente)</small>
+                    <% end %>
+                  </li>
+                <% end %>
               </ul>
             </li>
           <% end %>
-        <% end %>
-      </ul>
+        </ul>
+      <% end %>
       
-      <!-- Usuario dropdown -->
+      <!-- ✅ USUARIO DROPDOWN - Actualizado -->
       <ul class="navbar-nav mb-2 mb-lg-0">
         <% if user_signed_in? %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" 
-               role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
               <%= current_user.email %>
+              <span class="badge bg-<%= current_user.superadmin? ? 'warning' : 'light' %> text-dark ms-1">
+                <%= current_user.role.humanize %>
+              </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+            <ul class="dropdown-menu dropdown-menu-end">
               <li><%= link_to "Perfil", edit_user_registration_path, class: "dropdown-item" %></li>
               <li><hr class="dropdown-divider"></li>
-              <li><%= button_to "Cerrar Sesión", destroy_user_session_path,
-                                method: :delete,
-                                form: { data: { turbo: false }, class: "d-inline" },
-                                class: "dropdown-item" %></li>
+              <li>
+                <%= button_to "Cerrar Sesión", destroy_user_session_path,
+                              method: :delete, class: "dropdown-item" %>
+              </li>
             </ul>
+          </li>
+        <% else %>
+          <li class="nav-item">
+            <%= link_to "Iniciar Sesión", new_user_session_path, class: "nav-link" %>
+          </li>
+          <li class="nav-item">
+            <%= link_to "Registrarse", new_user_registration_path, class: "nav-link" %>
           </li>
         <% end %>
       </ul>

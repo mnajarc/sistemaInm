@@ -24,5 +24,69 @@ module ApplicationHelper
     end
   end
 
+  def role_name(role)
+    case role.to_s
+    when 'admin'
+      'Administrador'
+    when 'agent'
+      'Agente'
+    when 'client'
+      'Consulta'
+    else
+      'Sin rol'
+    end
+  end
+  
+  def role_badge_class(role)
+    case role.to_s
+    when 'admin'
+      'danger'
+    when 'agent'
+      'primary'
+    when 'client'
+      'secondary'
+    else
+      'light'
+    end
+  end
+
+    def can_access_admin?
+      current_user&.admin_or_above?
+    end
+
+    def can_access_superadmin?
+      current_user&.superadmin?
+    end
+
+    def role_badge_class(role)
+      case role.to_s
+      when 'admin'
+        'danger'
+      when 'superadmin'
+        'warning'
+      when 'agent'
+        'primary'
+      when 'client'
+        'secondary'
+      else
+        'light'
+      end
+    end
+
+  def role_name(role)
+    case role.to_s
+    when 'admin'
+      'Administrador'
+    when 'superadmin'
+      'Superadministrador'
+    when 'agent'
+      'Agente'
+    when 'client'
+      'Cliente'
+    else
+      'Sin rol'
+    end
+  end
+
 end
 

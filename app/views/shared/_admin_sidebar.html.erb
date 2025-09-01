@@ -11,13 +11,12 @@
       <% end %>
     </li>
     
-    <!-- ✅ COMENTARIO CORREGIDO - Cada línea comentada individualmente -->
-    <%# <li class="nav-item"> %>
-    <%#= link_to admin_users_path, %>
-    <%#     class: "nav-link #{'active' if controller_name == 'users'}" do %>
-    <%#   <i class="bi bi-people"></i> Usuarios %>
-    <%# end %>
-    <%# </li> %>
+    <li class="nav-item">
+      <%= link_to admin_users_path, 
+          class: "nav-link #{'active' if controller_name == 'users' && controller.class.name.start_with?('Admin')}" do %>
+        <i class="bi bi-people"></i> Gestión de Usuarios
+      <% end %>
+    </li>
   </ul>
   
   <hr>
