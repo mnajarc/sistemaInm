@@ -58,6 +58,14 @@ module ApplicationHelper
       current_user&.superadmin?
     end
 
+    def admin_area?
+      controller_path.start_with?('admin/')
+    end
+
+    def superadmin_area?
+      controller_path.start_with?('superadmin/')
+    end
+  
     def role_badge_class(role)
       case role.to_s
       when 'admin'
@@ -85,6 +93,19 @@ module ApplicationHelper
       'Cliente'
     else
       'Sin rol'
+    end
+  end
+
+  def bootstrap_alert_class(flash_type)
+    case flash_type.to_s
+    when 'notice', 'success'
+      'success'
+    when 'alert', 'error'
+      'danger'
+    when 'warning'
+      'warning'
+    else
+      'info'
     end
   end
 

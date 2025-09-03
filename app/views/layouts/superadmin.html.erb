@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>SuperAdmin - Sistema Inmobiliario</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    
+    <%= stylesheet_link_tag "application", media: "all", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+  </head>
+
+  <body class="superadmin-area">
+    <%= render "shared/navbar" %>
+    
+    <div class="container-fluid">
+      <div class="row">
+        <!-- Sidebar SuperAdmin -->
+        <div class="col-md-2 bg-dark text-light">
+          <%= render "superadmin/shared/sidebar" %>
+        </div>
+        
+        <!-- Contenido Principal -->
+        <div class="col-md-10">
+          <main class="superadmin-content py-4">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+              <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                  <%= link_to "SuperAdmin", superadmin_root_path %>
+                </li>
+                <% if content_for?(:breadcrumb) %>
+                  <%= yield :breadcrumb %>
+                <% else %>
+                  <li class="breadcrumb-item active"><%= yield :title %></li>
+                <% end %>
+              </ol>
+            </nav>
+            
+            <!-- Alertas -->
+            <%= render "shared/flash_messages" if flash.any? %>
+            
+            <!-- Contenido -->
+            <%= yield %>
+          </main>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

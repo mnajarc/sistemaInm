@@ -1,0 +1,104 @@
+<% content_for :title, "Editar Rol: #{@role.display_name}" %>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-pencil-square"></i> Editar Rol</h4>
+        <% if @role.system_role? %>
+          <span class="badge bg-warning">
+            <i class="bi bi-shield-check"></i> Sistema
+          </span>
+        <% end %>
+      </div>
+      <div class="card-body">
+        <% if @role.system_role? %>
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Rol del Sistema:</strong> Solo se pueden modificar campos específicos.
+          </div>
+        <% end %>
+
+        <%= form_with model: [:superadmin, @role], local: true do |form| %>
+          <% if @role.errors.any? %>
+            <div class="alert alert-danger">
+              <h6>Errores encontrados:</h6>
+              <ul class="mb-0">
+                <% @role.errors.full_messages.each do |msg| %>
+                  <li><%= msg %></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <!-- Información Actual -->
+          <div class="card bg-light mb-3">
+            <div class="card-body">
+              <h6>Información Actual:</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <strong>Creado:</strong> <%= @role.created_at.strftime("%d/%m/%Y %H:%M") %><br>
+                  <strong>Usuarios:</strong> <%= @role.users.count %>
+                </div>
+                <div class="col-md-6">
+                  <strong>Permisos:</strong> <%= @role.role_menu_permissions.count %> menús<br>
+                  <strong>Actualizado:</strong> <%= @role.updated_at.strftime("%d/%m/%Y %H:%M") %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <%= form.label :name, "Nombre Interno", class: "form-label" %>
+              <%= form.text_field :name, class: "form-control", 
+                                 readonly: @role.system_role? %>
+              <% if @role.system_role? %>
+                <div class="form-text text-warning">
+                  No se puede cambiar el nombre de roles del sistema
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="col-md-6">
+              <%= form.label :display_name, "Nombre a Mostrar", class: "form-label" %>
+              <%= form.text_field :display_name, class: "form-control" %>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <%= form.label :description, "Descripción", class: "form-label" %>
+            <%= form.text_area :description, class: "form-control", rows: 3 %>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <%= form.label :level, "Nivel de Jerarquía", class: "form-label" %>
+              <%= form.select :level,
+                             options_for_select(@available_levels, @role.level),
+                             {}, 
+                             { class: "form-select", disabled: @role.system_role? } %>
+              <% if @role.system_role? %>
+                <div class="form-text text-warning">
+                  No se puede cambiar el nivel de roles del sistema
+                </div>
+              <% end %>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="form-check mt-4">
+                <%= form.check_box :active, class: "form-check-input" %>
+                <%= form.label :active, "Rol activo", class: "form-check-label" %>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-between">
+            <%= link_to "Cancelar", superadmin_roles_path, class: "btn btn-secondary" %>
+            <%= form.submit "Guardar Cambios", class: "btn btn-success" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

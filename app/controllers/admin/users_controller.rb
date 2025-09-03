@@ -18,39 +18,6 @@ class Admin::UsersController < ApplicationController
   
   def edit
   end
-=begin
-comentado para incluir versión corregida de update
-  def update
-    # ✅ PROTECCIÓN: Verificar autorización específica para el cambio
-    if params[:user][:role].present?
-      new_role = params[:user][:role]
-      unless @user.can_change_role_to?(new_role, current_user)
-        redirect_to admin_users_path, 
-                   alert: "No tienes permisos para asignar el rol '#{new_role}' a #{@user.email}"
-        return
-      end
-    end
-    
-    # ✅ Prevenir que el admin actual se quite sus propios permisos
-    if @user == current_user && params[:user][:role] != current_user.role
-      redirect_to admin_users_path, 
-                 alert: "No puedes cambiar tu propio rol"
-      return
-    end
-    
-    # ✅ Asignar quien hace el cambio para validaciones
-    @user.role_changer = current_user
-    
-    if @user.update(user_params)
-      # Log del cambio de rol
-      Rails.logger.info "✅ CAMBIO DE ROL AUTORIZADO:"
-      Rails.logger.info "   #{current_user.email} (#{current_user.role}) cambió rol de #{@user.email} a #{@user.role}"
-      redirect_to admin_users_path, notice: "Usuario actualizado exitosamente"
-    else
-      render :edit
-    end
-  end
-=end
 
   def update
     # ✅ DEBUG (remover después)

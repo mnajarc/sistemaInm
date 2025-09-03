@@ -1,0 +1,157 @@
+<% content_for :title, "Dashboard SuperAdmin" %>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h1 class="text-primary">
+      <i class="bi bi-shield-lock"></i> Panel de SuperAdministración
+    </h1>
+    <p class="text-muted">Control completo del sistema y configuración avanzada</p>
+  </div>
+</div>
+
+<!-- Estadísticas Generales -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <i class="bi bi-people fs-1 text-primary"></i>
+        <h3 class="mt-2"><%= @stats[:total_users] %></h3>
+        <p class="text-muted mb-0">Total Usuarios</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <i class="bi bi-list-ul fs-1 text-success"></i>
+        <h3 class="mt-2"><%= @stats[:active_menu_items] %>/<%= @stats[:total_menu_items] %></h3>
+        <p class="text-muted mb-0">Menús Activos</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <i class="bi bi-person-badge fs-1 text-warning"></i>
+        <h3 class="mt-2"><%= @stats[:total_roles] %></h3>
+        <p class="text-muted mb-0">Roles Configurados</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <i class="bi bi-house-door fs-1 text-info"></i>
+        <h3 class="mt-2"><%= Property.count %></h3>
+        <p class="text-muted mb-0">Propiedades</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Distribución de Usuarios por Rol -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="bi bi-pie-chart"></i> Distribución de Usuarios</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-6">
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-warning me-2">SA</span>
+              <span>SuperAdmins: <strong><%= @stats[:superadmins] %></strong></span>
+            </div>
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-danger me-2">AD</span>
+              <span>Admins: <strong><%= @stats[:admins] %></strong></span>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-primary me-2">AG</span>
+              <span>Agentes: <strong><%= @stats[:agents] %></strong></span>
+            </div>
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-secondary me-2">CL</span>
+              <span>Clientes: <strong><%= @stats[:clients] %></strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="bi bi-activity"></i> Actividad Reciente</h5>
+      </div>
+      <div class="card-body">
+        <% if @recent_role_changes.any? %>
+          <% @recent_role_changes.each do |user| %>
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge bg-<%= role_badge_class(user.role) %> me-2">
+                <%= user.role.humanize %>
+              </span>
+              <small>
+                <%= user.email %> 
+                <span class="text-muted">
+                  (<%= time_ago_in_words(user.updated_at) %> ago)
+                </span>
+              </small>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No hay actividad reciente</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Acciones Rápidas -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="bi bi-lightning"></i> Acciones Rápidas</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            <%= link_to new_superadmin_menu_item_path, class: "btn btn-outline-primary btn-lg w-100 mb-2" do %>
+              <i class="bi bi-plus-circle"></i><br>
+              <small>Crear Menú</small>
+            <% end %>
+          </div>
+          
+          <div class="col-md-3">
+            <%= link_to new_superadmin_role_path, class: "btn btn-outline-success btn-lg w-100 mb-2" do %>
+              <i class="bi bi-person-plus"></i><br>
+              <small>Crear Rol</small>
+            <% end %>
+          </div>
+          
+          <div class="col-md-3">
+            <%= link_to admin_users_path, class: "btn btn-outline-info btn-lg w-100 mb-2" do %>
+              <i class="bi bi-people"></i><br>
+              <small>Gestionar Usuarios</small>
+            <% end %>
+          </div>
+          
+          <div class="col-md-3">
+            <%= link_to superadmin_menu_items_path, class: "btn btn-outline-warning btn-lg w-100 mb-2" do %>
+              <i class="bi bi-list-ul"></i><br>
+              <small>Configurar Menús</small>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

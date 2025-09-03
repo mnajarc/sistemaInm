@@ -1,6 +1,24 @@
 # db/seeds.rb
 
 puts "🌱 Iniciando seeds del sistema..."
+# db/seeds.rb
+=begin
+roles_data = [
+  { name: 'superadmin', display_name: 'SuperAdministrador', level: 0, system_role: true },
+  { name: 'admin',      display_name: 'Administrador',       level: 10, system_role: true },
+  { name: 'agent',      display_name: 'Agente Inmobiliario', level: 20, system_role: true },
+  { name: 'client',     display_name: 'Cliente',             level: 30, system_role: true }
+]
+
+roles_data.each do |attrs|
+  Role.find_or_create_by!(name: attrs[:name]) do |r|
+    r.display_name = attrs[:display_name]
+    r.level        = attrs[:level]
+    r.system_role  = attrs[:system_role]
+    r.active       = true
+    r.description  = attrs[:description]
+  end
+end
 
 # ==============================================================================
 # ROLES DEL SISTEMA
@@ -204,3 +222,4 @@ puts "  SuperAdmin: #{superadmin_email} / #{superadmin_password}"
 puts "  Acceso: http://localhost:3000"
 puts "  Panel SuperAdmin estará disponible en: /superadmin"
 puts "\n⚠️ IMPORTANTE: Cambiar credenciales del SuperAdmin en producción"
+=end

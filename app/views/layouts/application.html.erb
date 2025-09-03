@@ -13,10 +13,25 @@
     <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
   </head>
 
-  <body class="<%= admin_area? ? 'admin-area' : 'main-area' %>">
+  <body class="<%= superadmin_area? ? 'superadmin-area' : (admin_area? ? 'admin-area' : 'main-area') %>">
     <%= render "shared/navbar" %>
     
-    <% if admin_area? %>
+    <% if superadmin_area? %>
+      <!-- Layout SuperAdmin con Sidebar Oscuro -->
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-2 bg-dark text-light">
+            <%= render "superadmin/shared/sidebar" %>
+          </div>
+          <div class="col-md-10">
+            <main class="superadmin-content py-4">
+              <%= render "shared/flash_messages" if flash.any? %>
+              <%= yield %>
+            </main>
+          </div>
+        </div>
+      </div>
+    <% elsif admin_area? %>
       <!-- Layout Admin con Sidebar -->
       <div class="container-fluid">
         <div class="row">

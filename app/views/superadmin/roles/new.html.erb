@@ -1,0 +1,146 @@
+<% content_for :title, "Crear Nuevo Rol" %>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h4><i class="bi bi-person-plus"></i> Crear Nuevo Rol</h4>
+      </div>
+      <div class="card-body">
+        <%= form_with model: [:superadmin, @role], local: true do |form| %>
+          <% if @role.errors.any? %>
+            <div class="alert alert-danger">
+              <h6>Errores encontrados:</h6>
+              <ul class="mb-0">
+                <% @role.errors.full_messages.each do |msg| %>
+                  <li><%= msg %></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <%= form.label :name, "Nombre Interno", class: "form-label" %>
+              <%= form.text_field :name, class: "form-control", 
+                                 placeholder: "ej: manager_level_15" %>
+              <div class="form-text">
+                Identificador único (solo letras, números y guiones bajos)
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <%= form.label :display_name, "Nombre a Mostrar", class: "form-label" %>
+              <%= form.text_field :display_name, class: "form-control", 
+                                 placeholder: "ej: Gerente Nivel 15" %>
+              <div class="form-text">
+                Nombre que verán los usuarios
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <%= form.label :description, "Descripción", class: "form-label" %>
+            <%= form.text_area :description, class: "form-control", rows: 3,
+                              placeholder: "Describe las responsabilidades y permisos de este rol..." %>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <%= form.label :level, "Nivel de Jerarquía", class: "form-label" %>
+              <%= form.select :level, options_for_select(@available_levels), 
+                             { include_blank: "Seleccionar nivel..." }, 
+                             { class: "form-select" } %>
+              <div class="form-text">
+                Números más bajos tienen más privilegios. Los niveles ya usados no aparecen.
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label class="form-label">Vista Previa de Privilegios</label>
+              <div class="bg-light p-2 rounded">
+                <small class="text-muted" id="privilege-preview">
+                  Selecciona un nivel para ver los privilegios
+                </small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="form-check">
+              <%= form.check_box :active, class: "form-check-input", checked: true %>
+              <%= form.label :active, "Rol activo", class: "form-check-label" %>
+              <div class="form-text">
+                Solo los roles activos aparecen en las opciones de asignación
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista Previa del Rol -->
+          <div class="card bg-light mb-3">
+            <div class="card-header">
+              <h6>Vista Previa del Rol</h6>
+            </div>
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <span class="badge bg-info me-2" id="role-preview-level">Nivel X</span>
+                <span id="role-preview-name">Nombre del Rol</span>
+              </div>
+              <small class="text-muted mt-2 d-block" id="role-preview-desc">
+                Descripción del rol...
+              </small>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <%= link_to "Cancelar", superadmin_roles_path, class: "btn btn-secondary" %>
+            <%= form.submit "Crear Rol", class: "btn btn-success" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('turbo:load', function() {
+  const nameInput = document.querySelector('#role_display_name');
+  const descInput = document.querySelector('#role_description');
+  const levelSelect = document.querySelector('#role_level');
+  
+  function updatePreview() {
+    const name = nameInput?.value || 'Nombre del Rol';
+    const desc = descInput?.value || 'Descripción del rol...';
+    const level = levelSelect?.value || 'X';
+    
+    document.getElementById('role-preview-name').textContent = name;
+    document.getElementById('role-preview-desc').textContent = desc;
+    document.getElementById('role-preview-level').textContent = `Nivel ${level}`;
+    
+    // Actualizar vista de privilegios
+    updatePrivilegePreview(level);
+  }
+  
+  function updatePrivilegePreview(level) {
+    const preview = document.getElementById('privilege-preview');
+    if (!level) {
+      preview.textContent = 'Selecciona un nivel para ver los privilegios';
+      return;
+    }
+    
+    let privileges = '';
+    if (level <= 0) privileges = 'Control total del sistema';
+    else if (level <= 10) privileges = 'Gestión de usuarios y propiedades';
+    else if (level <= 20) privileges = 'Gestión de propiedades';
+    else privileges = 'Solo consulta de propiedades';
+    
+    preview.textContent = privileges;
+  }
+  
+  nameInput?.addEventListener('input', updatePreview);
+  descInput?.addEventListener('input', updatePreview);
+  levelSelect?.addEventListener('change', updatePreview);
+  
+  updatePreview();
+});
+</script>

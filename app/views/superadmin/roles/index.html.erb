@@ -1,0 +1,107 @@
+<% content_for :title, "Configuración de Roles" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Roles del Sistema</h2>
+  <%= link_to "Nuevo Rol", new_superadmin_role_path, class: "btn btn-success" %>
+</div>
+
+<div class="row">
+  <!-- Roles del Sistema -->
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-shield-check"></i> Roles del Sistema
+      </div>
+      <div class="list-group list-group-flush">
+        <% @system_roles.each do |role| %>
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <%= link_to role.display_name, superadmin_role_path(role), 
+                         class: "text-decoration-none fw-bold" %>
+              <br>
+              <small class="text-muted"><%= role.description %></small>
+            </div>
+            <div>
+              <span class="badge bg-light text-dark me-2">Nivel <%= role.level %></span>
+              <span class="badge bg-<%= role.active? ? 'success' : 'danger' %>">
+                <%= role.active? ? 'Activo' : 'Inactivo' %>
+              </span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Roles Personalizados -->
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-person-plus"></i> Roles Personalizados
+      </div>
+      <div class="list-group list-group-flush">
+        <% if @custom_roles.any? %>
+          <% @custom_roles.each do |role| %>
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <%= link_to role.display_name, superadmin_role_path(role), 
+                             class: "text-decoration-none fw-bold" %>
+                  <br>
+                  <small class="text-muted"><%= role.description %></small>
+                </div>
+                <div>
+                  <span class="badge bg-light text-dark me-2">Nivel <%= role.level %></span>
+                  <%= link_to "Ver", superadmin_role_path(role), 
+                             class: "btn btn-sm btn-outline-primary me-1" %>
+                  <%= link_to "Editar", edit_superadmin_role_path(role), 
+                             class: "btn btn-sm btn-outline-warning me-1" %>
+                  <%= link_to "Eliminar", superadmin_role_path(role),
+                             method: :delete,
+                             data: { confirm: "¿Eliminar rol #{role.display_name}?" },
+                             class: "btn btn-sm btn-outline-danger" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-inbox fs-1 mb-2"></i>
+            <p>No hay roles personalizados</p>
+            <%= link_to "Crear Primer Rol", new_superadmin_role_path, 
+                       class: "btn btn-outline-success" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Información de Jerarquía -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="bi bi-diagram-3"></i> Jerarquía de Roles</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Los números menores tienen mayor jerarquía y pueden gestionar roles con números mayores.</p>
+        <div class="row">
+          <% @roles.each_with_index do |role, index| %>
+            <div class="col-md-3 mb-2">
+              <div class="card border-<%= role.system_role? ? 'warning' : 'info' %>">
+                <div class="card-body text-center py-2">
+                  <span class="badge bg-<%= role_badge_class(role.name) %> mb-1">
+                    Nivel <%= role.level %>
+                  </span>
+                  <h6><%= role.display_name %></h6>
+                  <small class="text-muted"><%= role.users.count %> usuarios</small>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

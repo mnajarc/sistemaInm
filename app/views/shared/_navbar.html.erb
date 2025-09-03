@@ -1,4 +1,3 @@
-<!-- app/views/shared/_navbar.html.erb -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container-fluid">
     <%= link_to "Sistema Inmobiliario", root_path, class: "navbar-brand" %>
@@ -9,7 +8,7 @@
     </button>
     
     <div class="collapse navbar-collapse" id="mainNavbar">
-      <!-- ✅ MENÚS PRINCIPALES (Reemplazar el render_menu_tree temporalmente) -->
+      <!-- MENÚS PRINCIPALES -->
       <% if user_signed_in? %>
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <!-- Propiedades - Todos pueden ver -->
@@ -24,10 +23,10 @@
             </li>
           <% end %>
           
-          <!-- ✅ ADMINISTRACIÓN - Solo admin y superadmin -->
+          <!-- ADMINISTRACIÓN - Solo admin y superadmin -->
           <% if can_access_admin? %>
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" 
+              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown"
                  role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Administración
               </a>
@@ -43,17 +42,22 @@
                   <% end %>
                 </li>
                 
-                <!-- ✅ SUPERADMIN: Menús adicionales -->
+                <!-- SUPERADMIN: Menús adicionales -->
                 <% if can_access_superadmin? %>
                   <li><hr class="dropdown-divider"></li>
                   <li>
-                    <%= link_to "#", class: "dropdown-item text-warning" do %>
-                      <i class="bi bi-shield-lock"></i> Configuración de Menús <small>(próximamente)</small>
+                    <%= link_to superadmin_root_path, class: "dropdown-item text-warning" do %>
+                      <i class="bi bi-shield-lock"></i> Panel SuperAdmin
                     <% end %>
                   </li>
                   <li>
-                    <%= link_to "#", class: "dropdown-item text-warning" do %>
-                      <i class="bi bi-person-badge"></i> Configuración de Roles <small>(próximamente)</small>
+                    <%= link_to superadmin_menu_items_path, class: "dropdown-item text-warning" do %>
+                      <i class="bi bi-list-ul"></i> Configurar Menús
+                    <% end %>
+                  </li>
+                  <li>
+                    <%= link_to superadmin_roles_path, class: "dropdown-item text-warning" do %>
+                      <i class="bi bi-person-badge"></i> Configurar Roles
                     <% end %>
                   </li>
                 <% end %>
@@ -63,7 +67,7 @@
         </ul>
       <% end %>
       
-      <!-- ✅ USUARIO DROPDOWN - Actualizado -->
+      <!-- USUARIO DROPDOWN -->
       <ul class="navbar-nav mb-2 mb-lg-0">
         <% if user_signed_in? %>
           <li class="nav-item dropdown">

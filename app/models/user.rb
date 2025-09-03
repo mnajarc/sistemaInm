@@ -2,8 +2,10 @@ class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :trackable
   
-  enum :role, { client: 0, agent: 1, admin: 2, superadmin: 3 }
-  
+  # anteriormente se tenía en memoria y se cambia por una tabla para dar mayor flexibilidad al modelo
+  # enum :role, { client: 0, agent: 1, admin: 2, superadmin: 3 }
+  belongs_to :role
+
   has_many :properties, dependent: :destroy
   
   validates :role, presence: true
@@ -19,13 +21,7 @@ class User < ApplicationRecord
   
   # ✅ NIVELES DE ROL (para lógica de interfaz)
   def role_level
-    case role
-    when 'superadmin' then 0
-    when 'admin' then 10  
-    when 'agent' then 20
-    when 'client' then 30
-    else 999
-    end
+    role.level
   end
   
   # ✅ VERIFICAR SI PUEDE SER GESTIONADO POR OTRO USUARIO
@@ -62,15 +58,15 @@ class User < ApplicationRecord
   
   # ✅ MÉTODOS DE VERIFICACIÓN DE ROL
   def superadmin?
-    role == 'superadmin'
+    role.name == 'superadmin'
   end
   
   def admin_or_above?
-    %w[superadmin admin].include?(role)
+    %w[superadmin admin].include?(role.name)
   end
   
   def can_manage_user?(other_user)
-    role_before_type_cast.to_i > other_user.role_before_type_cast.to_i
+    role.level < other_user.role.level
   end
   
   # ✅ VERIFICAR SI ESTÁ ACTIVO
@@ -121,7 +117,7 @@ class User < ApplicationRecord
   private
   
   def set_default_role
-    self.role ||= :client
+    self.role ||= Role.find_by(name: 'client')
   end
   
   def role_change_authorization

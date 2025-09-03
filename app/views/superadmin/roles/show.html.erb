@@ -1,0 +1,120 @@
+<% content_for :title, "Rol: #{@role.display_name}" %>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-person-badge"></i> Detalles del Rol</h4>
+        <% if @role.system_role? %>
+          <span class="badge bg-warning">
+            <i class="bi bi-shield-check"></i> Sistema
+          </span>
+        <% end %>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Nombre interno:</strong> <code><%= @role.name %></code></p>
+            <p><strong>Nombre a mostrar:</strong> <%= @role.display_name %></p>
+            <p><strong>Descripción:</strong></p>
+            <div class="bg-light p-2 rounded">
+              <%= @role.description.presence || "Sin descripción" %>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Nivel de jerarquía:</strong> 
+              <span class="badge bg-secondary fs-6"><%= @role.level %></span>
+            </p>
+            <p><strong>Estado:</strong>
+              <span class="badge bg-<%= @role.active? ? 'success' : 'danger' %> fs-6">
+                <%= @role.active? ? 'Activo' : 'Inactivo' %>
+              </span>
+            </p>
+            <p><strong>Tipo:</strong>
+              <span class="badge bg-<%= @role.system_role? ? 'warning' : 'info' %> fs-6">
+                <%= @role.system_role? ? 'Sistema' : 'Personalizado' %>
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex justify-content-between">
+        <%= link_to "← Volver", superadmin_roles_path, class: "btn btn-secondary" %>
+        <div>
+          <% unless @role.system_role? %>
+            <%= link_to "Editar", edit_superadmin_role_path(@role), 
+                       class: "btn btn-primary me-2" %>
+            <%= link_to "Eliminar", superadmin_role_path(@role),
+                       method: :delete,
+                       data: { confirm: "¿Eliminar rol #{@role.display_name}?" },
+                       class: "btn btn-danger" %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <!-- Usuarios con este Rol -->
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <h5><i class="bi bi-people"></i> Usuarios con este Rol</h5>
+      </div>
+      <div class="card-body">
+        <% if @users_with_role.any? %>
+          <% @users_with_role.each do |user| %>
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-person-circle me-2"></i>
+              <div>
+                <%= user.email %>
+                <% if user.last_sign_in_at %>
+                  <br><small class="text-muted">
+                    Último login: <%= time_ago_in_words(user.last_sign_in_at) %> ago
+                  </small>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="text-center text-muted py-3">
+            <i class="bi bi-inbox fs-1"></i>
+            <p>Ningún usuario tiene este rol</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    
+    <!-- Permisos de Menú -->
+    <div class="card">
+      <div class="card-header bg-light">
+        <h5><i class="bi bi-list-check"></i> Permisos de Menú</h5>
+      </div>
+      <div class="card-body">
+        <% if @menu_permissions.any? %>
+          <% @menu_permissions.each do |perm| %>
+            <div class="d-flex align-items-center justify-content-between mb-2 p-2 border rounded">
+              <div>
+                <% if perm.menu_item.icon.present? %>
+                  <i class="<%= perm.menu_item.icon %> me-2"></i>
+                <% end %>
+                <%= perm.menu_item.display_name %>
+              </div>
+              <div>
+                <% if perm.can_view %>
+                  <i class="bi bi-eye-fill text-success me-1" title="Puede ver"></i>
+                <% else %>
+                  <i class="bi bi-eye-slash text-danger me-1" title="No puede ver"></i>
+                <% end %>
+                <% if perm.can_edit %>
+                  <i class="bi bi-pencil-fill text-primary" title="Puede editar"></i>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted">Sin permisos asignados</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
