@@ -189,7 +189,17 @@ end
 # USUARIO SUPERADMIN INICIAL
 # ==============================================================================
 puts "👤 Creando usuario SuperAdmin inicial..."
+User.create!(
+  email: 'superadmin@sistema.local', 
+  password: 'SuperAdmin123!',
+  role: Role.find_by(name: 'superadmin')  # ✅ Usar asociación
+)
 
+User.create!(
+  email: 'admin@sistema.com',
+  password: 'Admin123!', 
+  role: Role.find_by(name: 'admin')
+)
 # IMPORTANTE: Cambiar estos datos antes de producción
 superadmin_email = 'superadmin@sistema.local'
 superadmin_password = 'SuperAdmin123!'
@@ -222,4 +232,5 @@ puts "  SuperAdmin: #{superadmin_email} / #{superadmin_password}"
 puts "  Acceso: http://localhost:3000"
 puts "  Panel SuperAdmin estará disponible en: /superadmin"
 puts "\n⚠️ IMPORTANTE: Cambiar credenciales del SuperAdmin en producción"
+
 =end

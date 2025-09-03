@@ -3,12 +3,13 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable, :trackable
   
   # anteriormente se tenía en memoria y se cambia por una tabla para dar mayor flexibilidad al modelo
-  # enum :role, { client: 0, agent: 1, admin: 2, superadmin: 3 }
   belongs_to :role
 
   has_many :properties, dependent: :destroy
   
   validates :role, presence: true
+  validates :role_id, presence: true
+  validate :role_exists
   validate :role_change_authorization, if: :role_changed?
   
   after_initialize :set_default_role, if: :new_record?
@@ -16,58 +17,58 @@ class User < ApplicationRecord
   
   # ✅ SCOPE PARA USUARIOS GESTIONABLES
   scope :manageable_by, ->(manager) { 
-    where("role < ?", manager.role_before_type_cast)
-  }
+    joins(:role).where('roles.level > ?', manager.role&.level || 999)
+  } 
   
   # ✅ NIVELES DE ROL (para lógica de interfaz)
   def role_level
-    role.level
+    role&.level || 999
   end
   
   # ✅ VERIFICAR SI PUEDE SER GESTIONADO POR OTRO USUARIO
   def can_be_managed_by?(manager_user)
     return false unless manager_user
-    self.role_before_type_cast < manager_user.role_before_type_cast
+    self.role.level > manager_user.role.level
   end
   
   # ✅ VERIFICAR SI SE PUEDE CAMBIAR A UN ROL ESPECÍFICO
-  def can_change_role_to?(new_role, changer_user)
+  def can_change_role_to?(new_role_name, changer_user)
     return false unless changer_user
     
-    # Convertir nuevo rol a integer
-    new_role_int = case new_role
-    when String
-      User.roles[new_role]
-    when Symbol
-      User.roles[new_role.to_s]
-    when Integer
-      new_role
-    else
-      nil
-    end
+    new_role = Role.find_by(name: new_role_name)
+    return false unless new_role
     
-    return false if new_role_int.nil?
-    
-    # Asegurar comparación de enteros
-    changer_role_int = changer_user.role_before_type_cast.to_i
-    current_role_int = self.role_before_type_cast.to_i
-    
-    # El changer debe tener rol MAYOR (más poder) que el usuario actual Y que el nuevo rol
-    changer_role_int > current_role_int && changer_role_int > new_role_int
+    changer_user.role&.level && self.role&.level &&
+    changer_user.role.level < self.role.level && 
+    changer_user.role.level < new_role.level
   end
   
   # ✅ MÉTODOS DE VERIFICACIÓN DE ROL
   def superadmin?
-    role.name == 'superadmin'
+    role&.name == 'superadmin'
+  end
+
+  def admin?
+    role&.name == 'admin'
+  end
+
+  def agent?
+    role&.name == 'agent'
   end
   
+  def client?
+    role&.name == 'client'
+  end
+
   def admin_or_above?
-    %w[superadmin admin].include?(role.name)
+    %w[superadmin admin].include?(role&.name)
   end
   
   def can_manage_user?(other_user)
+    role&.level && other_user.role&.level &&
     role.level < other_user.role.level
   end
+
   
   # ✅ VERIFICAR SI ESTÁ ACTIVO
   def active?
@@ -75,19 +76,8 @@ class User < ApplicationRecord
   end
   
   # ✅ NOMBRE DEL ROL EN ESPAÑOL
-  def role_name
-    case role
-    when 'superadmin'
-      'SuperAdministrador'
-    when 'admin'
-      'Administrador'
-    when 'agent'
-      'Agente'
-    when 'client'
-      'Cliente'
-    else
-      'Sin rol'
-    end
+    def role_name
+    role&.display_name || 'Sin rol'
   end
   
   # ✅ MÉTODO DE DEBUG PARA TROUBLESHOOTING
@@ -120,6 +110,10 @@ class User < ApplicationRecord
     self.role ||= Role.find_by(name: 'client')
   end
   
+  def role_exists
+  errors.add(:role, "debe existir") unless role&.persisted?
+  end
+
   def role_change_authorization
     return unless role_changed? && persisted?
     
@@ -129,7 +123,7 @@ class User < ApplicationRecord
     end
     
     # Convertir role a string para la comparación
-    new_role_for_validation = role.to_s
+    new_role_for_validation = role.name
     unless can_change_role_to?(new_role_for_validation, role_changer)
       errors.add(:role, "No tienes permisos para asignar este rol a este usuario")
     end
@@ -138,10 +132,10 @@ class User < ApplicationRecord
   def prevent_unauthorized_role_change
     return unless role_changed? && persisted?
     
-    if role_changer && !can_change_role_to?(role.to_s, role_changer)
+    if role_changer && !can_change_role_to?(role.name, role_changer)
       Rails.logger.warn "🚨 INTENTO DE CAMBIO DE ROL NO AUTORIZADO:"
-      Rails.logger.warn "   Usuario objetivo: #{email} (#{role_was} -> #{role})"
-      Rails.logger.warn "   Usuario que intenta: #{role_changer&.email} (#{role_changer&.role})"
+      Rails.logger.warn "   Usuario objetivo: #{email} (#{role_was} -> #{role.name})"
+      Rails.logger.warn "   Usuario que intenta: #{role_changer&.email} (#{role_changer&.role.name})"
       Rails.logger.warn "   Timestamp: #{Time.current}"
       
       throw :abort

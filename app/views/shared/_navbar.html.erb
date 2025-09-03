@@ -74,7 +74,7 @@
             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
               <%= current_user.email %>
               <span class="badge bg-<%= current_user.superadmin? ? 'warning' : 'light' %> text-dark ms-1">
-                <%= current_user.role.humanize %>
+                <%= current_user.role&.display_name || 'Sin rol' %>
               </span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">

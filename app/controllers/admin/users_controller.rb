@@ -26,8 +26,8 @@ class Admin::UsersController < ApplicationController
     end
     
     # Verificar autorización específica para el cambio
-    if params[:user][:role].present?
-      new_role = params[:user][:role]
+    if params[:user][:role_id].present?
+      new_role = params[:user][:role_id]
       unless @user.can_change_role_to?(new_role, current_user)
         redirect_to admin_users_path, 
                   alert: "No tienes permisos para asignar el rol '#{new_role}' a #{@user.email}"
@@ -123,7 +123,7 @@ class Admin::UsersController < ApplicationController
   end
   
   def user_params
-    params.require(:user).permit(:role, :active)
+    params.require(:user).permit(:role_id, :active)
   end
   
   def ensure_admin_or_superadmin

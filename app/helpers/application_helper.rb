@@ -66,12 +66,12 @@ module ApplicationHelper
       controller_path.start_with?('superadmin/')
     end
   
-    def role_badge_class(role)
-      case role.to_s
-      when 'admin'
-        'danger'
+    def role_badge_class(role_name)
+      case role_name.to_s
       when 'superadmin'
         'warning'
+      when 'admin'
+        'danger'
       when 'agent'
         'primary'
       when 'client'
@@ -81,12 +81,12 @@ module ApplicationHelper
       end
     end
 
-  def role_name(role)
-    case role.to_s
-    when 'admin'
-      'Administrador'
+  def role_name(role_name)
+    case role_name.to_s
     when 'superadmin'
       'Superadministrador'
+    when 'admin'
+      'Administrador'
     when 'agent'
       'Agente'
     when 'client'

@@ -20,14 +20,13 @@
 
           <div class="mb-3">
             <%= form.label :role, "Rol del Usuario", class: "form-label" %>
-            <%= form.select :role, 
-                           options_for_select([
-                             ['Administrador', 'admin'],
-                             ['Agente', 'agent'],
-                             ['Solo Consulta', 'client']
-                           ], @user.role), 
-                           {}, 
-                           { class: "form-select" } %>
+            <%= form.select :role_id, 
+                            options_from_collection_for_select(Role.all,
+                            :id,
+                            :display_name,
+                            @user.role_id),
+                            {}, 
+                            { class: "form-select" } %>
             <div class="form-text">
               <strong>Administrador:</strong> Acceso completo al sistema<br>
               <strong>Agente:</strong> Puede crear y gestionar propiedades<br>
