@@ -29,12 +29,12 @@
             <% end %>
           </td>
           <td>
-              <span class="badge bg-<%= role_badge_class(user.role) %>">
-                <%= role_name(user.role) %>
-              </span>
+            <span class="badge bg-<%= role_badge_class(user.role&.name) %>">
+              <%= user.role&.display_name || 'Sin rol' %>
+            </span>
           </td>
           <td>
-            <small class="text-muted">Nivel <%= user.role_level %></small>
+            <small class="text-muted">Nivel <%= user.role&.level || 'N/A' %></small>
           </td>
           <td>
             <%= user.last_sign_in_at&.strftime("%d/%m/%Y %H:%M") || "Nunca" %>
@@ -49,17 +49,17 @@
                     Cambiar Rol
                   </button>
                   <ul class="dropdown-menu">
-                    <% @manageable_roles.each do |role_key| %>
-                      <% unless user.role == role_key %>
-                        <% if user.can_change_role_to?(role_key, current_user) %>
+                    <% @manageable_roles.each do |role_obj| %>
+                      <% unless user.role&.name == role_obj.name %>
+                        <% if user.can_change_role_to?(role_obj.name, current_user) %>
                           <li>
-                            <%= link_to role_name(role_key), "#",
-                                       class: "dropdown-item role-change-link",
-                                       data: {
-                                         user_id: user.id,
-                                         role: role_key,
-                                         confirm: role_key == 'admin' ? "¿Confirmar hacer administrador a #{user.email}?" : nil
-                                       } %>
+                            <%= link_to role_obj.display_name, "#", 
+                                      class: "dropdown-item role-change-link", 
+                                      data: { 
+                                        user_id: user.id, 
+                                        role: role_obj.name,  # ✅ Cambiar a .name
+                                        confirm: role_obj.name == 'admin' ? "¿Confirmar hacer administrador a #{user.email}?" : nil 
+                                      } %>
                           </li>
                         <% end %>
                       <% end %>

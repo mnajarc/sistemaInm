@@ -27,10 +27,10 @@ class Admin::UsersController < ApplicationController
     
     # Verificar autorización específica para el cambio
     if params[:user][:role_id].present?
-      new_role = params[:user][:role_id]
-      unless @user.can_change_role_to?(new_role, current_user)
+      new_role = Role.find(params[:user][:role_id])  # ✅ Buscar el rol completo
+      unless @user.can_change_role_to?(new_role.name, current_user)  # ✅ Pasar .name
         redirect_to admin_users_path, 
-                  alert: "No tienes permisos para asignar el rol '#{new_role}' a #{@user.email}"
+                 alert: "No tienes permisos para asignar el rol '#{new_role.display_name}' a #{@user.email}"
         return
       end
     end
@@ -138,16 +138,16 @@ class Admin::UsersController < ApplicationController
                  alert: "No tienes permisos para gestionar este usuario"
     end
   end
-  
+
   def available_roles_for_assignment
-    # ✅ Solo mostrar roles que el usuario actual puede asignar
-    case current_user.role
+    case current_user.role&.name
     when 'superadmin'
-      User.roles.keys
+      Role.all # Puede asignar cualquier rol
     when 'admin'
-      User.roles.select { |k, v| v > current_user.role_before_type_cast }.keys
+      Role.where('level > ?', current_user.role.level) # Solo roles de menor jerarquía
     else
       []
     end
   end
+  
 end

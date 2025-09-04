@@ -37,9 +37,12 @@ class User < ApplicationRecord
     
     new_role = Role.find_by(name: new_role_name)
     return false unless new_role
+
+    # ✅ CORREGIR: SuperAdmin (nivel 0) puede asignar cualquier rol
+    return true if changer_user.superadmin?
     
-    changer_user.role&.level && self.role&.level &&
-    changer_user.role.level < self.role.level && 
+    # Para otros roles: solo pueden asignar roles de nivel MAYOR (menos privilegios)
+    changer_user.role&.level && new_role.level &&
     changer_user.role.level < new_role.level
   end
   

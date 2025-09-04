@@ -95,7 +95,7 @@
         <% if @recent_role_changes.any? %>
           <% @recent_role_changes.each do |user| %>
             <div class="d-flex align-items-center mb-2">
-              <span class="badge bg-<%= role_badge_class(user.role) %> me-2">
+              <span class="badge bg-<%= role_badge_class(user.role&.name) %> me-2">
                 <%= user.role.name %>
               </span>
               <small>
