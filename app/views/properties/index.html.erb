@@ -3,7 +3,9 @@
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Propiedades</h1>
-        <%= link_to 'Nueva Propiedad', new_property_path, class: 'btn btn-primary' %>
+        <% if policy(Property).create? %>
+          <%= link_to 'Nueva Propiedad', new_property_path, class: 'btn btn-primary' %>
+        <% end %>
       </div>
 
       <div class="row">

@@ -9,7 +9,10 @@ gem 'bootstrap', '~> 5.3'
 
 gem 'devise'
 
-gem 'cancancan', '~> 3.5'
+# Comentado para usar pundit
+# gem 'cancancan', '~> 3.5'
+
+gem "pundit", "~> 2.5"
 
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"

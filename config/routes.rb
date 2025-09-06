@@ -1,17 +1,18 @@
 Rails.application.routes.draw do
   devise_for :users
   root "home#index"
+  resources :properties
   
   # ✅ RUTAS SUPERADMIN
   namespace :superadmin do
-    root 'base#index'
-    
+    # root 'dashboard#index'
+    # root 'application#redirect_by_role'
     resources :menu_items do
       collection do
         patch :reorder
       end
     end
-    
+
     resources :roles
   end
   
