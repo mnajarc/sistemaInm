@@ -1,13 +1,14 @@
 Rails.application.routes.draw do
   devise_for :users
 
-  namespace :client do
-    root 'dashboard#index'
-    resources :transactions, only: [:index, :show]
-  end
-
   root 'properties#index'
   resources :properties
+
+  namespace :client do
+    root 'dashboard#index'
+    get 'dashboard', to: 'dashboard#index'
+    resources :transactions, only: [:index, :show]
+  end
 
   resources :business_transactions do
     patch :transfer_agent, on: :member

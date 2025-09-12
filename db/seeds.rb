@@ -368,3 +368,16 @@ end
 
 puts " ✅ Usuario cliente creado"
 puts " 🔑 Cliente: cliente1@email.com / Cliente123!"
+# ===============================================================================
+# VINCULAR CLIENTES CON USUARIOS
+# ===============================================================================
+puts "🔗 Vinculando clientes con usuarios..."
+
+# Vincular cliente existente con usuario cliente
+client_user = User.find_by(email: 'cliente1@email.com')
+existing_client = Client.find_by(email: 'cliente1@email.com')
+
+if client_user && existing_client
+  existing_client.update!(user: client_user)
+  puts " ✅ Cliente vinculado con usuario"
+end

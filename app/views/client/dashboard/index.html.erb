@@ -1,2 +1,31 @@
-<h1>Client::Dashboard#index</h1>
-<p>Find me in app/views/client/dashboard/index.html.erb</p>
+<head>
+  <!-- … -->
+  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+  <!-- Reemplazar javascript_importmap_tags: -->
+  <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+  <!-- Bootstrap CSS … -->
+</head>
+
+lo cambié por este
+<div class="container-fluid">
+  <h2 class="text-success mb-4">
+    <i class="bi bi-house-heart"></i>
+    Dashboard Cliente
+  </h2>
+  
+  <div class="alert alert-success">
+    ¡Bienvenido <%= current_client&.name || current_user.email %>!
+  </div>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5>Mis Transacciones</h5>
+          <p>Aquí verás todas tus transacciones inmobiliarias.</p>
+          <%= link_to "Ver Transacciones", client_transactions_path, class: "btn btn-primary" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

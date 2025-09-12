@@ -6,7 +6,8 @@ class User < ApplicationRecord
   belongs_to :role
 
   has_many :properties, dependent: :destroy
-  
+  has_one :client, dependent: :nullify
+ 
   validates :role, presence: true
   validates :role_id, presence: true
   validate :role_exists
@@ -111,6 +112,11 @@ class User < ApplicationRecord
     puts "Puede cambiar?: #{can_change_role_to?(new_role, changer_user)}"
     puts "========================="
   end
+  # ✅ AGREGAR MÉTODO DE CONVENIENCIA:
+  def client_record
+    client || Client.find_by(email: email)
+  end
+  
   
   # ✅ ATRIBUTO PARA TRACKEAR QUIÉN HACE EL CAMBIO
   attr_accessor :role_changer
