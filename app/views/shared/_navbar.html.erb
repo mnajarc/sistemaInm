@@ -22,42 +22,21 @@
               <%= link_to "Nueva Propiedad", new_property_path, class: "nav-link" %>
             </li>
           <% end %>
-          
-          <!-- ADMINISTRACIÓN - Solo admin y superadmin -->
           <% if can_access_admin? %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="adminDropdown"
-                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Administración
+                role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-gear"></i> Administración
               </a>
               <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                <li>
-                  <%= link_to admin_document_types_path, class: "dropdown-item" do %>
-                    <i class="bi bi-file-text"></i> Tipos de Documento
-                  <% end %>
-                </li>
-                <li>
-                  <%= link_to admin_users_path, class: "dropdown-item" do %>
-                    <i class="bi bi-people"></i> Gestión de Usuarios
-                  <% end %>
-                </li>
+                <%= render_admin_menu_items(current_user) %>
                 
-                <!-- SUPERADMIN: Menús adicionales -->
+                <!-- SUPERADMIN: Panel adicional -->
                 <% if can_access_superadmin? %>
                   <li><hr class="dropdown-divider"></li>
                   <li>
                     <%= link_to superadmin_root_path, class: "dropdown-item text-warning" do %>
                       <i class="bi bi-shield-lock"></i> Panel SuperAdmin
-                    <% end %>
-                  </li>
-                  <li>
-                    <%= link_to superadmin_menu_items_path, class: "dropdown-item text-warning" do %>
-                      <i class="bi bi-list-ul"></i> Configurar Menús
-                    <% end %>
-                  </li>
-                  <li>
-                    <%= link_to superadmin_roles_path, class: "dropdown-item text-warning" do %>
-                      <i class="bi bi-person-badge"></i> Configurar Roles
                     <% end %>
                   </li>
                 <% end %>

@@ -1,17 +1,13 @@
-class Admin::BaseController < ApplicationController
-
-  before_action :authenticate_user!
-  before_action :authorize_admin!
-  before_action :ensure_admin
-
-
+# app/controllers/admin/base_controller.rb
+class Admin::BaseController < BaseController
+  before_action :ensure_admin_access
+  
   private
-
-  def ensure_admin
-    redirect_to root_path, alert: "Acceso denegado" unless current_user&.admin?
-  end
-
-  def authorize_admin!
-    redirect_to root_path, alert: "No autorizado" unless current_user.admin?
+  
+  def ensure_admin_access
+    unless current_user&.admin_or_above?
+      flash[:alert] = "Acceso denegado: Se requieren permisos de administrador"
+      redirect_to root_path
+    end
   end
 end

@@ -1,7 +1,7 @@
-<%= form_with(model: property, local: true, data: { turbo: false }) do |form| %>
+<%= form_with model: property, local: true, html: { class: "needs-validation", novalidate: true } do |form| %>
   <% if property.errors.any? %>
     <div class="alert alert-danger">
-      <h4><%= pluralize(property.errors.count, "error") %> impidieron guardar esta propiedad:</h4>
+      <h6><%= pluralize(property.errors.count, "error") %> impidieron guardar esta propiedad:</h6>
       <ul class="mb-0">
         <% property.errors.full_messages.each do |message| %>
           <li><%= message %></li>
@@ -11,118 +11,213 @@
   <% end %>
 
   <div class="row">
+    <!-- Información Básica -->
     <div class="col-md-8">
-      <div class="mb-3">
-        <%= form.label :title, "Título", class: "form-label" %>
-        <%= form.text_field :title, class: "form-control" %>
-      </div>
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Información Básica</h5>
+        </div>
+        <div class="card-body">
+          <!-- Título -->
+          <div class="mb-3">
+            <%= form.label :title, "Título", class: "form-label" %>
+            <%= form.text_field :title, class: "form-control", placeholder: "Ej: Casa moderna con jardín" %>
+          </div>
 
-      <div class="mb-3">
-        <%= form.label :description, "Descripción", class: "form-label" %>
-        <%= form.text_area :description, rows: 4, class: "form-control" %>
-      </div>
+          <!-- Descripción -->
+          <div class="mb-3">
+            <%= form.label :description, "Descripción", class: "form-label" %>
+            <%= form.text_area :description, class: "form-control", rows: 4, placeholder: "Descripción detallada de la propiedad" %>
+          </div>
 
-      <div class="mb-3">
-        <%= form.label :address, "Dirección", class: "form-label" %>
-        <%= form.text_area :address, rows: 2, class: "form-control" %>
+          <!-- Precio -->
+          <div class="mb-3">
+            <%= form.label :price, "Precio", class: "form-label" %>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <%= form.number_field :price, class: "form-control", step: 0.01, placeholder: "0.00" %>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="col-md-4">
-      <div class="mb-3">
-        <%= form.label :price, "Precio (MXN)", class: "form-label" %>
-        <%= form.number_field :price, step: 0.01, class: "form-control" %>
-      </div>
 
-      <div class="mb-3">
-        <%= form.label :property_type, "Tipo", class: "form-label" %>
-        <%= form.select :property_type, 
-            options_for_select([
-              ['Casa', 'casa'],
-              ['Departamento', 'departamento'], 
-              ['Terreno', 'terreno'],
-              ['Local Comercial', 'local_comercial'],
-              ['Oficina', 'oficina']
-            ], property.property_type), 
-            { prompt: 'Selecciona tipo' }, 
-            { class: "form-select" } %>
-      </div>
 
-      <div class="mb-3">
-        <%= form.label :status, "Estatus", class: "form-label" %>
-        <%= form.select :status,
-            options_for_select([
-              ['Disponible', 'disponible'],
-              ['En Proceso', 'en_proceso'],
-              ['Vendida', 'vendida'],
-              ['Suspendida', 'suspendida']
-            ], property.status),
-            { prompt: 'Selecciona estatus' },
-            { class: "form-select" } %>
+  <!-- Clasificación -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Clasificación</h5>
+      </div>
+      <div class="card-body">
+        <!-- Solo Tipo de Propiedad -->
+        <div class="mb-3">
+          <%= form.label :property_type_id, "Tipo de Propiedad", class: "form-label" %>
+          <%= form.collection_select :property_type_id, 
+              PropertyType.active.order(:sort_order),
+              :id, :display_name,
+              { prompt: 'Selecciona tipo' },
+              { class: "form-select" } %>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="bi bi-info-circle"></i>
+            <strong>Importante:</strong> Después de crear la propiedad, podrás agregar las operaciones de negocio (venta, alquiler, etc.) con sus respectivos precios y condiciones.
+          </small>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-4">
-      <div class="mb-3">
-        <%= form.label :city, "Ciudad", class: "form-label" %>
-        <%= form.text_field :city, class: "form-control" %>
-      </div>
+
+  <!-- Ubicación -->
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5 class="mb-0">Ubicación</h5>
     </div>
-    <div class="col-md-4">
-      <div class="mb-3">
-        <%= form.label :state, "Estado", class: "form-label" %>
-        <%= form.text_field :state, class: "form-control" %>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="mb-3">
-        <%= form.label :postal_code, "Código Postal", class: "form-label" %>
-        <%= form.text_field :postal_code, class: "form-control" %>
+    <div class="card-body">
+      <div class="row">
+        <!-- Dirección -->
+        <div class="col-md-6">
+          <div class="mb-3">
+            <%= form.label :address, "Dirección", class: "form-label" %>
+            <%= form.text_field :address, class: "form-control", placeholder: "Calle y número" %>
+          </div>
+        </div>
+
+        <!-- Ciudad -->
+        <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :city, "Ciudad", class: "form-label" %>
+            <%= form.text_field :city, class: "form-control", placeholder: "Ciudad" %>
+          </div>
+        </div>
+
+        <!-- Estado -->
+        <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :state, "Estado", class: "form-label" %>
+            <%= form.text_field :state, class: "form-control", placeholder: "Estado/Provincia" %>
+          </div>
+        </div>
+
+        <!-- Código Postal -->
+        <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :postal_code, "Código Postal", class: "form-label" %>
+            <%= form.text_field :postal_code, class: "form-control", placeholder: "00000" %>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-3">
-      <div class="mb-3">
-        <%= form.label :bedrooms, "Recámaras", class: "form-label" %>
-        <%= form.number_field :bedrooms, class: "form-control" %>
-      </div>
+  <!-- Características -->
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5 class="mb-0">Características</h5>
     </div>
-    <div class="col-md-3">
-      <div class="mb-3">
-        <%= form.label :bathrooms, "Baños", class: "form-label" %>
-        <%= form.number_field :bathrooms, step: 0.5, class: "form-control" %>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="mb-3">
-        <%= form.label :built_area_m2, "Área construida (m²)", class: "form-label" %>
-        <%= form.number_field :built_area_m2, step: 0.01, class: "form-control" %>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="mb-3">
-        <%= form.label :lot_area_m2, "Área del terreno (m²)", class: "form-label" %>
-        <%= form.number_field :lot_area_m2, step: 0.01, class: "form-control" %>
+    <div class="card-body">
+      <div class="row">
+        <!-- Recámaras -->
+        <div class="col-md-2">
+          <div class="mb-3">
+            <%= form.label :bedrooms, "Recámaras", class: "form-label" %>
+            <%= form.number_field :bedrooms, class: "form-control", min: 0, placeholder: "0" %>
+          </div>
+        </div>
+
+        <!-- Baños -->
+        <div class="col-md-2">
+          <div class="mb-3">
+            <%= form.label :bathrooms, "Baños", class: "form-label" %>
+            <%= form.number_field :bathrooms, class: "form-control", min: 0, step: 0.5, placeholder: "0" %>
+          </div>
+        </div>
+
+        <!-- Área Construida -->
+        <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :built_area_m2, "Área Construida (m²)", class: "form-label" %>
+            <%= form.number_field :built_area_m2, class: "form-control", step: 0.01, placeholder: "0.00" %>
+          </div>
+        </div>
+
+        <!-- Área del Terreno -->
+        <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :lot_area_m2, "Área del Terreno (m²)", class: "form-label" %>
+            <%= form.number_field :lot_area_m2, class: "form-control", step: 0.01, placeholder: "0.00" %>
+          </div>
+        </div>
+
+        <!-- Año de Construcción -->
+        <div class="col-md-2">
+          <div class="mb-3">
+            <%= form.label :year_built, "Año", class: "form-label" %>
+            <%= form.number_field :year_built, class: "form-control", min: 1900, max: Date.current.year + 5, placeholder: Date.current.year %>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-6">
-      <div class="mb-3">
-        <%= form.label :year_built, "Año de construcción", class: "form-label" %>
-        <%= form.number_field :year_built, class: "form-control" %>
+  <!-- Campos Adicionales (si existen en tu migración) -->
+  <% if property.respond_to?(:parking_spaces) %>
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0">Características Adicionales</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <!-- Estacionamientos -->
+          <div class="col-md-2">
+            <div class="mb-3">
+              <%= form.label :parking_spaces, "Estacionamientos", class: "form-label" %>
+              <%= form.number_field :parking_spaces, class: "form-control", min: 0, placeholder: "0" %>
+            </div>
+          </div>
+
+          <!-- Checkboxes para amenidades -->
+          <div class="col-md-10">
+            <div class="row">
+              <div class="col-md-3">
+                <div class="form-check">
+                  <%= form.check_box :furnished, class: "form-check-input" %>
+                  <%= form.label :furnished, "Amueblado", class: "form-check-label" %>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-check">
+                  <%= form.check_box :pets_allowed, class: "form-check-input" %>
+                  <%= form.label :pets_allowed, "Mascotas", class: "form-check-label" %>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-check">
+                  <%= form.check_box :elevator, class: "form-check-input" %>
+                  <%= form.label :elevator, "Elevador", class: "form-check-label" %>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-check">
+                  <%= form.check_box :balcony, class: "form-check-input" %>
+                  <%= form.label :balcony, "Balcón", class: "form-check-label" %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  <% end %>
 
-  <div class="actions">
-    <%= form.submit "Guardar Propiedad", class: "btn btn-success" %>
-    <%= link_to 'Cancelar', properties_path, class: "btn btn-secondary" %>
+  <!-- Botones -->
+  <div class="mt-4">
+    <%= form.submit property.persisted? ? "Actualizar Propiedad" : "Crear Propiedad", 
+        class: "btn btn-primary" %>
+    <%= link_to "Cancelar", properties_path, class: "btn btn-secondary ms-2" %>
   </div>
 <% end %>
-

@@ -1,36 +1,34 @@
 Rails.application.routes.draw do
   devise_for :users
-  root "home#index"
-  resources :properties
-  
-  # ✅ RUTAS SUPERADMIN
-  namespace :superadmin do
-    # root 'dashboard#index'
-    # root 'application#redirect_by_role'
-    resources :menu_items do
-      collection do
-        patch :reorder
-      end
-    end
 
-    resources :roles
+  namespace :client do
+    root 'dashboard#index'
+    resources :transactions, only: [:index, :show]
   end
-  
+
+  root 'properties#index'
+  resources :properties
+
+  resources :business_transactions do
+    patch :transfer_agent, on: :member
+    resources :agent_transfers, only: [:create, :index]
+  end
+
   namespace :admin do
+    resources :property_types
+    resources :operation_types
+    resources :business_statuses
+    resources :users
     resources :document_types
     resources :document_requirements
     resources :document_validity_rules
-    resources :property_documents, only: [:index, :show, :destroy]
-    
-    resources :users do
-      member do
-        patch :change_role
-      end
-    end
+    resources :property_documents
   end
-  
-  delete '/logout', to: 'devise/sessions#destroy', as: :logout
-  resources :properties
-  
-  get "up" => "rails/health#show", as: :rails_health_check
+
+  namespace :superadmin do
+    root 'base#index'
+    resources :roles
+    resources :menu_items
+    get 'dashboard', to: 'base#index'
+  end
 end

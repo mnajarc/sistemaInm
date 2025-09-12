@@ -1,22 +1,24 @@
 # app/policies/property_policy.rb
 class PropertyPolicy < ApplicationPolicy
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       case user.role&.name
       when 'superadmin', 'admin'
-        scope.all
+        relation.all
       when 'agent'
-        scope.where(user: user)
+        relation.where(user: user)
       when 'client'
-        scope.joins(:property_status).where(property_statuses: { is_available: true })
+        # Los clients no pueden ver propiedades directamente
+        # Verán solo las que están en negocios disponibles
+        relation.none
       else
-        scope.none
+        relation.none
       end
     end
   end
   
   def index?
-    true # Todos pueden ver listado (filtrado por scope)
+    user.role&.level && user.role.level <= 20 # Solo Agent+
   end
   
   def show?
@@ -24,9 +26,9 @@ class PropertyPolicy < ApplicationPolicy
     when 'superadmin', 'admin'
       true
     when 'agent'
-      record.user == user || record.property_status&.is_available
+      record.user == user
     when 'client'
-      record.property_status&.is_available
+      false # Los clients verán propiedades a través de BusinessTransactions
     else
       false
     end
@@ -52,7 +54,7 @@ class PropertyPolicy < ApplicationPolicy
     when 'superadmin', 'admin'
       true
     when 'agent'
-      record.user == user && record.property_status&.name != 'sold'
+      record.user == user
     else
       false
     end

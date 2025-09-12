@@ -72,4 +72,30 @@ module MenuHelper
     return '' unless icon_class.present?
     content_tag(:i, '', class: icon_class) + ' '
   end
+  # Agregar al final del archivo existente
+  def render_admin_menu_items(user)
+    return '' unless user&.admin_or_above?
+    
+    # Buscar menú de administración
+    admin_menu = MenuItem.find_by(name: 'administration')
+    return '' unless admin_menu
+    
+    # Obtener submenús que el usuario puede ver
+    menu_items = user.role.menu_items
+                    .where(parent_id: admin_menu.id, active: true)
+                    .order(:sort_order)
+    
+    html = ''
+    menu_items.each do |item|
+      html += content_tag(:li) do
+        link_to item.path, class: "dropdown-item" do
+          icon_html = item.icon.present? ? content_tag(:i, '', class: "#{item.icon} me-2") : ''
+          (icon_html + item.display_name).html_safe
+        end
+      end
+    end
+    
+    html.html_safe
+  end
+
 end

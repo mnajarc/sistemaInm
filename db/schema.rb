@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_11_061021) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -42,6 +42,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "agent_transfers", force: :cascade do |t|
+    t.bigint "business_transaction_id", null: false
+    t.bigint "from_agent_id", null: false
+    t.bigint "to_agent_id", null: false
+    t.bigint "transferred_by_id", null: false
+    t.text "reason", null: false
+    t.datetime "transferred_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_transaction_id", "transferred_at"], name: "idx_on_business_transaction_id_transferred_at_9ecb914154"
+    t.index ["business_transaction_id"], name: "index_agent_transfers_on_business_transaction_id"
+    t.index ["from_agent_id"], name: "index_agent_transfers_on_from_agent_id"
+    t.index ["to_agent_id"], name: "index_agent_transfers_on_to_agent_id"
+    t.index ["transferred_by_id"], name: "index_agent_transfers_on_transferred_by_id"
+  end
+
   create_table "agents", force: :cascade do |t|
     t.string "license_number"
     t.string "phone"
@@ -52,6 +68,51 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_agents_on_user_id"
+  end
+
+  create_table "business_statuses", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "color", default: "secondary"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_business_statuses_on_active"
+    t.index ["name"], name: "index_business_statuses_on_name", unique: true
+    t.index ["sort_order"], name: "index_business_statuses_on_sort_order"
+  end
+
+  create_table "business_transactions", force: :cascade do |t|
+    t.bigint "property_id", null: false
+    t.bigint "operation_type_id", null: false
+    t.bigint "business_status_id", null: false
+    t.bigint "offering_client_id", null: false
+    t.bigint "acquiring_client_id"
+    t.date "start_date", null: false
+    t.date "estimated_completion_date"
+    t.date "actual_completion_date"
+    t.decimal "price", precision: 15, scale: 2, null: false
+    t.decimal "commission_percentage", precision: 5, scale: 2, default: "0.0"
+    t.text "notes"
+    t.text "terms_and_conditions"
+    t.boolean "is_primary", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "listing_agent_id", null: false
+    t.bigint "current_agent_id", null: false
+    t.bigint "selling_agent_id"
+    t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
+    t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
+    t.index ["current_agent_id"], name: "index_business_transactions_on_current_agent_id"
+    t.index ["listing_agent_id"], name: "index_business_transactions_on_listing_agent_id"
+    t.index ["offering_client_id"], name: "index_business_transactions_on_offering_client_id"
+    t.index ["operation_type_id"], name: "index_business_transactions_on_operation_type_id"
+    t.index ["property_id", "is_primary"], name: "index_business_transactions_on_property_id_and_is_primary"
+    t.index ["property_id"], name: "index_business_transactions_on_property_id"
+    t.index ["selling_agent_id"], name: "index_business_transactions_on_selling_agent_id"
+    t.index ["start_date"], name: "index_business_transactions_on_start_date"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -176,8 +237,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "property_type_id", null: false
-    t.bigint "property_status_id", null: false
-    t.bigint "operation_type_id", null: false
     t.integer "parking_spaces"
     t.boolean "furnished"
     t.boolean "pets_allowed"
@@ -197,11 +256,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
     t.datetime "published_at"
     t.index ["available_from"], name: "index_properties_on_available_from"
     t.index ["latitude", "longitude"], name: "index_properties_on_coordinates"
-    t.index ["operation_type_id"], name: "index_properties_on_operation_type_id"
     t.index ["parking_spaces"], name: "index_properties_on_parking_spaces"
     t.index ["price"], name: "index_properties_on_price"
-    t.index ["property_status_id"], name: "index_properties_on_property_status_id"
-    t.index ["property_type_id", "property_status_id"], name: "index_properties_on_type_status"
     t.index ["property_type_id"], name: "index_properties_on_property_type_id"
     t.index ["published_at"], name: "index_properties_on_published_at"
     t.index ["user_id"], name: "index_properties_on_user_id"
@@ -320,7 +376,19 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_transfers", "business_transactions"
+  add_foreign_key "agent_transfers", "users", column: "from_agent_id"
+  add_foreign_key "agent_transfers", "users", column: "to_agent_id"
+  add_foreign_key "agent_transfers", "users", column: "transferred_by_id"
   add_foreign_key "agents", "users"
+  add_foreign_key "business_transactions", "business_statuses"
+  add_foreign_key "business_transactions", "clients", column: "acquiring_client_id"
+  add_foreign_key "business_transactions", "clients", column: "offering_client_id"
+  add_foreign_key "business_transactions", "operation_types"
+  add_foreign_key "business_transactions", "properties"
+  add_foreign_key "business_transactions", "users", column: "current_agent_id"
+  add_foreign_key "business_transactions", "users", column: "listing_agent_id"
+  add_foreign_key "business_transactions", "users", column: "selling_agent_id"
   add_foreign_key "commissions", "agents"
   add_foreign_key "commissions", "properties"
   add_foreign_key "contracts", "clients"
@@ -328,8 +396,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_04_073537) do
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
-  add_foreign_key "properties", "operation_types"
-  add_foreign_key "properties", "property_statuses"
   add_foreign_key "properties", "property_types"
   add_foreign_key "properties", "users"
   add_foreign_key "property_documents", "document_types"

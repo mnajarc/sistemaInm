@@ -1,0 +1,238 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-briefcase-fill"></i>
+    Transacción #<%= @transaction.id %>
+  </h2>
+  <div>
+    <% if policy(@transaction).edit? %>
+      <%= link_to edit_business_transaction_path(@transaction), class: "btn btn-primary" do %>
+        <i class="bi bi-pencil"></i> Editar
+      <% end %>
+    <% end %>
+    <%= link_to business_transactions_path, class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Información Principal -->
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-info-circle"></i>
+          Información de la Transacción
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <dl class="row">
+              <dt class="col-sm-5">Propiedad:</dt>
+              <dd class="col-sm-7">
+                <%= link_to @transaction.property do %>
+                  <strong><%= @transaction.property.title %></strong>
+                <% end %>
+              </dd>
+              
+              <dt class="col-sm-5">Operación:</dt>
+              <dd class="col-sm-7">
+                <span class="badge bg-info">
+                  <%= @transaction.operation_type.display_name %>
+                </span>
+              </dd>
+              
+              <dt class="col-sm-5">Estado:</dt>
+              <dd class="col-sm-7">
+                <span class="badge bg-<%= @transaction.business_status.color %>">
+                  <%= @transaction.business_status.display_name %>
+                </span>
+              </dd>
+              
+              <dt class="col-sm-5">Precio:</dt>
+              <dd class="col-sm-7">
+                <strong class="text-success">
+                  $<%= number_with_delimiter(@transaction.price) %>
+                </strong>
+              </dd>
+            </dl>
+          </div>
+          
+          <div class="col-md-6">
+            <dl class="row">
+              <dt class="col-sm-5">Fecha Inicio:</dt>
+              <dd class="col-sm-7"><%= @transaction.start_date.strftime('%d/%m/%Y') %></dd>
+              
+              <dt class="col-sm-5">Estimada:</dt>
+              <dd class="col-sm-7">
+                <%= @transaction.estimated_completion_date&.strftime('%d/%m/%Y') || 'No definida' %>
+              </dd>
+              
+              <dt class="col-sm-5">Comisión:</dt>
+              <dd class="col-sm-7"><%= @transaction.commission_percentage %>%</dd>
+              
+              <dt class="col-sm-5">Revenue:</dt>
+              <dd class="col-sm-7">
+                <strong class="text-success">
+                  $<%= number_with_delimiter(@transaction.revenue) %>
+                </strong>
+              </dd>
+            </dl>
+          </div>
+        </div>
+        
+        <% if @transaction.notes.present? %>
+          <hr>
+          <h6>Notas:</h6>
+          <p class="text-muted"><%= simple_format(@transaction.notes) %></p>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Historial de Transferencias -->
+    <% if @transaction.agent_transfers.any? %>
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-arrow-repeat"></i>
+            Historial de Transferencias
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="timeline">
+            <% @transaction.agent_transfers.order(:transferred_at).each do |transfer| %>
+              <div class="d-flex mb-3">
+                <div class="flex-shrink-0">
+                  <i class="bi bi-arrow-right-circle text-info"></i>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                  <strong><%= transfer.from_agent.email %></strong> → 
+                  <strong><%= transfer.to_agent.email %></strong>
+                  <br>
+                  <small class="text-muted">
+                    <%= transfer.transferred_at.strftime('%d/%m/%Y %H:%M') %> - 
+                    <%= transfer.reason %>
+                  </small>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-md-4">
+    <!-- Agentes -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-people"></i>
+          Agentes
+        </h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-6">Listador:</dt>
+          <dd class="col-sm-6"><%= @transaction.listing_agent.email %></dd>
+          
+          <dt class="col-sm-6">Actual:</dt>
+          <dd class="col-sm-6">
+            <strong><%= @transaction.current_agent.email %></strong>
+          </dd>
+          
+          <dt class="col-sm-6">Vendedor:</dt>
+          <dd class="col-sm-6">
+            <%= @transaction.selling_agent&.email || 'Pendiente' %>
+          </dd>
+        </dl>
+        
+        <% if policy(@transaction).update? && current_user.admin_or_above? %>
+          <hr>
+          <%= form_with url: transfer_agent_business_transaction_path(@transaction), 
+              method: :patch, local: true, class: "row g-2" do |form| %>
+            <div class="col-12">
+              <%= form.collection_select :new_agent_id, 
+                  User.joins(:role).where(roles: { name: 'agent' }),
+                  :id, :email,
+                  { prompt: 'Seleccionar nuevo agente' },
+                  { class: "form-select form-select-sm" } %>
+            </div>
+            <div class="col-12">
+              <%= form.text_field :reason, placeholder: "Razón de transferencia", 
+                  class: "form-control form-control-sm" %>
+            </div>
+            <div class="col-12">
+              <%= form.submit "Transferir", class: "btn btn-warning btn-sm w-100" %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Clientes -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-person-check"></i>
+          Clientes
+        </h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-6">Ofertante:</dt>
+          <dd class="col-sm-6">
+            <strong><%= @transaction.offering_client.name %></strong><br>
+            <small class="text-muted"><%= @transaction.offering_client.email %></small>
+          </dd>
+          
+          <dt class="col-sm-6">Adquiriente:</dt>
+          <dd class="col-sm-6">
+            <% if @transaction.acquiring_client %>
+              <strong><%= @transaction.acquiring_client.name %></strong><br>
+              <small class="text-muted"><%= @transaction.acquiring_client.email %></small>
+            <% else %>
+              <em class="text-muted">Pendiente</em>
+            <% end %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-gear"></i>
+          Acciones
+        </h5>
+      </div>
+      <div class="card-body">
+        <% if policy(@transaction).edit? %>
+          <%= link_to edit_business_transaction_path(@transaction), 
+              class: "btn btn-primary w-100 mb-2" do %>
+            <i class="bi bi-pencil"></i> Editar Transacción
+          <% end %>
+        <% end %>
+        
+        <%= link_to @transaction.property, 
+            class: "btn btn-outline-info w-100 mb-2" do %>
+          <i class="bi bi-house-door"></i> Ver Propiedad
+        <% end %>
+        
+        <% if policy(@transaction).destroy? %>
+          <%= link_to business_transaction_path(@transaction), 
+              method: :delete,
+              data: { 
+                confirm: "¿Estás seguro de eliminar esta transacción?" 
+              },
+              class: "btn btn-outline-danger w-100" do %>
+            <i class="bi bi-trash"></i> Eliminar
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

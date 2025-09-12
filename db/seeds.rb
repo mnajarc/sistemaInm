@@ -1,147 +1,147 @@
 # db/seeds.rb
 
 puts "🌱 Iniciando seeds del sistema..."
-# db/seeds.rb
-=begin
+
+# ===============================================================================
+# ROLES DEL SISTEMA
+# ===============================================================================
+puts "📋 Creando roles del sistema..."
+
 roles_data = [
-  { name: 'superadmin', display_name: 'SuperAdministrador', level: 0, system_role: true },
-  { name: 'admin',      display_name: 'Administrador',       level: 10, system_role: true },
-  { name: 'agent',      display_name: 'Agente Inmobiliario', level: 20, system_role: true },
-  { name: 'client',     display_name: 'Cliente',             level: 30, system_role: true }
+  { name: 'superadmin', display_name: 'SuperAdministrador', level: 0, system_role: true, 
+    description: 'Acceso completo al sistema, configuración de roles y menús' },
+  { name: 'admin', display_name: 'Administrador', level: 10, system_role: true,
+    description: 'Gestión de usuarios, propiedades y documentos' },
+  { name: 'agent', display_name: 'Agente Inmobiliario', level: 20, system_role: true,
+    description: 'Gestión de propiedades y documentos' },
+  { name: 'client', display_name: 'Cliente', level: 30, system_role: true,
+    description: 'Consulta de propiedades disponibles' }
 ]
 
 roles_data.each do |attrs|
   Role.find_or_create_by!(name: attrs[:name]) do |r|
     r.display_name = attrs[:display_name]
-    r.level        = attrs[:level]
-    r.system_role  = attrs[:system_role]
-    r.active       = true
-    r.description  = attrs[:description]
+    r.level = attrs[:level]
+    r.system_role = attrs[:system_role]
+    r.description = attrs[:description]
+    r.active = true
   end
+  puts " ✅ Rol: #{attrs[:display_name]} (nivel #{attrs[:level]})"
 end
 
-# ==============================================================================
-# ROLES DEL SISTEMA
-# ==============================================================================
-puts "📋 Creando roles del sistema..."
-
-superadmin_role = Role.find_or_create_by!(name: 'superadmin') do |role|
-  role.display_name = 'SuperAdministrador'
-  role.description = 'Acceso completo al sistema, configuración de roles y menús'
-  role.level = 0
-  role.system_role = true
-  puts "  ✅ Creado rol: SuperAdministrador (nivel 0)"
-end
-
-admin_role = Role.find_or_create_by!(name: 'admin') do |role|
-  role.display_name = 'Administrador'
-  role.description = 'Gestión de usuarios, propiedades y documentos'
-  role.level = 10
-  role.system_role = true
-  puts "  ✅ Creado rol: Administrador (nivel 10)"
-end
-
-agent_role = Role.find_or_create_by!(name: 'agent') do |role|
-  role.display_name = 'Agente Inmobiliario'
-  role.description = 'Gestión de propiedades y documentos'
-  role.level = 20
-  role.system_role = true
-  puts "  ✅ Creado rol: Agente (nivel 20)"
-end
-
-client_role = Role.find_or_create_by!(name: 'client') do |role|
-  role.display_name = 'Cliente'
-  role.description = 'Consulta de propiedades disponibles'
-  role.level = 30
-  role.system_role = true
-  puts "  ✅ Creado rol: Cliente (nivel 30)"
-end
-
-# ==============================================================================
+# ===============================================================================
 # ESTRUCTURA DE MENÚS
-# ==============================================================================
+# ===============================================================================
 puts "📱 Creando estructura de menús..."
 
-# Menú raíz (invisible)
+# Menú raíz
 main_menu = MenuItem.find_or_create_by!(name: 'main') do |item|
   item.display_name = 'Menú Principal'
   item.path = nil
   item.icon = nil
-  item.minimum_role_level = 30 # Todos pueden ver
+  item.minimum_role_level = 30
   item.sort_order = 0
   item.system_menu = true
 end
-puts "  📁 Menú raíz creado"
+puts " 📁 Menú raíz creado"
 
-# MENÚS DE PROPIEDADES
+# Menú Propiedades
 properties_menu = MenuItem.find_or_create_by!(name: 'properties') do |item|
   item.display_name = 'Propiedades'
   item.path = '/properties'
   item.icon = 'bi-house-door'
   item.parent_id = main_menu.id
   item.sort_order = 10
-  item.minimum_role_level = 30 # Todos
+  item.minimum_role_level = 30
   item.system_menu = true
 end
-puts "  🏠 Menú Propiedades creado"
+puts " 🏠 Menú Propiedades creado"
 
+# Nueva Propiedad
 new_property_menu = MenuItem.find_or_create_by!(name: 'new_property') do |item|
   item.display_name = 'Nueva Propiedad'
   item.path = '/properties/new'
   item.icon = 'bi-plus-circle'
   item.parent_id = main_menu.id
   item.sort_order = 20
-  item.minimum_role_level = 20 # Solo agentes y arriba
+  item.minimum_role_level = 20
   item.system_menu = true
 end
-puts "  ➕ Menú Nueva Propiedad creado"
+puts " ➕ Menú Nueva Propiedad creado"
 
-# MENÚ DE ADMINISTRACIÓN
+# Menú Administración
 admin_menu = MenuItem.find_or_create_by!(name: 'administration') do |item|
   item.display_name = 'Administración'
   item.path = nil
   item.icon = 'bi-gear'
   item.parent_id = main_menu.id
   item.sort_order = 100
-  item.minimum_role_level = 10 # Solo admins y superadmins
-  item.system_menu = true
-end
-puts "  ⚙️ Menú Administración creado"
-
-# Submenús de administración
-doc_types_menu = MenuItem.find_or_create_by!(name: 'document_types') do |item|
-  item.display_name = 'Tipos de Documento'
-  item.path = '/admin/document_types'
-  item.icon = 'bi-file-text'
-  item.parent_id = admin_menu.id
-  item.sort_order = 10
   item.minimum_role_level = 10
   item.system_menu = true
 end
-puts "  📄 Submenu Tipos de Documento creado"
+puts " ⚙️ Menú Administración creado"
 
+# Submenús de administración
 users_menu = MenuItem.find_or_create_by!(name: 'user_management') do |item|
   item.display_name = 'Gestión de Usuarios'
   item.path = '/admin/users'
   item.icon = 'bi-people'
   item.parent_id = admin_menu.id
-  item.sort_order = 20
+  item.sort_order = 15
   item.minimum_role_level = 10
   item.system_menu = true
 end
-puts "  👥 Submenu Gestión de Usuarios creado"
 
-# MENÚ DE SUPERADMINISTRACIÓN
+property_types_menu = MenuItem.find_or_create_by!(name: 'property_types') do |item|
+  item.display_name = 'Tipos de Propiedad'
+  item.path = '/admin/property_types'
+  item.icon = 'bi-house'
+  item.parent_id = admin_menu.id
+  item.sort_order = 25
+  item.minimum_role_level = 10
+  item.system_menu = true
+end
+
+operation_types_menu = MenuItem.find_or_create_by!(name: 'operation_types') do |item|
+  item.display_name = 'Tipos de Operación'
+  item.path = '/admin/operation_types'
+  item.icon = 'bi-briefcase'
+  item.parent_id = admin_menu.id
+  item.sort_order = 27
+  item.minimum_role_level = 10
+  item.system_menu = true
+end
+
+business_statuses_menu = MenuItem.find_or_create_by!(name: 'business_statuses') do |item|
+  item.display_name = 'Estados de Negocio'
+  item.path = '/admin/business_statuses'
+  item.icon = 'bi-flag'
+  item.parent_id = admin_menu.id
+  item.sort_order = 28
+  item.minimum_role_level = 10
+  item.system_menu = true
+end
+
+doc_types_menu = MenuItem.find_or_create_by!(name: 'document_types') do |item|
+  item.display_name = 'Tipos de Documento'
+  item.path = '/admin/document_types'
+  item.icon = 'bi-file-text'
+  item.parent_id = admin_menu.id
+  item.sort_order = 30
+  item.minimum_role_level = 10
+  item.system_menu = true
+end
+
+# Menú SuperAdministración
 superadmin_menu = MenuItem.find_or_create_by!(name: 'superadmin') do |item|
   item.display_name = 'SuperAdministración'
   item.path = nil
   item.icon = 'bi-shield-lock'
   item.parent_id = main_menu.id
   item.sort_order = 200
-  item.minimum_role_level = 0 # Solo superadmin
+  item.minimum_role_level = 0
   item.system_menu = true
 end
-puts "  🛡️ Menú SuperAdministración creado"
 
 menu_config_menu = MenuItem.find_or_create_by!(name: 'menu_configuration') do |item|
   item.display_name = 'Configuración de Menús'
@@ -152,7 +152,6 @@ menu_config_menu = MenuItem.find_or_create_by!(name: 'menu_configuration') do |i
   item.minimum_role_level = 0
   item.system_menu = true
 end
-puts "  📋 Submenu Configuración de Menús creado"
 
 role_config_menu = MenuItem.find_or_create_by!(name: 'role_configuration') do |item|
   item.display_name = 'Configuración de Roles'
@@ -163,74 +162,209 @@ role_config_menu = MenuItem.find_or_create_by!(name: 'role_configuration') do |i
   item.minimum_role_level = 0
   item.system_menu = true
 end
-puts "  🏷️ Submenu Configuración de Roles creado"
 
-# ==============================================================================
+puts " 👥 📄 💼 🏁 🛡️ Submenús creados"
+
+# ===============================================================================
 # PERMISOS DE MENÚ
-# ==============================================================================
+# ===============================================================================
 puts "🔐 Asignando permisos de menú..."
 
-[superadmin_role, admin_role, agent_role, client_role].each do |role|
+Role.all.each do |role|
   MenuItem.active.find_each do |menu_item|
     if role.level <= menu_item.minimum_role_level
-      permission = RoleMenuPermission.find_or_create_by!(
+      RoleMenuPermission.find_or_create_by!(
         role: role,
         menu_item: menu_item
       ) do |perm|
         perm.can_view = true
-        perm.can_edit = (role.level <= 10) # Solo admin y superadmin pueden editar
+        perm.can_edit = (role.level <= 10)
       end
-      puts "    ✅ #{role.display_name} puede acceder a #{menu_item.display_name}" if permission.persisted?
     end
   end
 end
+puts " ✅ Permisos asignados correctamente"
 
-# ==============================================================================
-# USUARIO SUPERADMIN INICIAL
-# ==============================================================================
-puts "👤 Creando usuario SuperAdmin inicial..."
-User.create!(
-  email: 'superadmin@sistema.local', 
-  password: 'SuperAdmin123!',
-  role: Role.find_by(name: 'superadmin')  # ✅ Usar asociación
-)
+# ===============================================================================
+# CATÁLOGOS
+# ===============================================================================
 
-User.create!(
-  email: 'admin@sistema.com',
-  password: 'Admin123!', 
-  role: Role.find_by(name: 'admin')
-)
-# IMPORTANTE: Cambiar estos datos antes de producción
-superadmin_email = 'superadmin@sistema.local'
-superadmin_password = 'SuperAdmin123!'
+# Tipos de Propiedad
+puts "🏠 Creando tipos de propiedad..."
+property_types_data = [
+  { name: 'house', display_name: 'Casa', description: 'Casa unifamiliar', sort_order: 1 },
+  { name: 'apartment', display_name: 'Departamento', description: 'Departamento en edificio', sort_order: 2 },
+  { name: 'commercial', display_name: 'Local Comercial', description: 'Propiedad para uso comercial', sort_order: 3 },
+  { name: 'office', display_name: 'Oficina', description: 'Espacio de oficina', sort_order: 4 },
+  { name: 'warehouse', display_name: 'Bodega', description: 'Espacio de almacenamiento', sort_order: 5 },
+  { name: 'land', display_name: 'Terreno', description: 'Terreno para construcción', sort_order: 6 }
+]
 
-superadmin_user = User.find_or_create_by!(email: superadmin_email) do |user|
-  user.password = superadmin_password
-  user.password_confirmation = superadmin_password
-  user.role = :superadmin
-  puts "  ✅ Usuario SuperAdmin creado: #{superadmin_email}"
-  puts "  🔑 Password temporal: #{superadmin_password}"
-  puts "  ⚠️ CAMBIAR ESTAS CREDENCIALES EN PRODUCCIÓN"
+property_types_data.each do |attrs|
+  PropertyType.find_or_create_by!(name: attrs[:name]) do |pt|
+    pt.display_name = attrs[:display_name]
+    pt.description = attrs[:description]
+    pt.sort_order = attrs[:sort_order]
+    pt.active = true
+  end
+end
+puts " ✅ #{property_types_data.length} tipos de propiedad creados"
+
+# Tipos de Operación
+puts "💼 Creando tipos de operación..."
+operation_types_data = [
+  { name: 'sale', display_name: 'Venta', description: 'Venta de propiedad', sort_order: 1 },
+  { name: 'rent', display_name: 'Alquiler', description: 'Alquiler a largo plazo', sort_order: 2 },
+  { name: 'short_rent', display_name: 'Alquiler Temporario', description: 'Alquiler por días/semanas', sort_order: 3 }
+]
+
+operation_types_data.each do |attrs|
+  OperationType.find_or_create_by!(name: attrs[:name]) do |ot|
+    ot.display_name = attrs[:display_name]
+    ot.description = attrs[:description]
+    ot.sort_order = attrs[:sort_order]
+    ot.active = true
+  end
+end
+puts " ✅ #{operation_types_data.length} tipos de operación creados"
+
+# Estados de Negocio
+puts "📊 Creando estados de negocio..."
+business_statuses_data = [
+  { name: 'available', display_name: 'Disponible', color: 'success', sort_order: 1 },
+  { name: 'reserved', display_name: 'Reservado', color: 'warning', sort_order: 2 },
+  { name: 'sold', display_name: 'Vendido', color: 'info', sort_order: 3 },
+  { name: 'rented', display_name: 'Alquilado', color: 'primary', sort_order: 4 },
+  { name: 'cancelled', display_name: 'Cancelado', color: 'danger', sort_order: 5 }
+]
+
+business_statuses_data.each do |attrs|
+  BusinessStatus.find_or_create_by!(name: attrs[:name]) do |bs|
+    bs.display_name = attrs[:display_name]
+    bs.color = attrs[:color]
+    bs.sort_order = attrs[:sort_order]
+    bs.active = true
+  end
+end
+puts " ✅ #{business_statuses_data.length} estados de negocio creados"
+
+# ===============================================================================
+# CLIENTES DE EJEMPLO
+# ===============================================================================
+puts "👥 Creando clientes de ejemplo..."
+
+client1 = Client.find_or_create_by!(email: 'juan.perez@email.com') do |c|
+  c.name = 'Juan Pérez'
+  c.phone = '+52 555 123 4567'
+  c.address = 'Calle Principal 123, Ciudad'
 end
 
-if superadmin_user.persisted? && !superadmin_user.previously_new_record?
-  puts "  ℹ️ Usuario SuperAdmin ya existía: #{superadmin_email}"
+client2 = Client.find_or_create_by!(email: 'maria.garcia@email.com') do |c|
+  c.name = 'María García'
+  c.phone = '+52 555 987 6543'
+  c.address = 'Avenida Central 456, Ciudad'
 end
 
-# ==============================================================================
+puts " ✅ 2 clientes de ejemplo creados"
+
+# ===============================================================================
+# USUARIOS INICIALES
+# ===============================================================================
+puts "👤 Creando usuarios iniciales..."
+
+superadmin_user = User.find_or_create_by!(email: 'superadmin@sistema.local') do |user|
+  user.password = 'SuperAdmin123!'
+  user.password_confirmation = 'SuperAdmin123!'
+  user.role = Role.find_by(name: 'superadmin')
+end
+
+admin_user = User.find_or_create_by!(email: 'admin@sistema.com') do |user|
+  user.password = 'Admin123!'
+  user.password_confirmation = 'Admin123!'
+  user.role = Role.find_by(name: 'admin')
+end
+
+puts " ✅ Usuarios iniciales creados"
+puts " 🔑 SuperAdmin: superadmin@sistema.local / SuperAdmin123!"
+puts " 🔑 Admin: admin@sistema.com / Admin123!"
+
+# ===============================================================================
 # VERIFICACIÓN FINAL
-# ==============================================================================
-puts "\n🔍 Verificando instalación..."
-puts "  Roles creados: #{Role.count}"
-puts "  Menús creados: #{MenuItem.count}"
-puts "  Permisos asignados: #{RoleMenuPermission.count}"
-puts "  Usuarios SuperAdmin: #{User.superadmin.count}"
+# ===============================================================================
+puts "\n🔍 Verificación final..."
+puts " Roles: #{Role.count}"
+puts " Menús: #{MenuItem.count}"
+puts " Permisos: #{RoleMenuPermission.count}"
+puts " PropertyTypes: #{PropertyType.count}"
+puts " OperationTypes: #{OperationType.count}"
+puts " BusinessStatuses: #{BusinessStatus.count}"
+puts " Clientes: #{Client.count}"
+puts " Usuarios: #{User.count}"
 
 puts "\n✅ Seeds completados exitosamente!"
-puts "\n📋 RESUMEN:"
-puts "  SuperAdmin: #{superadmin_email} / #{superadmin_password}"
-puts "  Acceso: http://localhost:3000"
-puts "  Panel SuperAdmin estará disponible en: /superadmin"
-puts "\n⚠️ IMPORTANTE: Cambiar credenciales del SuperAdmin en producción"
+puts "🚀 Sistema listo para usar"
 
-=end
+# ===============================================================================
+# AGENTES DE EJEMPLO
+# ===============================================================================
+puts "👨‍💼 Creando agentes de ejemplo..."
+
+agent1 = User.find_or_create_by!(email: 'agente1@sistema.com') do |user|
+  user.password = 'Agent123!'
+  user.password_confirmation = 'Agent123!'
+  user.role = Role.find_by(name: 'agent')
+end
+
+agent2 = User.find_or_create_by!(email: 'agente2@sistema.com') do |user|
+  user.password = 'Agent123!' 
+  user.password_confirmation = 'Agent123!'
+  user.role = Role.find_by(name: 'agent')
+end
+
+agent3 = User.find_or_create_by!(email: 'agente3@sistema.com') do |user|
+  user.password = 'Agent123!'
+  user.password_confirmation = 'Agent123!'
+  user.role = Role.find_by(name: 'agent')
+end
+
+puts " ✅ 3 agentes creados"
+puts " 🔑 Agente 1: agente1@sistema.com / Agent123!"
+puts " 🔑 Agente 2: agente2@sistema.com / Agent123!"
+puts " 🔑 Agente 3: agente3@sistema.com / Agent123!"
+
+# ===============================================================================
+# CLIENTE DE EJEMPLO CON PERFIL DE USUARIO
+# ===============================================================================
+puts "👤 Creando usuario cliente de ejemplo..."
+
+client_user = User.find_or_create_by!(email: 'cliente1@email.com') do |user|
+  user.password = 'Cliente123!'
+  user.password_confirmation = 'Cliente123!'
+  user.role = Role.find_by(name: 'client')
+end
+
+# Verificar si Client puede tener user_id
+if Client.column_names.include?('user_id')
+  # Si Client tiene relación con User
+  if Client.exists?(email: 'cliente1@email.com')
+    existing_client = Client.find_by(email: 'cliente1@email.com')
+    existing_client.update(user: client_user)
+  else
+    Client.create!(
+      name: 'Laura González',
+      email: 'cliente1@email.com', 
+      phone: '+52 555 111 2222',
+      address: 'Residencial Norte 789, Ciudad',
+      user: client_user
+    )
+  end
+else
+  # Si Client NO tiene relación con User, solo actualizar cliente existente
+  existing_client = Client.find_by(email: 'cliente1@email.com')
+  if existing_client
+    existing_client.update(name: 'Laura González (Usuario)')
+  end
+end
+
+puts " ✅ Usuario cliente creado"
+puts " 🔑 Cliente: cliente1@email.com / Cliente123!"

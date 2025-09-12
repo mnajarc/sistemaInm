@@ -1,0 +1,159 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-briefcase"></i>
+    Tipos de Operación
+  </h2>
+  <% if policy(OperationType).create? %>
+    <%= link_to new_admin_operation_type_path, class: "btn btn-primary" do %>
+      <i class="bi bi-plus-circle"></i>
+      Nuevo Tipo
+    <% end %>
+  <% end %>
+</div>
+
+<div class="card shadow">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <i class="bi bi-list"></i>
+      Listado de Tipos de Operación
+    </h5>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th width="80">Orden</th>
+          <th width="150">Clave</th>
+          <th>Nombre Visible</th>
+          <th>Descripción</th>
+          <th width="100" class="text-center">Estado</th>
+          <th width="120" class="text-center">Transacciones</th>
+          <th width="200" class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if @operation_types.any? %>
+          <% @operation_types.each do |operation_type| %>
+            <tr>
+              <td class="text-center">
+                <span class="badge bg-secondary">
+                  <%= operation_type.sort_order %>
+                </span>
+              </td>
+              <td>
+                <code class="text-primary"><%= operation_type.name %></code>
+              </td>
+              <td>
+                <%= link_to admin_operation_type_path(operation_type), class: "text-decoration-none" do %>
+                  <strong><%= operation_type.display_name %></strong>
+                <% end %>
+              </td>
+              <td>
+                <span class="text-muted">
+                  <%= truncate(operation_type.description, length: 50) %>
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-<%= operation_type.active? ? 'success' : 'danger' %>">
+                  <i class="bi bi-<%= operation_type.active? ? 'check-circle' : 'x-circle' %>"></i>
+                  <%= operation_type.active? ? 'Activo' : 'Inactivo' %>
+                </span>
+              </td>
+              <td class="text-center">
+                <!-- ✅ CORREGIDO: Mostrar transacciones activas -->
+                <% transactions_count = operation_type.active_transactions_count %>
+                <% if transactions_count > 0 %>
+                  <span class="badge bg-info" title="<%= transactions_count %> transacciones activas">
+                    <i class="bi bi-graph-up"></i>
+                    <%= transactions_count %>
+                  </span>
+                <% else %>
+                  <span class="text-muted" title="Sin transacciones activas">0</span>
+                <% end %>
+              </td>
+              <td class="text-center">
+                <div class="btn-group" role="group">
+                  <!-- View/Show button -->
+                  <%= link_to admin_operation_type_path(operation_type), 
+                      class: "btn btn-sm btn-outline-info",
+                      title: "Ver detalles" do %>
+                    <i class="bi bi-eye"></i>
+                  <% end %>
+                  
+                  <% if policy(operation_type).edit? %>
+                    <%= link_to edit_admin_operation_type_path(operation_type), 
+                        class: "btn btn-sm btn-outline-primary",
+                        title: "Editar" do %>
+                      <i class="bi bi-pencil"></i>
+                    <% end %>
+                  <% end %>
+                  
+                  <% if policy(operation_type).destroy? %>
+                    <% if transactions_count == 0 %>
+                      <%= link_to admin_operation_type_path(operation_type), 
+                          method: :delete,
+                          data: { 
+                            confirm: "¿Estás seguro de eliminar '#{operation_type.display_name}'?\n\nEsta acción no se puede deshacer." 
+                          },
+                          class: "btn btn-sm btn-outline-danger",
+                          title: "Eliminar" do %>
+                        <i class="bi bi-trash"></i>
+                      <% end %>
+                    <% else %>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              disabled 
+                              title="No se puede eliminar: tiene transacciones asociadas">
+                        <i class="bi bi-lock"></i>
+                      </button>
+                    <% end %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="7" class="text-center py-4">
+              <div class="text-muted">
+                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                <h5 class="mt-2">No hay tipos de operación registrados</h5>
+                <p>Comienza creando tu primer tipo de operación.</p>
+                <% if policy(OperationType).create? %>
+                  <%= link_to "Crear Primer Tipo", new_admin_operation_type_path, 
+                      class: "btn btn-primary" %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  
+  <% if @operation_types.any? %>
+    <div class="card-footer text-muted">
+      <i class="bi bi-info-circle"></i>
+      <strong><%= @operation_types.count %></strong> tipo(s) de operación registrado(s)
+    </div>
+  <% end %>
+</div>
+
+<!-- Información adicional -->
+<div class="mt-4">
+  <div class="alert alert-info">
+    <h6 class="alert-heading">
+      <i class="bi bi-lightbulb"></i>
+      Información sobre Tipos de Operación
+    </h6>
+    <p class="mb-2">
+      • Los tipos de operación se asignan a <strong>transacciones de negocio</strong>, no directamente a propiedades
+    </p>
+    <p class="mb-2">
+      • Una propiedad puede tener múltiples operaciones activas simultáneamente (ej: venta y alquiler)
+    </p>
+    <p class="mb-0">
+      • No se pueden eliminar tipos que tengan transacciones asociadas
+    </p>
+  </div>
+</div>

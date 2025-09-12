@@ -1,0 +1,62 @@
+<%= form_with model: [:admin, operation_type], local: true, class: "needs-validation", novalidate: true do |form| %>
+    <% if operation_type.errors.any? %>
+      <div class="alert alert-danger">
+        <h6><%= pluralize(operation_type.errors.count, "error") %> impidieron guardar:</h6>
+        <ul class="mb-0">
+          <% operation_type.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :name, "Clave del Sistema", class: "form-label" %>
+          <%= form.text_field :name, class: "form-control", placeholder: "ej: sale, rent" %>
+          <div class="form-text">Identificador único, solo letras minúsculas y guiones bajos</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :display_name, "Nombre Visible", class: "form-label" %>
+          <%= form.text_field :display_name, class: "form-control", placeholder: "ej: Venta, Alquiler" %>
+          <div class="form-text">Nombre que verán los usuarios</div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="mb-3">
+      <%= form.label :description, "Descripción", class: "form-label" %>
+      <%= form.text_area :description, class: "form-control", rows: 3, placeholder: "Descripción del tipo de operación" %>
+    </div>
+  
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :sort_order, "Orden", class: "form-label" %>
+          <%= form.number_field :sort_order, class: "form-control", min: 0, placeholder: "10" %>
+          <div class="form-text">Orden de aparición en listas (menor número = primero)</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="mb-3">
+          <div class="form-check form-switch mt-4">
+            <%= form.check_box :active, class: "form-check-input" %>
+            <%= form.label :active, "Activo", class: "form-check-label" %>
+            <div class="form-text">Solo los tipos activos aparecen en formularios</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="d-flex gap-2">
+      <%= form.submit operation_type.persisted? ? "Actualizar Tipo" : "Crear Tipo", 
+          class: "btn btn-primary" %>
+      <%= link_to "Cancelar", admin_operation_types_path, class: "btn btn-secondary" %>
+    </div>
+  <% end %>
+  

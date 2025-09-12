@@ -33,21 +33,97 @@
           </div>
         </div>
 
+
+
+<!-- Reemplaza la sección de información de la propiedad existente -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Información de la Propiedad</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <dl class="row">
+          <dt class="col-sm-5">Tipo:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-primary">
+              <%= @property.property_type&.display_name || 'Sin especificar' %>
+            </span>
+          </dd>
+          
+          <dt class="col-sm-5">Precio Base:</dt>
+          <dd class="col-sm-7">
+            <strong class="text-success">
+              $<%= number_with_delimiter(@property.price) %>
+            </strong>
+            <small class="text-muted">(referencia)</small>
+          </dd>
+        </dl>
+      </div>
+      
+      <div class="col-md-6">
+        <dl class="row">
+          <dt class="col-sm-5">Agente:</dt>
+          <dd class="col-sm-7"><%= @property.user.email %></dd>
+          
+          <dt class="col-sm-5">Estado:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-secondary">Registrada</span>
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nueva sección para operaciones disponibles -->
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0">Operaciones Disponibles</h5>
+  </div>
+  <div class="card-body">
+    <% if @property.business_transactions.any? %>
+      <% @property.business_transactions.each do |transaction| %>
+        <div class="alert alert-<%= transaction.business_status.color %> d-flex justify-content-between">
+          <div>
+            <strong><%= transaction.operation_type.display_name %></strong>
+            <br>
+            <small>Precio: $<%= number_with_delimiter(transaction.price) %></small>
+            <br>
+            <small>Estado: <%= transaction.business_status.display_name %></small>
+          </div>
+          <div>
+            <span class="badge bg-<%= transaction.business_status.color %>">
+              <%= transaction.business_status.display_name %>
+            </span>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Sin operaciones configuradas</strong>
+        <p class="mb-0">Esta propiedad aún no tiene operaciones de venta o renta configuradas.</p>
+        <% if policy(@property).update? %>
+          <hr>
+          <%= link_to "Configurar Operaciones", "#", class: "btn btn-primary btn-sm" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+
+
+
         <div class="col-md-4">
           <div class="card mb-4">
             <div class="card-header">
-              <h5>Información General</h5>
+              <h5>Información de la Propiedad</h5>
             </div>
             <div class="card-body">
               <p><strong>Precio:</strong> <span class="text-success fs-4">$<%= number_with_delimiter(@property.price) %></span></p>
-              <p><strong>Tipo:</strong> <%= @property.property_type.humanize %></p>
-              <p><strong>Estatus:</strong> 
-                <span class="badge bg-<%= @property.status == 'disponible' ? 'success' : 
-                                        @property.status == 'en_proceso' ? 'warning' : 
-                                        @property.status == 'vendida' ? 'primary' : 'secondary' %>">
-                  <%= @property.status.humanize %>
-                </span>
-              </p>
+              <p><strong>Tipo:</strong> <%= @property.property_type&.display_name %></p>
               <hr>
               <p><strong>Recámaras:</strong> <%= @property.bedrooms %></p>
               <p><strong>Baños:</strong> <%= @property.bathrooms %></p>
@@ -71,6 +147,74 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+<!-- Estado de Transacciones por Operación -->
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0">
+      <i class="bi bi-shield-check"></i>
+      Estado de Operaciones
+    </h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <% @property.operation_status_summary.each do |operation_key, info| %>
+        <div class="col-md-4 mb-3">
+          <div class="card border-<%= case info[:status]
+                                      when 'reserved' then 'warning'
+                                      when 'available' then 'success'
+                                      else 'secondary'
+                                      end %>">
+            <div class="card-body text-center">
+              <h6 class="card-title">
+                <%= OperationType.find_by(name: operation_key)&.display_name %>
+              </h6>
+              
+              <span class="badge bg-<%= case info[:status]
+                                       when 'reserved' then 'warning'
+                                       when 'available' then 'success'  
+                                       else 'secondary'
+                                       end %> mb-2">
+                <%= info[:message] %>
+              </span>
+              
+              <% if info[:agent] %>
+                <p class="card-text">
+                  <small class="text-muted">
+                    <i class="bi bi-person"></i>
+                    <%= info[:agent] %>
+                  </small>
+                </p>
+              <% end %>
+              
+              <!-- Botón de acción según estado -->
+              <% case info[:status] %>
+              <% when 'none' %>
+                <% if policy(BusinessTransaction).create? %>
+                  <%= link_to new_business_transaction_path(
+                        property_id: @property.id, 
+                        operation_type_id: OperationType.find_by(name: operation_key)&.id
+                      ), class: "btn btn-sm btn-primary" do %>
+                    <i class="bi bi-plus"></i> Crear Transacción
+                  <% end %>
+                <% end %>
+              <% when 'available' %>
+                <small class="text-success">
+                  <i class="bi bi-check-circle"></i>
+                  Disponible para ofertas
+                </small>
+              <% when 'reserved' %>
+                <small class="text-warning">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  Bloqueado - Oferta en proceso
+                </small>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>

@@ -47,6 +47,14 @@ class User < ApplicationRecord
   end
   
   # ✅ MÉTODOS DE VERIFICACIÓN DE ROL
+  def admin_or_above?
+    role&.level && role.level <= 10
+  end
+
+  def agent_or_above?
+    role&.level && role.level <= 20
+  end
+
   def superadmin?
     role&.name == 'superadmin'
   end
