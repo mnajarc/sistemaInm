@@ -1,5 +1,5 @@
-class Superadmin::BaseController < ApplicationController
-  before_action :ensure_superadmin
+class Superadmin::BaseController < BaseController
+  before_action :ensure_superadmin_access
 
   def index
     role_counts = User.joins(:role)
@@ -22,6 +22,13 @@ class Superadmin::BaseController < ApplicationController
   end
 
   private
+
+  def ensure_superadmin_access
+    unless current_user&.superadmin?
+      flash[:alert] = "Acceso denegado: Se requieren permisos de SuperAdministrador"
+      redirect_to root_path
+    end
+  end
 
   def ensure_superadmin
     unless current_user&.superadmin?

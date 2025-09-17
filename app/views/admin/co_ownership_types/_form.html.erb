@@ -1,0 +1,63 @@
+<%= form_with model: [:admin, co_ownership_type], local: true, class: "needs-validation", novalidate: true do |form| %>
+    <% if co_ownership_type.errors.any? %>
+      <div class="alert alert-danger">
+        <h6><%= pluralize(co_ownership_type.errors.count, "error") %> impidieron guardar:</h6>
+        <ul class="mb-0">
+          <% co_ownership_type.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :name, "Clave del Sistema", class: "form-label" %>
+          <%= form.text_field :name, class: "form-control", placeholder: "ej: joint_married, inheritance" %>
+          <div class="form-text">Clave única para identificar el tipo en el sistema</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :display_name, "Nombre Visible", class: "form-label" %>
+          <%= form.text_field :display_name, class: "form-control", placeholder: "ej: Bienes Mancomunados" %>
+          <div class="form-text">Nombre que verán los usuarios</div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="mb-3">
+      <%= form.label :description, "Descripción", class: "form-label" %>
+      <%= form.text_area :description, class: "form-control", rows: 3, 
+          placeholder: "Descripción detallada del tipo de copropiedad" %>
+    </div>
+  
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :sort_order, "Orden de Visualización", class: "form-label" %>
+          <%= form.number_field :sort_order, class: "form-control", min: 0 %>
+          <div class="form-text">Orden en que aparecerá en las listas</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="mb-3">
+          <div class="form-check form-switch mt-4">
+            <%= form.check_box :active, class: "form-check-input" %>
+            <%= form.label :active, "Activo", class: "form-check-label" %>
+          </div>
+          <div class="form-text">Si está inactivo, no aparecerá en formularios</div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="d-flex gap-2">
+      <%= form.submit co_ownership_type.persisted? ? "Actualizar Tipo" : "Crear Tipo", 
+          class: "btn btn-primary" %>
+      <%= link_to "Cancelar", admin_co_ownership_types_path, class: "btn btn-secondary" %>
+    </div>
+  <% end %>
+  

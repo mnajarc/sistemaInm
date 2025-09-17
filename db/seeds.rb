@@ -30,160 +30,91 @@ roles_data.each do |attrs|
 end
 
 # ===============================================================================
-# ESTRUCTURA DE MENÚS
+# ESTRUCTURA DE MENÚS COMPLETA
 # ===============================================================================
-puts "📱 Creando estructura de menús..."
+puts "📱 Creando estructura completa de menús..."
 
-# Menú raíz
-main_menu = MenuItem.find_or_create_by!(name: 'main') do |item|
-  item.display_name = 'Menú Principal'
-  item.path = nil
-  item.icon = nil
-  item.minimum_role_level = 30
-  item.sort_order = 0
-  item.system_menu = true
-end
-puts " 📁 Menú raíz creado"
+# Buscar menú admin existente
+admin_menu = MenuItem.find_by(name: 'administration')
 
-# Menú Propiedades
-properties_menu = MenuItem.find_or_create_by!(name: 'properties') do |item|
-  item.display_name = 'Propiedades'
-  item.path = '/properties'
-  item.icon = 'bi-house-door'
-  item.parent_id = main_menu.id
-  item.sort_order = 10
-  item.minimum_role_level = 30
-  item.system_menu = true
-end
-puts " 🏠 Menú Propiedades creado"
+if admin_menu
+  # Actualizar menú admin para que sea dropdown
+  admin_menu.update!(path: '#')
+  
+  # Submenús Admin actualizados
+  admin_submenus = [
+    { name: 'property_types', display_name: 'Tipos de Propiedad', path: '/admin/property_types', icon: 'bi-house', sort_order: 10 },
+    { name: 'operation_types', display_name: 'Tipos de Operación', path: '/admin/operation_types', icon: 'bi-briefcase', sort_order: 20 },
+    { name: 'business_statuses', display_name: 'Estados de Negocio', path: '/admin/business_statuses', icon: 'bi-flag', sort_order: 30 },
+    { name: 'users', display_name: 'Gestión de Usuarios', path: '/admin/users', icon: 'bi-person-gear', sort_order: 40 },
+  ]
 
-# Nueva Propiedad
-new_property_menu = MenuItem.find_or_create_by!(name: 'new_property') do |item|
-  item.display_name = 'Nueva Propiedad'
-  item.path = '/properties/new'
-  item.icon = 'bi-plus-circle'
-  item.parent_id = main_menu.id
-  item.sort_order = 20
-  item.minimum_role_level = 20
-  item.system_menu = true
-end
-puts " ➕ Menú Nueva Propiedad creado"
-
-# Menú Administración
-admin_menu = MenuItem.find_or_create_by!(name: 'administration') do |item|
-  item.display_name = 'Administración'
-  item.path = nil
-  item.icon = 'bi-gear'
-  item.parent_id = main_menu.id
-  item.sort_order = 100
-  item.minimum_role_level = 10
-  item.system_menu = true
-end
-puts " ⚙️ Menú Administración creado"
-
-# Submenús de administración
-users_menu = MenuItem.find_or_create_by!(name: 'user_management') do |item|
-  item.display_name = 'Gestión de Usuarios'
-  item.path = '/admin/users'
-  item.icon = 'bi-people'
-  item.parent_id = admin_menu.id
-  item.sort_order = 15
-  item.minimum_role_level = 10
-  item.system_menu = true
+  admin_submenus.each do |submenu_attrs|
+    MenuItem.find_or_create_by!(name: submenu_attrs[:name]) do |item|
+      item.display_name = submenu_attrs[:display_name]
+      item.path = submenu_attrs[:path]
+      item.icon = submenu_attrs[:icon]
+      item.parent_id = admin_menu.id
+      item.sort_order = submenu_attrs[:sort_order]
+      item.minimum_role_level = 10
+      item.active = true
+      item.system_menu = true
+    end
+  end
+  
+  puts " ✅ Submenús administrativos actualizados"
 end
 
-property_types_menu = MenuItem.find_or_create_by!(name: 'property_types') do |item|
-  item.display_name = 'Tipos de Propiedad'
-  item.path = '/admin/property_types'
-  item.icon = 'bi-house'
-  item.parent_id = admin_menu.id
-  item.sort_order = 25
-  item.minimum_role_level = 10
-  item.system_menu = true
+# Crear menús principales si no existen
+main_menus = [
+  { name: 'properties', display_name: 'Propiedades', path: '/properties', icon: 'bi-house-door', sort_order: 10, level: 20 },
+  { name: 'transactions', display_name: 'Transacciones', path: '/business_transactions', icon: 'bi-briefcase', sort_order: 20, level: 20 },
+]
+
+main_menus.each do |menu_attrs|
+  MenuItem.find_or_create_by!(name: menu_attrs[:name]) do |item|
+    item.display_name = menu_attrs[:display_name]
+    item.path = menu_attrs[:path]
+    item.icon = menu_attrs[:icon]
+    item.parent_id = nil
+    item.sort_order = menu_attrs[:sort_order]
+    item.minimum_role_level = menu_attrs[:level]
+    item.active = true
+    item.system_menu = true
+  end
 end
 
-operation_types_menu = MenuItem.find_or_create_by!(name: 'operation_types') do |item|
-  item.display_name = 'Tipos de Operación'
-  item.path = '/admin/operation_types'
-  item.icon = 'bi-briefcase'
-  item.parent_id = admin_menu.id
-  item.sort_order = 27
-  item.minimum_role_level = 10
-  item.system_menu = true
+# Buscar menú superadmin existente
+superadmin_menu = MenuItem.find_by(name: 'superadmin')
+
+if superadmin_menu
+  # Actualizar para que sea dropdown si no lo es
+  superadmin_menu.update!(path: '#') unless superadmin_menu.path == '#'
+  
+  puts " ✅ Menú SuperAdmin actualizado"
 end
 
-business_statuses_menu = MenuItem.find_or_create_by!(name: 'business_statuses') do |item|
-  item.display_name = 'Estados de Negocio'
-  item.path = '/admin/business_statuses'
-  item.icon = 'bi-flag'
-  item.parent_id = admin_menu.id
-  item.sort_order = 28
-  item.minimum_role_level = 10
-  item.system_menu = true
-end
-
-doc_types_menu = MenuItem.find_or_create_by!(name: 'document_types') do |item|
-  item.display_name = 'Tipos de Documento'
-  item.path = '/admin/document_types'
-  item.icon = 'bi-file-text'
-  item.parent_id = admin_menu.id
-  item.sort_order = 30
-  item.minimum_role_level = 10
-  item.system_menu = true
-end
-
-# Menú SuperAdministración
-superadmin_menu = MenuItem.find_or_create_by!(name: 'superadmin') do |item|
-  item.display_name = 'SuperAdministración'
-  item.path = nil
-  item.icon = 'bi-shield-lock'
-  item.parent_id = main_menu.id
-  item.sort_order = 200
-  item.minimum_role_level = 0
-  item.system_menu = true
-end
-
-menu_config_menu = MenuItem.find_or_create_by!(name: 'menu_configuration') do |item|
-  item.display_name = 'Configuración de Menús'
-  item.path = '/superadmin/menu_items'
-  item.icon = 'bi-list-ul'
-  item.parent_id = superadmin_menu.id
-  item.sort_order = 10
-  item.minimum_role_level = 0
-  item.system_menu = true
-end
-
-role_config_menu = MenuItem.find_or_create_by!(name: 'role_configuration') do |item|
-  item.display_name = 'Configuración de Roles'
-  item.path = '/superadmin/roles'
-  item.icon = 'bi-person-badge'
-  item.parent_id = superadmin_menu.id
-  item.sort_order = 20
-  item.minimum_role_level = 0
-  item.system_menu = true
-end
-
-puts " 👥 📄 💼 🏁 🛡️ Submenús creados"
+puts " ✅ Estructura de menús completa creada"
 
 # ===============================================================================
-# PERMISOS DE MENÚ
+# ASIGNACIÓN DE PERMISOS DE MENÚ ACTUALIZADA
 # ===============================================================================
-puts "🔐 Asignando permisos de menú..."
+puts "🔐 Actualizando permisos de menú..."
 
+# Asegurar que todos los menús tengan permisos correctos
 Role.all.each do |role|
-  MenuItem.active.find_each do |menu_item|
+  MenuItem.where(active: true).each do |menu_item|
+    # Solo crear permisos si el rol puede acceder al menú
     if role.level <= menu_item.minimum_role_level
-      RoleMenuPermission.find_or_create_by!(
-        role: role,
-        menu_item: menu_item
-      ) do |perm|
+      RoleMenuPermission.find_or_create_by!(role: role, menu_item: menu_item) do |perm|
         perm.can_view = true
-        perm.can_edit = (role.level <= 10)
+        perm.can_edit = (role.level <= 10) # Solo admin y superadmin pueden editar
       end
     end
   end
 end
-puts " ✅ Permisos asignados correctamente"
+
+puts " ✅ Permisos de menú actualizados correctamente"
 
 # ===============================================================================
 # CATÁLOGOS
@@ -381,3 +312,28 @@ if client_user && existing_client
   existing_client.update!(user: client_user)
   puts " ✅ Cliente vinculado con usuario"
 end
+
+# ===============================================================================
+# TIPOS DE COPROPIEDAD
+# ===============================================================================
+puts "🤝 Creando tipos de copropiedad..."
+
+co_ownership_data = [
+  { name: 'individual', display_name: 'Propietario Único', description: 'Una sola persona es propietaria', sort_order: 1 },
+  { name: 'joint_married', display_name: 'Bienes Mancomunados', description: 'Matrimonio con bienes en común', sort_order: 2 },
+  { name: 'inheritance', display_name: 'Herencia', description: 'Múltiples herederos', sort_order: 3 },
+  { name: 'joint_ownership', display_name: 'Copropiedad', description: 'Múltiples propietarios por acuerdo', sort_order: 4 },
+  { name: 'corporation', display_name: 'Corporativo', description: 'Propiedad de persona moral', sort_order: 5 },
+  { name: 'trust', display_name: 'Fideicomiso', description: 'Propiedad en fideicomiso', sort_order: 6 }
+]
+
+co_ownership_data.each do |attrs|
+  CoOwnershipType.find_or_create_by!(name: attrs[:name]) do |ct|
+    ct.display_name = attrs[:display_name]
+    ct.description = attrs[:description]
+    ct.sort_order = attrs[:sort_order]
+    ct.active = true
+  end
+end
+
+puts " ✅ #{co_ownership_data.length} tipos de copropiedad creados"

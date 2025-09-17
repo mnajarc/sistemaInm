@@ -1,0 +1,130 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-people"></i>
+    Tipos de Copropiedad
+  </h2>
+  <% if policy(CoOwnershipType).create? %>
+    <%= link_to new_admin_co_ownership_type_path, class: "btn btn-primary" do %>
+      <i class="bi bi-plus-circle"></i>
+      Nuevo Tipo
+    <% end %>
+  <% end %>
+</div>
+
+<div class="card shadow">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <i class="bi bi-list"></i>
+      Listado de Tipos de Copropiedad
+    </h5>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th width="80">Orden</th>
+          <th width="150">Clave</th>
+          <th>Nombre Visible</th>
+          <th>Descripción</th>
+          <th width="100" class="text-center">Estado</th>
+          <th width="120" class="text-center">Propiedades</th>
+          <th width="200" class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if @co_ownership_types.any? %>
+          <% @co_ownership_types.each do |co_ownership_type| %>
+            <tr>
+              <td class="text-center">
+                <span class="badge bg-secondary">
+                  <%= co_ownership_type.sort_order %>
+                </span>
+              </td>
+              <td>
+                <code class="text-primary"><%= co_ownership_type.name %></code>
+              </td>
+              <td>
+                <%= link_to admin_co_ownership_type_path(co_ownership_type), class: "text-decoration-none" do %>
+                  <strong><%= co_ownership_type.display_name %></strong>
+                <% end %>
+              </td>
+              <td>
+                <span class="text-muted">
+                  <%= truncate(co_ownership_type.description, length: 50) %>
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-<%= co_ownership_type.active? ? 'success' : 'danger' %>">
+                  <i class="bi bi-<%= co_ownership_type.active? ? 'check-circle' : 'x-circle' %>"></i>
+                  <%= co_ownership_type.active? ? 'Activo' : 'Inactivo' %>
+                </span>
+              </td>
+              <td class="text-center">
+                <% properties_count = co_ownership_type.properties.count %>
+                <% if properties_count > 0 %>
+                  <span class="badge bg-info">
+                    <i class="bi bi-house-door"></i>
+                    <%= properties_count %>
+                  </span>
+                <% else %>
+                  <span class="text-muted">0</span>
+                <% end %>
+              </td>
+              <td class="text-center">
+                <div class="btn-group" role="group">
+                  <%= link_to admin_co_ownership_type_path(co_ownership_type), 
+                      class: "btn btn-sm btn-outline-info",
+                      title: "Ver detalles" do %>
+                    <i class="bi bi-eye"></i>
+                  <% end %>
+                  
+                  <% if policy(co_ownership_type).edit? %>
+                    <%= link_to edit_admin_co_ownership_type_path(co_ownership_type), 
+                        class: "btn btn-sm btn-outline-primary",
+                        title: "Editar" do %>
+                      <i class="bi bi-pencil"></i>
+                    <% end %>
+                  <% end %>
+                  
+                  <% if policy(co_ownership_type).destroy? %>
+                    <% if properties_count == 0 %>
+                      <%= link_to admin_co_ownership_type_path(co_ownership_type), 
+                          method: :delete,
+                          data: { 
+                            confirm: "¿Estás seguro de eliminar '#{co_ownership_type.display_name}'?" 
+                          },
+                          class: "btn btn-sm btn-outline-danger",
+                          title: "Eliminar" do %>
+                        <i class="bi bi-trash"></i>
+                      <% end %>
+                    <% else %>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              disabled 
+                              title="No se puede eliminar: tiene propiedades asociadas">
+                        <i class="bi bi-lock"></i>
+                      </button>
+                    <% end %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="7" class="text-center py-4">
+              <div class="text-muted">
+                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                <h5 class="mt-2">No hay tipos de copropiedad registrados</h5>
+                <% if policy(CoOwnershipType).create? %>
+                  <%= link_to "Crear Primer Tipo", new_admin_co_ownership_type_path, 
+                      class: "btn btn-primary" %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

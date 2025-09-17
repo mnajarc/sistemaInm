@@ -1,76 +1,58 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
   <div class="container-fluid">
-    <%= link_to "Sistema Inmobiliario", root_path, class: "navbar-brand" %>
+    <%= link_to "Sistema Inmobiliario", root_path, class: "navbar-brand fw-bold" %>
     
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
-            data-bs-target="#mainNavbar">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
     
-    <div class="collapse navbar-collapse" id="mainNavbar">
-      <!-- MENÚS PRINCIPALES -->
-      <% if user_signed_in? %>
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <!-- Propiedades - Todos pueden ver -->
-          <li class="nav-item">
-            <%= link_to "Propiedades", properties_path, class: "nav-link" %>
-          </li>
-          
-          <!-- Nueva Propiedad - Solo agentes y arriba -->
-          <% if current_user.agent? || current_user.admin? || current_user.superadmin? %>
-            <li class="nav-item">
-              <%= link_to "Nueva Propiedad", new_property_path, class: "nav-link" %>
-            </li>
-          <% end %>
-          <% if can_access_admin? %>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown"
-                role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-gear"></i> Administración
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                <%= render_admin_menu_items(current_user) %>
-                
-                <!-- SUPERADMIN: Panel adicional -->
-                <% if can_access_superadmin? %>
-                  <li><hr class="dropdown-divider"></li>
-                  <li>
-                    <%= link_to superadmin_root_path, class: "dropdown-item text-warning" do %>
-                      <i class="bi bi-shield-lock"></i> Panel SuperAdmin
-                    <% end %>
-                  </li>
-                <% end %>
-              </ul>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <!-- Menús principales dinámicos -->
+      <%= render_menu_tree(MenuItem.main_navigation(current_user), current_user) if user_signed_in? %>
       
-      <!-- USUARIO DROPDOWN -->
-      <ul class="navbar-nav mb-2 mb-lg-0">
+      <!-- Usuario y acciones -->
+      <ul class="navbar-nav ms-auto">
         <% if user_signed_in? %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle"></i>
               <%= current_user.email %>
-              <span class="badge bg-<%= current_user.superadmin? ? 'warning' : 'light' %> text-dark ms-1">
-                <%= current_user.role&.display_name || 'Sin rol' %>
-              </span>
+              <span class="badge bg-light text-dark ms-1"><%= current_user.role_name %></span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><%= link_to "Perfil", edit_user_registration_path, class: "dropdown-item" %></li>
+            <ul class="dropdown-menu">
+              <li><h6 class="dropdown-header">Mi Cuenta</h6></li>
+              <li><%= link_to "Mi Perfil", edit_user_registration_path, class: "dropdown-item" %></li>
+              <li><hr class="dropdown-divider"></li>
+              
+              <!-- Accesos por rol -->
+              <% if current_user.client? %>
+                <li><%= link_to "Portal Cliente", client_root_path, class: "dropdown-item" %></li>
+              <% end %>
+              
+              <% if current_user.agent_or_above? %>
+                <li><%= link_to "Mis Transacciones", business_transactions_path, class: "dropdown-item" %></li>
+              <% end %>
+              
+              <% if current_user.admin_or_above? %>
+                <li><%= link_to "Panel Admin", admin_property_types_path, class: "dropdown-item" %></li>
+              <% end %>
+              
+              <% if current_user.superadmin? %>
+                <li><%= link_to "SuperAdmin", superadmin_root_path, class: "dropdown-item" %></li>
+              <% end %>
+              
               <li><hr class="dropdown-divider"></li>
               <li>
-                <%= button_to "Cerrar Sesión", destroy_user_session_path,
-                              method: :delete, class: "dropdown-item" %>
+                <%= button_to "Cerrar Sesión", destroy_user_session_path, 
+                    method: :delete, 
+                    class: "dropdown-item",
+                    form: { style: "display: inline;" } %>
               </li>
             </ul>
           </li>
         <% else %>
           <li class="nav-item">
             <%= link_to "Iniciar Sesión", new_user_session_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Registrarse", new_user_registration_path, class: "nav-link" %>
           </li>
         <% end %>
       </ul>

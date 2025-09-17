@@ -52,6 +52,42 @@
       </div>
       <div class="card-body">
         <!-- Solo Tipo de Propiedad -->
+        <!-- Dentro de la card de Clasificación -->
+        <div class="mb-3">
+          <%= form.label :co_ownership_type_id, "Tipo de Copropiedad", class: "form-label" %>
+          <%= form.collection_select :co_ownership_type_id, 
+              CoOwnershipType.active.order(:sort_order),
+              :id, :display_name,
+              { prompt: 'Propietario único (sin copropiedad)' },
+              { class: "form-select" } %>
+          <div class="form-text">Selecciona si la propiedad tiene múltiples propietarios</div>
+        </div>
+
+        <div class="mb-3" id="co-ownership-details" style="display: none;">
+          <%= form.label :co_owners_details, "Detalles de Copropietarios", class: "form-label" %>
+          <%= form.text_area :co_owners_details, class: "form-control", rows: 3,
+              placeholder: "Ej: Juan Pérez (50%), María López (50%)" %>
+          <div class="form-text">Especifica nombres y porcentajes de propiedad</div>
+        </div>
+
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            const coOwnershipSelect = document.getElementById('property_co_ownership_type_id');
+            const detailsDiv = document.getElementById('co-ownership-details');
+            
+            function toggleDetails() {
+              if (coOwnershipSelect.value && coOwnershipSelect.value !== '') {
+                detailsDiv.style.display = 'block';
+              } else {
+                detailsDiv.style.display = 'none';
+              }
+            }
+            
+            coOwnershipSelect.addEventListener('change', toggleDetails);
+            toggleDetails(); // Ejecutar al cargar
+          });
+        </script>
+
         <div class="mb-3">
           <%= form.label :property_type_id, "Tipo de Propiedad", class: "form-label" %>
           <%= form.collection_select :property_type_id, 

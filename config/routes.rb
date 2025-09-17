@@ -24,6 +24,7 @@ Rails.application.routes.draw do
     resources :document_requirements
     resources :document_validity_rules
     resources :property_documents
+    resources :co_ownership_types
   end
 
   namespace :superadmin do

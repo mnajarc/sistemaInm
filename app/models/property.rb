@@ -2,6 +2,8 @@ class Property < ApplicationRecord
   # Relaciones existentes
   belongs_to :user
   belongs_to :property_type, optional: true
+  belongs_to :co_ownership_type, optional: true
+
 
 
   has_many :exclusivities, class_name: "PropertyExclusivity", dependent: :destroy
@@ -56,6 +58,7 @@ class Property < ApplicationRecord
     business_transactions.active.joins(:operation_type).pluck('operation_types.display_name')
   end
 
+  
 
   def current_operations
     business_transactions.active.joins(:operation_type).pluck('operation_types.display_name')
@@ -97,7 +100,19 @@ class Property < ApplicationRecord
       .where(business_statuses: { name: 'reserved' })
       .exists?
   end
+
+  def has_co_ownership?
+    co_ownership_type.present?
+  end
   
+  def co_ownership_display
+    return "Propietario único" unless has_co_ownership?
+    
+    details = co_owners_details.present? ? " - #{co_owners_details}" : ""
+    "#{co_ownership_type.display_name}#{details}"
+  end
+
+
   def current_agent_for_operation(operation_type)
     transaction = business_transactions
                     .joins(:operation_type)

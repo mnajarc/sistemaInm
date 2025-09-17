@@ -1,0 +1,48 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="text-success">
+    <i class="bi bi-briefcase"></i>
+    Mis Transacciones
+  </h2>
+</div>
+
+<% if @my_transactions && @my_transactions.any? %>
+  <div class="row">
+    <% @my_transactions.each do |transaction| %>
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title"><%= transaction.property.title %></h5>
+            <p class="card-text"><%= transaction.property.address %></p>
+            
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span class="badge bg-<%= transaction.business_status.color %>">
+                  <%= transaction.business_status.display_name %>
+                </span>
+                <span class="badge bg-info">
+                  <%= transaction.operation_type.display_name %>
+                </span>
+              </div>
+              <strong class="text-success">
+                $<%= number_with_delimiter(transaction.price) %>
+              </strong>
+            </div>
+            
+            <small class="text-muted d-block mt-2">
+              Inicio: <%= transaction.start_date.strftime('%d/%m/%Y') %>
+            </small>
+            
+            <%= link_to "Ver Detalles", client_transaction_path(transaction), 
+                class: "btn btn-outline-primary btn-sm mt-2" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="text-center py-5">
+    <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+    <h4 class="mt-3 text-muted">No hay transacciones</h4>
+    <p class="text-muted">Contacta a nuestros agentes para iniciar una transacción.</p>
+  </div>
+<% end %>

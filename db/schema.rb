@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_12_042614) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_13_061157) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -126,6 +126,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_12_042614) do
     t.boolean "active", default: true
     t.index ["email"], name: "index_clients_on_email", unique: true
     t.index ["user_id"], name: "index_clients_on_user_id"
+  end
+
+  create_table "co_ownership_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 10
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_co_ownership_types_on_active"
+    t.index ["name"], name: "index_co_ownership_types_on_name", unique: true
   end
 
   create_table "commissions", force: :cascade do |t|
@@ -258,7 +270,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_12_042614) do
     t.text "internal_notes"
     t.date "available_from"
     t.datetime "published_at"
+    t.bigint "co_ownership_type_id"
+    t.text "co_owners_details"
+    t.json "co_ownership_percentage"
     t.index ["available_from"], name: "index_properties_on_available_from"
+    t.index ["co_ownership_type_id"], name: "index_properties_on_co_ownership_type_id"
     t.index ["latitude", "longitude"], name: "index_properties_on_coordinates"
     t.index ["parking_spaces"], name: "index_properties_on_parking_spaces"
     t.index ["price"], name: "index_properties_on_price"
@@ -401,6 +417,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_12_042614) do
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
+  add_foreign_key "properties", "co_ownership_types"
   add_foreign_key "properties", "property_types"
   add_foreign_key "properties", "users"
   add_foreign_key "property_documents", "document_types"
