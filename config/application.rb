@@ -38,7 +38,6 @@ module SistemaInmobiliarioV2
 
     # Don't generate system test files.
     config.generators.system_tests = nil
-    config.filter_parameters += [:password, :password_confirmation, :token]
-
+    config.filter_parameters += [ :password, :password_confirmation, :token ]
   end
 end

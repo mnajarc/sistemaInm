@@ -18,8 +18,8 @@ Rails.application.configure do
 
   # Enable server timing.
   config.server_timing = true
-  
-  # Enable cache 
+
+  # Enable cache
   config.cache_store = :memory_store  # O :file_store
 
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
@@ -76,8 +76,8 @@ Rails.application.configure do
   config.action_controller.raise_on_missing_callback_actions = true
 
   config.force_ssl = false # En desarrollo
-  config.session_store :cookie_store, 
-    key: '_sistema_inmobiliario_v2_session',
+  config.session_store :cookie_store,
+    key: "_sistema_inmobiliario_v2_session",
     secure: Rails.env.production?,
     httponly: true,
     same_site: :lax

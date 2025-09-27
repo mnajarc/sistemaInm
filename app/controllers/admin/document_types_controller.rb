@@ -1,6 +1,6 @@
 class Admin::DocumentTypesController < Admin::BaseController
   before_action :authenticate_user!
-  
+
   def index
     @document_types = policy_scope(DocumentType)
     authorize DocumentType
@@ -21,7 +21,7 @@ class Admin::DocumentTypesController < Admin::BaseController
     authorize @document_type
 
     if @document_type.save
-      redirect_to admin_document_types_path, notice: 'Tipo de documento creado exitosamente.'
+      redirect_to admin_document_types_path, notice: "Tipo de documento creado exitosamente."
     else
       render :new
     end
@@ -37,7 +37,7 @@ class Admin::DocumentTypesController < Admin::BaseController
     authorize @document_type
 
     if @document_type.update(document_type_params)
-      redirect_to admin_document_types_path, notice: 'Tipo de documento actualizado exitosamente.'
+      redirect_to admin_document_types_path, notice: "Tipo de documento actualizado exitosamente."
     else
       render :edit
     end
@@ -47,7 +47,7 @@ class Admin::DocumentTypesController < Admin::BaseController
     @document_type = DocumentType.find(params[:id])
     authorize @document_type
     @document_type.destroy
-    redirect_to admin_document_types_path, notice: 'Tipo de documento eliminado exitosamente.'
+    redirect_to admin_document_types_path, notice: "Tipo de documento eliminado exitosamente."
   end
 
   private

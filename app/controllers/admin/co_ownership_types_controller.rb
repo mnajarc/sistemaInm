@@ -1,64 +1,55 @@
 class Admin::CoOwnershipTypesController < Admin::BaseController
-  before_action :set_co_ownership_type, only: [:show, :edit, :update, :destroy]
-  
+  before_action :set_type, only: %i[show edit update destroy]
+
   def index
-    @co_ownership_types = policy_scope(CoOwnershipType).order(:sort_order)
-    authorize CoOwnershipType
+    @types = policy_scope(CoOwnershipType).order(:sort_order)
   end
-  
+
   def show
-    authorize @co_ownership_type
+    authorize @type
   end
-  
+
   def new
-    @co_ownership_type = CoOwnershipType.new(active: true, sort_order: 10)
-    authorize @co_ownership_type
+    @type = CoOwnershipType.new
+    authorize @type
   end
-  
+
   def create
-    @co_ownership_type = CoOwnershipType.new(co_ownership_type_params)
-    authorize @co_ownership_type
-    
-    if @co_ownership_type.save
+    @type = CoOwnershipType.new(type_params)
+    authorize @type
+    if @type.save
       redirect_to admin_co_ownership_types_path, notice: 'Tipo de copropiedad creado exitosamente'
     else
-      render :new, status: :unprocessable_entity
+      render :new
     end
   end
-  
+
   def edit
-    authorize @co_ownership_type
+    authorize @type
   end
-  
+
   def update
-    authorize @co_ownership_type
-    
-    if @co_ownership_type.update(co_ownership_type_params)
-      redirect_to admin_co_ownership_types_path, notice: 'Tipo actualizado exitosamente'
+    authorize @type
+    if @type.update(type_params)
+      redirect_to admin_co_ownership_types_path, notice: 'Tipo de copropiedad actualizado exitosamente'
     else
-      render :edit, status: :unprocessable_entity
+      render :edit
     end
   end
-  
+
   def destroy
-    authorize @co_ownership_type
-    
-    if @co_ownership_type.properties.exists?
-      redirect_to admin_co_ownership_types_path, 
-                  alert: 'No se puede eliminar: existen propiedades con este tipo de copropiedad'
-    else
-      @co_ownership_type.destroy
-      redirect_to admin_co_ownership_types_path, notice: 'Tipo eliminado exitosamente'
-    end
+    authorize @type
+    @type.destroy
+    redirect_to admin_co_ownership_types_path, notice: 'Tipo de copropiedad eliminado exitosamente'
   end
-  
+
   private
-  
-  def set_co_ownership_type
-    @co_ownership_type = CoOwnershipType.find(params[:id])
+
+  def set_type
+    @type = CoOwnershipType.find(params[:id])
   end
-  
-  def co_ownership_type_params
+
+  def type_params
     params.require(:co_ownership_type).permit(:name, :display_name, :description, :active, :sort_order)
   end
 end

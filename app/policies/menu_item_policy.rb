@@ -1,11 +1,14 @@
 class MenuItemPolicy < ApplicationPolicy
-  class Scope < ApplicationPolicy::Scope
+  class Scope < Scope    # 🚩 AGREGAR ESTO:
+    attr_reader :user, :scope
+
+    def initialize(user, scope)
+      @user = user
+      @scope = scope
+    end
+    
     def resolve
-      if user.superadmin?
-        relation.all
-      else
-        relation.none
-      end
+      user.superadmin? ?  scope.all : scope.none
     end
   end
 
@@ -34,6 +37,6 @@ class MenuItemPolicy < ApplicationPolicy
   end
 
   def destroy?
-    user.superadmin? && !record.system_menu?
+    user.superadmin?
   end
 end

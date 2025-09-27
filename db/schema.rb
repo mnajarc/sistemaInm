@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_13_061157) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -84,6 +84,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_061157) do
     t.index ["sort_order"], name: "index_business_statuses_on_sort_order"
   end
 
+  create_table "business_transaction_co_owners", force: :cascade do |t|
+    t.bigint "business_transaction_id", null: false
+    t.bigint "client_id"
+    t.string "person_name"
+    t.decimal "percentage", precision: 5, scale: 2, null: false
+    t.string "role"
+    t.boolean "deceased", default: false, null: false
+    t.text "inheritance_case_notes"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_transaction_id"], name: "idx_on_business_transaction_id_2d9fea40bb"
+    t.index ["client_id"], name: "index_business_transaction_co_owners_on_client_id"
+  end
+
   create_table "business_transactions", force: :cascade do |t|
     t.bigint "property_id", null: false
     t.bigint "operation_type_id", null: false
@@ -126,6 +141,19 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_061157) do
     t.boolean "active", default: true
     t.index ["email"], name: "index_clients_on_email", unique: true
     t.index ["user_id"], name: "index_clients_on_user_id"
+  end
+
+  create_table "co_ownership_roles", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_co_ownership_roles_on_active"
+    t.index ["name"], name: "index_co_ownership_roles_on_name", unique: true
+    t.index ["sort_order"], name: "index_co_ownership_roles_on_sort_order"
   end
 
   create_table "co_ownership_types", force: :cascade do |t|
@@ -401,6 +429,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_061157) do
   add_foreign_key "agent_transfers", "users", column: "to_agent_id"
   add_foreign_key "agent_transfers", "users", column: "transferred_by_id"
   add_foreign_key "agents", "users"
+  add_foreign_key "business_transaction_co_owners", "business_transactions"
+  add_foreign_key "business_transaction_co_owners", "clients"
   add_foreign_key "business_transactions", "business_statuses"
   add_foreign_key "business_transactions", "clients", column: "acquiring_client_id"
   add_foreign_key "business_transactions", "clients", column: "offering_client_id"

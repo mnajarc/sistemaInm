@@ -1,19 +1,19 @@
 class CoOwnershipTypePolicy < ApplicationPolicy
-  class Scope < ApplicationPolicy::Scope
+  def index?;      user.admin_or_above?; end
+  def show?;       user.admin_or_above?; end
+  def new?;        user.admin_or_above?; end
+  alias create? new?
+  def edit?;       user.admin_or_above?; end
+  alias update? edit?
+  def destroy?;    user.admin_or_above?; end
+
+  class Scope < Scope
     def resolve
       if user.admin_or_above?
-        relation.all
+        relation.order(:sort_order)
       else
         relation.none
       end
     end
   end
-
-  def index?; user.admin_or_above?; end
-  def show?; user.admin_or_above?; end
-  def create?; user.admin_or_above?; end
-  def update?; user.admin_or_above?; end
-  def destroy?; user.superadmin?; end
-  def new?; create?; end
-  def edit?; update?; end
 end

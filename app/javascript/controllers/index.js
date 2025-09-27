@@ -4,5 +4,8 @@
 
 import { application } from "./application"
 
+import CoOwnersController from "./co_owners_controller"
+application.register("co-owners", CoOwnersController)
+
 import HelloController from "./hello_controller"
 application.register("hello", HelloController)

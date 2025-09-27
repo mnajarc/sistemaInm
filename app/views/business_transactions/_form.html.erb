@@ -1,170 +1,284 @@
 <%= form_with model: transaction, local: true, class: "needs-validation", novalidate: true do |form| %>
-    <% if transaction.errors.any? %>
-      <div class="alert alert-danger">
-        <h6><%= pluralize(transaction.errors.count, "error") %> impidieron guardar:</h6>
-        <ul class="mb-0">
-          <% transaction.errors.full_messages.each do |message| %>
-            <li><%= message %></li>
-          <% end %>
-        </ul>
-      </div>
-    <% end %>
-  
-    <div class="row">
-      <!-- Información de la Propiedad -->
-      <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Propiedad y Operación</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <%= form.label :property_id, "Propiedad", class: "form-label" %>
-              <%= form.collection_select :property_id,
-                  Property.joins(:user).where(users: { role: current_user.role }),
-                  :id, :title,
-                  { prompt: 'Selecciona propiedad' },
-                  { class: "form-select" } %>
-            </div>
-  
-            <div class="mb-3">
-              <%= form.label :operation_type_id, "Tipo de Operación", class: "form-label" %>
-              <%= form.collection_select :operation_type_id,
-                  OperationType.active.order(:sort_order),
-                  :id, :display_name,
-                  { prompt: 'Selecciona operación' },
-                  { class: "form-select" } %>
-            </div>
-  
-            <div class="mb-3">
-              <%= form.label :business_status_id, "Estado", class: "form-label" %>
-              <%= form.collection_select :business_status_id,
-                  BusinessStatus.active.order(:sort_order),
-                  :id, :display_name,
-                  { prompt: 'Selecciona estado' },
-                  { class: "form-select" } %>
-            </div>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Información del Cliente -->
-      <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Clientes</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <%= form.label :offering_client_id, "Cliente Ofertante", class: "form-label" %>
-              <%= form.collection_select :offering_client_id,
-                  Client.all,
-                  :id, :name,
-                  { prompt: 'Selecciona cliente' },
-                  { class: "form-select" } %>
-              <div class="form-text">Quien ofrece la propiedad</div>
-            </div>
-  
-            <div class="mb-3">
-              <%= form.label :acquiring_client_id, "Cliente Adquiriente", class: "form-label" %>
-              <%= form.collection_select :acquiring_client_id,
-                  Client.all,
-                  :id, :name,
-                  { prompt: 'Selecciona cliente (opcional)' },
-                  { class: "form-select" } %>
-              <div class="form-text">Quien está interesado (puede agregarse después)</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  
-    <div class="row">
-      <!-- Términos Financieros -->
-      <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Términos Financieros</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <%= form.label :price, "Precio", class: "form-label" %>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <%= form.number_field :price, class: "form-control", step: 0.01, min: 0 %>
-              </div>
-            </div>
-  
-            <div class="mb-3">
-              <%= form.label :commission_percentage, "Comisión (%)", class: "form-label" %>
-              <div class="input-group">
-                <%= form.number_field :commission_percentage, class: "form-control", 
-                    step: 0.01, min: 0, max: 100, value: transaction.commission_percentage || 3.0 %>
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Fechas -->
-      <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Fechas</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <%= form.label :start_date, "Fecha de Inicio", class: "form-label" %>
-              <%= form.date_field :start_date, class: "form-control", 
-                  value: transaction.start_date || Date.current %>
-            </div>
-  
-            <div class="mb-3">
-              <%= form.label :estimated_completion_date, "Fecha Estimada de Cierre", class: "form-label" %>
-              <%= form.date_field :estimated_completion_date, class: "form-control" %>
-              <div class="form-text">Fecha estimada para completar la transacción</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  
-    <!-- Notas -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">Información Adicional</h5>
-      </div>
-      <div class="card-body">
-        <div class="mb-3">
-          <%= form.label :notes, "Notas", class: "form-label" %>
-          <%= form.text_area :notes, class: "form-control", rows: 4, 
-              placeholder: "Notas, condiciones especiales, etc." %>
-        </div>
-      </div>
-    </div>
-  
-    <!-- Botones -->
-    <div class="d-flex gap-2">
-      <%= form.submit transaction.persisted? ? "Actualizar Transacción" : "Crear Transacción", 
-          class: "btn btn-primary" %>
-      <%= link_to "Cancelar", transaction.persisted? ? transaction : business_transactions_path, 
-          class: "btn btn-secondary" %>
+  <% if transaction.errors.any? %>
+    <div class="alert alert-danger">
+      <h6><%= pluralize(transaction.errors.count, "error") %> impidieron guardar:</h6>
+      <ul class="mb-0">
+        <% transaction.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
     </div>
   <% end %>
-  <div class="mb-3">
-  <%= form.label :property_id, "Propiedad", class: "form-label" %>
-  <%= form.collection_select :property_id,
-      Property.includes(:business_transactions, :operation_type)
-              .where(users: { role: current_user.role }),
-      :id, 
-      ->(property) { 
-        "#{property.title} - #{property.address} " \
-        "#{property.has_active_transaction_for?(OperationType.find(params[:operation_type_id] || 1)) ? '⚠️ (Operación activa)' : '✅'}"
-      },
-      { prompt: 'Selecciona propiedad' },
-      { class: "form-select" } %>
-  <div class="form-text">
-    ⚠️ Las propiedades con "Operación activa" no permiten transacciones duplicadas del mismo tipo
+  <div class="row">
+    <!-- Informacin de la Propiedad -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Propiedad y Operacin</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <%= form.label :property_id, "Propiedad", class: "form-label" %>
+            <%= form.collection_select :property_id,
+                Property.all,
+                :id, :title,
+                { prompt: 'Selecciona propiedad' },
+                { class: "form-select" } %>
+          </div>
+          <div class="mb-3">
+            <%= form.label :operation_type_id, "Tipo de Operacin", class: "form-label" %>
+            <%= form.collection_select :operation_type_id,
+                OperationType.active.order(:sort_order),
+                :id, :display_name,
+                { prompt: 'Selecciona operacin' },
+                { class: "form-select" } %>
+          </div>
+          <div class="mb-3">
+            <%= form.label :business_status_id, "Estado", class: "form-label" %>
+            <%= form.collection_select :business_status_id,
+                BusinessStatus.active.order(:sort_order),
+                :id, :display_name,
+                { prompt: 'Selecciona estado' },
+                { class: "form-select" } %>
+          </div>
+          <!-- Agregar DESPUS de la seccin "Estado" en _form.html.erb -->
+            <% if current_user.admin_or_above? %>
+              <!-- Campo existente: Agente Actual -->
+              <div class="mb-3">
+                <%= form.label :current_agent_id, "Agente Actual (Maneja transaccin)", class: "form-label" %>
+                <%= form.collection_select :current_agent_id, @available_agents || [], :id, :email,
+                    {
+                      prompt: 'Agente que maneja la transaccin',
+                      selected: @transaction.current_agent_id
+                    },
+                    { class: "form-select" } %>
+                <div class="form-text">
+                  <i class="bi bi-person-gear"></i>
+                  Agente responsable del seguimiento de la transaccin
+                </div>
+              </div>
+              <!-- NUEVO: Agente Vendedor (Selling Agent) -->
+              <div class="mb-3">
+                <%= form.label :selling_agent_id, "Agente Vendedor (Cierra venta)", class: "form-label" %>
+                <%= form.collection_select :selling_agent_id,
+                    @available_agents || [],
+                    :id, :email,
+                    {
+                      prompt: 'Agente que trae al comprador (opcional)',
+                      selected: @transaction.selling_agent_id
+                    },
+                    { class: "form-select" } %>
+                <div class="form-text">
+                  <i class="bi bi-handshake"></i>
+                  <strong>Opcional:</strong> Agente que consigue al comprador y cierra la venta
+                </div>
+              </div>
+              <!-- Informacin explicativa -->
+              <div class="alert alert-info">
+                <h6><i class="bi bi-info-circle"></i> Roles de Agentes:</h6>
+                <ul class="mb-0">
+                  <li><strong>Agente Listado:</strong> Quien publica la propiedad</li>
+                  <li><strong>Agente Actual:</strong> Quien maneja la transaccin</li>
+                  <li><strong>Agente Vendedor:</strong> Quien trae al comprador y cierra</li>
+                </ul>
+              </div>
+            <% else %>
+              <!-- Para agentes normales -->
+              <div class="alert alert-info">
+                <i class="bi bi-person-badge"></i>
+                <strong>Agente:</strong> Sers asignado como agente listado y actual (<%= current_user.email %>)
+              </div>
+            <% end %>
+          <% if current_user.admin_or_above? %>
+            <div class="mb-3">
+              <%= form.label :assigned_agent_id, "Asignar a Agente", class: "form-label" %>
+              <%= form.collection_select :assigned_agent_id,
+                  @available_agents || [],
+                  :id, :email,
+                  {
+                    prompt: 'Seleccionar agente responsable',
+                    selected: @transaction.current_agent_id
+                  },
+                  { class: "form-select" } %>
+              <div class="form-text">
+                <i class="bi bi-info-circle"></i>
+                <strong>Administradores:</strong> Pueden asignar transacciones a cualquier agente activo
+              </div>
+            </div>
+          <% else %>
+            <div class="alert alert-info">
+              <i class="bi bi-person-badge"></i>
+              <strong>Agente:</strong> Esta transaccin se asignar automticamente a ti (<%= current_user.email %>)
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    <!-- Informacin del Cliente y Copropietarios -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Clientes</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <%= form.label :offering_client_id, "Cliente Ofertante", class: "form-label" %>
+            <%= form.collection_select :offering_client_id,
+                Client.active,
+                :id, :name,
+                { prompt: 'Selecciona cliente' },
+                { class: "form-select" } %>
+            <div class="form-text">Quien ofrece la propiedad</div>
+          </div>
+          <div class="mb-3">
+            <%= form.label :acquiring_client_id, "Cliente Adquiriente", class: "form-label" %>
+            <%= form.collection_select :acquiring_client_id,
+                Client.active,
+                :id, :name,
+                { prompt: 'Selecciona cliente (opcional)' },
+                { class: "form-select" } %>
+            <div class="form-text">Quien est interesado (puede agregarse despus)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Seccin de Copropietarios (Tarjeta separada para mayor claridad) -->
+  <div class="card mb-4" data-controller="co-owners">
+  <div class="card-header">
+    <h5 class="mb-0">Propietarios/Copropietarios</h5>
+    <small class="text-muted">Los porcentajes deben sumar exactamente 100%</small>
+  </div>
+  <div class="card-body">
+    <div id="co-owners-section" data-co-owners-target="list">
+      <%= form.fields_for :co_owners do |co_owner_form| %>
+        <%= render 'co_owner_fields', f: co_owner_form %>
+      <% end %>
+    </div>
+    
+<template data-co-owners-target="template">
+  <% co_owner = transaction.co_owners.build %>
+  <%= form.fields_for :co_owners, co_owner, child_index: "NEW_RECORD" do |co_owner_form| %>
+    <%= render 'co_owner_fields', f: co_owner_form %>
+  <% end %>
+</template>
+
+
+    <button type="button" class="btn btn-outline-secondary" data-action="co-owners#add">
+      <i class="fa fa-plus"></i> Agregar Copropietario
+    </button>
+    <div class="mt-2">
+      <small class="text-muted">
+        💡 <strong>Tip:</strong> Para un solo propietario, agregue 100% en el primer campo.
+      </small>
+    </div>
   </div>
 </div>
+
+
+
+
+
+  <div class="row">
+    <!-- Trminos Financieros -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Trminos Financieros</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <%= form.label :price, "Precio", class: "form-label" %>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <%= form.number_field :price,
+                  class: "form-control",
+                  step: 0.01, min: 0,
+                  placeholder: "0.00" %>
+            </div>
+          </div>
+          <div class="mb-3">
+            <%= form.label :commission_percentage, "Comisin (%)", class: "form-label" %>
+            <div class="input-group">
+              <%= form.number_field :commission_percentage,
+                  class: "form-control",
+                  step: 0.01, min: 0, max: 100,
+                  value: transaction.commission_percentage || 3.0 %>
+              <span class="input-group-text">%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Fechas -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Fechas</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <%= form.label :start_date, "Fecha de Inicio", class: "form-label" %>
+            <%= form.date_field :start_date,
+                class: "form-control",
+                value: transaction.start_date || Date.current %>
+          </div>
+          <div class="mb-3">
+            <%= form.label :estimated_completion_date, "Fecha Estimada de Cierre", class: "form-label" %>
+            <%= form.date_field :estimated_completion_date, class: "form-control" %>
+            <div class="form-text">Fecha estimada para completar la transaccin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Notas -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Informacin Adicional</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <%= form.label :notes, "Notas", class: "form-label" %>
+        <%= form.text_area :notes,
+            class: "form-control",
+            rows: 4,
+            placeholder: "Notas, condiciones especiales, acuerdos adicionales..." %>
+      </div>
+    </div>
+  </div>
+  <!-- Botones -->
+  <div class="d-flex justify-content-between">
+    <div>
+      <%= link_to " Cancelar",
+          transaction.persisted? ? transaction : business_transactions_path,
+          class: "btn btn-outline-secondary" %>
+    </div>
+    <div>
+      <%= form.submit transaction.persisted? ? " Actualizar Transaccin" : " Crear Transaccin",
+          class: "btn btn-primary btn-lg" %>
+    </div>
+  </div>
+<% end %>
+<!-- JavaScript bsico para funcionalidad -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Funcionalidad para eliminar copropietarios
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-co-owner')) {
+      const coOwnerForm = e.target.closest('.co-owner-form');
+      const destroyField = coOwnerForm.querySelector('input[name*="_destroy"]');
+      if (destroyField) {
+        destroyField.value = '1';
+        coOwnerForm.style.display = 'none';
+      }
+    }
+  });
+});
+</script>

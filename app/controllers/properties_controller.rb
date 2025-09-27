@@ -21,7 +21,7 @@ class PropertiesController < BaseController  # ✅ Cambiar herencia
     authorize @property
 
     if @property.save
-      redirect_to @property, notice: 'Propiedad creada exitosamente'
+      redirect_to @property, notice: "Propiedad creada exitosamente"
     else
       render :new
     end
@@ -37,7 +37,7 @@ class PropertiesController < BaseController  # ✅ Cambiar herencia
     authorize @property
 
     if @property.update(property_params)
-      redirect_to @property, notice: 'Propiedad actualizada exitosamente'
+      redirect_to @property, notice: "Propiedad actualizada exitosamente"
     else
       render :edit
     end
@@ -47,17 +47,16 @@ class PropertiesController < BaseController  # ✅ Cambiar herencia
     @property = Property.find(params[:id])
     authorize @property
     @property.destroy
-    redirect_to properties_path, notice: 'Propiedad eliminada exitosamente'
+    redirect_to properties_path, notice: "Propiedad eliminada exitosamente"
   end
 
   private
 
   def property_params
-    params.require(:property).permit(:title, :description, :price, 
+    params.require(:property).permit(:title, :description, :price,
                                   :property_type_id, # ✅ Solo este
-                                  :address, :city, :state, :postal_code, 
-                                  :bedrooms, :bathrooms, :built_area_m2, 
+                                  :address, :city, :state, :postal_code,
+                                  :bedrooms, :bathrooms, :built_area_m2,
                                   :lot_area_m2, :year_built)
   end
-
 end

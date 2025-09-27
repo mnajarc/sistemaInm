@@ -1,0 +1,2 @@
+module Agent::PropertiesHelper
+end

@@ -1,77 +1,27 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>
-    <i class="bi bi-people"></i>
-    <%= @co_ownership_type.display_name %>
-  </h2>
-  <div>
-    <% if policy(@co_ownership_type).edit? %>
-      <%= link_to edit_admin_co_ownership_type_path(@co_ownership_type), class: "btn btn-primary" do %>
-        <i class="bi bi-pencil"></i> Editar
-      <% end %>
-    <% end %>
-    <%= link_to admin_co_ownership_types_path, class: "btn btn-outline-secondary" do %>
-      <i class="bi bi-arrow-left"></i> Volver
-    <% end %>
-  </div>
-</div>
+<h1>Detalle de Tipo de Copropiedad</h1>
 
-<div class="row">
-  <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="mb-0">
-          <i class="bi bi-info-circle"></i>
-          Información del Tipo
-        </h5>
-      </div>
-      <div class="card-body">
-        <dl class="row">
-          <dt class="col-sm-3">Clave:</dt>
-          <dd class="col-sm-9">
-            <code class="text-primary"><%= @co_ownership_type.name %></code>
-          </dd>
-          
-          <dt class="col-sm-3">Nombre:</dt>
-          <dd class="col-sm-9">
-            <strong><%= @co_ownership_type.display_name %></strong>
-          </dd>
-          
-          <dt class="col-sm-3">Estado:</dt>
-          <dd class="col-sm-9">
-            <span class="badge bg-<%= @co_ownership_type.active? ? 'success' : 'danger' %>">
-              <%= @co_ownership_type.active? ? 'Activo' : 'Inactivo' %>
-            </span>
-          </dd>
-          
-          <dt class="col-sm-3">Orden:</dt>
-          <dd class="col-sm-9"><%= @co_ownership_type.sort_order %></dd>
-          
-          <dt class="col-sm-3">Descripción:</dt>
-          <dd class="col-sm-9">
-            <%= simple_format(@co_ownership_type.description) if @co_ownership_type.description.present? %>
-          </dd>
-        </dl>
-      </div>
-    </div>
-  </div>
-  
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="mb-0">Estadísticas</h5>
-      </div>
-      <div class="card-body text-center">
-        <h3 class="text-primary">
-          <%= @co_ownership_type.properties.count %>
-        </h3>
-        <p class="text-muted">Propiedades con este tipo</p>
-        
-        <% if @co_ownership_type.properties.any? %>
-          <%= link_to "#", class: "btn btn-outline-primary btn-sm" do %>
-            <i class="bi bi-list"></i> Ver Propiedades
-          <% end %>
-        <% end %>
-      </div>
-    </div>
-  </div>
-</div>
+<table class="table table-bordered">
+  <tr>
+    <th>Name</th>
+    <td><%= @type.name %></td>
+  </tr>
+  <tr>
+    <th>Display Name</th>
+    <td><%= @type.display_name %></td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td><%= @type.description %></td>
+  </tr>
+  <tr>
+    <th>Active</th>
+    <td><%= @type.active ? "Sí" : "No" %></td>
+  </tr>
+  <tr>
+    <th>Sort Order</th>
+    <td><%= @type.sort_order %></td>
+  </tr>
+</table>
+
+<%= link_to 'Editar', edit_admin_co_ownership_type_path(@type), class: "btn btn-secondary" %>
+<%= link_to 'Volver', admin_co_ownership_types_path, class: "btn btn-primary ml-2" %>

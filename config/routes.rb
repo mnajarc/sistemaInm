@@ -1,14 +1,13 @@
 Rails.application.routes.draw do
   devise_for :users
 
-  root 'properties#index'
-  resources :properties
-
   namespace :client do
-    root 'dashboard#index'
-    get 'dashboard', to: 'dashboard#index'
+    root "dashboard#index"
     resources :transactions, only: [:index, :show]
   end
+
+  root "properties#index"
+  resources :properties
 
   resources :business_transactions do
     patch :transfer_agent, on: :member
@@ -16,6 +15,9 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :properties
+    resources :co_ownership_types
+    resources :co_ownership_roles
     resources :property_types
     resources :operation_types
     resources :business_statuses
@@ -24,13 +26,24 @@ Rails.application.routes.draw do
     resources :document_requirements
     resources :document_validity_rules
     resources :property_documents
-    resources :co_ownership_types
+    # Nested routes para copropiedad en transacciones
+    resources :business_transactions do
+      resources :co_owners, controller: 'business_transaction_co_owners'
+    end
   end
 
   namespace :superadmin do
-    root 'base#index'
+    root "base#index"
     resources :roles
     resources :menu_items
-    get 'dashboard', to: 'base#index'
+    get "dashboard", to: "base#index"
+  end
+
+  namespace :agent do
+    root "properties#index"
+    resources :properties, only: [:index, :show, :edit, :update]
+    resources :business_transactions, only: [:index, :show, :edit, :update] do
+      resources :co_owners, controller: 'business_transaction_co_owners', except: [:destroy]
+    end
   end
 end

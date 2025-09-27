@@ -1,12 +1,3 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>Nuevo Tipo de Copropiedad</h2>
-  <%= link_to admin_co_ownership_types_path, class: "btn btn-outline-secondary" do %>
-    <i class="bi bi-arrow-left"></i> Volver
-  <% end %>
-</div>
+<h1>Nuevo Tipo de Copropiedad</h1>
 
-<div class="card">
-  <div class="card-body">
-    <%= render 'form', co_ownership_type: @co_ownership_type %>
-  </div>
-</div>
+<%= render 'form' %>

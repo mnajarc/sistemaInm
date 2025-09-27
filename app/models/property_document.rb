@@ -21,6 +21,6 @@ class PropertyDocument < ApplicationRecord
   end
 
   def not_expired
-    errors.add(:issued_at, 'está expirado') if expires_at < Date.current
+    errors.add(:issued_at, "está expirado") if expires_at < Date.current
   end
 end
