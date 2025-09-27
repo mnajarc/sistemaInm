@@ -1,0 +1,2 @@
+class CoOwnershipType < ApplicationRecord
+end

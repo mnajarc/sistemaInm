@@ -1,2 +1,2 @@
-<h1>Superadmin::MenuItems#edit</h1>
-<p>Find me in app/views/superadmin/menu_items/edit.html.erb</p>
+<h1>Editar menú <%= @menu_item.display_name %></h1>
+<%= render 'form', menu_item: @menu_item, parent_options: @parent_options, role_levels: @role_levels %>

@@ -1,6 +1,6 @@
 # app/controllers/admin/property_documents_controller.rb
 class Admin::PropertyDocumentsController < Admin::BaseController
-  before_action :set_doc, only: [:show, :destroy]
+  before_action :set_doc, only: [ :show, :destroy ]
 
   def index
     @documents = PropertyDocument.includes(:property, :document_type, :user)
@@ -11,7 +11,7 @@ class Admin::PropertyDocumentsController < Admin::BaseController
 
   def destroy
     @doc.destroy
-    redirect_to admin_property_documents_path, notice: 'Documento eliminado.'
+    redirect_to admin_property_documents_path, notice: "Documento eliminado."
   end
 
   private

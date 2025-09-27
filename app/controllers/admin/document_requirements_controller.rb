@@ -1,6 +1,6 @@
 # app/controllers/admin/document_requirements_controller.rb
 class Admin::DocumentRequirementsController < Admin::BaseController
-  before_action :set_requirement, only: [:show, :edit, :update, :destroy]
+  before_action :set_requirement, only: [ :show, :edit, :update, :destroy ]
 
   def index
     @requirements = DocumentRequirement.includes(:document_type).order(:property_type)
@@ -16,7 +16,7 @@ class Admin::DocumentRequirementsController < Admin::BaseController
   def create
     @requirement = DocumentRequirement.new(requirement_params)
     if @requirement.save
-      redirect_to admin_document_requirement_path(@requirement), notice: 'Requisito creado.'
+      redirect_to admin_document_requirement_path(@requirement), notice: "Requisito creado."
     else
       render :new
     end
@@ -27,7 +27,7 @@ class Admin::DocumentRequirementsController < Admin::BaseController
 
   def update
     if @requirement.update(requirement_params)
-      redirect_to admin_document_requirement_path(@requirement), notice: 'Requisito actualizado.'
+      redirect_to admin_document_requirement_path(@requirement), notice: "Requisito actualizado."
     else
       render :edit
     end
@@ -35,7 +35,7 @@ class Admin::DocumentRequirementsController < Admin::BaseController
 
   def destroy
     @requirement.destroy
-    redirect_to admin_document_requirements_path, notice: 'Requisito eliminado.'
+    redirect_to admin_document_requirements_path, notice: "Requisito eliminado."
   end
 
   private

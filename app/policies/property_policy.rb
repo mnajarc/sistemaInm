@@ -1,62 +1,42 @@
-# app/policies/property_policy.rb
+# app/policies/property_policy.rbclass PropertyPolicy < ApplicationPolicy
 class PropertyPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
-      case user.role&.name
-      when 'superadmin', 'admin'
+      if user.superadmin? || user.admin?
         relation.all
-      when 'agent'
+      elsif user.agent?
         relation.where(user: user)
-      when 'client'
-        # Los clients no pueden ver propiedades directamente
-        # Verán solo las que están en negocios disponibles
+      elsif user.client?
         relation.none
       else
         relation.none
       end
     end
   end
-  
+
   def index?
-    user.role&.level && user.role.level <= 20 # Solo Agent+
+    user.agent_or_above?  # Usa tu método helper (level <= 20)
   end
-  
+
   def show?
-    case user.role&.name
-    when 'superadmin', 'admin'
-      true
-    when 'agent'
-      record.user == user
-    when 'client'
-      false # Los clients verán propiedades a través de BusinessTransactions
-    else
-      false
-    end
+    return true if user.admin_or_above?
+    return false unless user.agent?
+    record.user == user  # Agente solo ve sus propiedades
   end
-  
+
   def create?
-    user.role&.level && user.role.level <= 20 # Agent o superior
+    user.agent_or_above?  # Agentes pueden crear propiedades
   end
-  
+
   def update?
-    case user.role&.name
-    when 'superadmin', 'admin'
-      true
-    when 'agent'
-      record.user == user
-    else
-      false
-    end
+    return true if user.admin_or_above?
+    return false unless user.agent?
+    record.user == user  # Agente solo edita sus propiedades
   end
-  
+
   def destroy?
-    case user.role&.name
-    when 'superadmin', 'admin'
-      true
-    when 'agent'
-      record.user == user
-    else
-      false
-    end
+    return true if user.admin_or_above?
+    return false unless user.agent?
+    record.user == user  # Agente solo elimina sus propiedades
   end
 end

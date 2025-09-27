@@ -10,7 +10,7 @@ class CreateRoleHierarchy < ActiveRecord::Migration[8.0]
       t.boolean :system_role, default: false # No se puede eliminar
       t.timestamps
     end
-    
+
     # Tabla de menús configurables
     create_table :menu_items do |t|
       t.string :name, null: false
@@ -25,7 +25,7 @@ class CreateRoleHierarchy < ActiveRecord::Migration[8.0]
       t.boolean :system_menu, default: false # No se puede eliminar
       t.timestamps
     end
-    
+
     # Relación muchos a muchos: roles pueden ver ciertos menús
     create_table :role_menu_permissions do |t|
       t.references :role, null: false, foreign_key: true
@@ -34,10 +34,10 @@ class CreateRoleHierarchy < ActiveRecord::Migration[8.0]
       t.boolean :can_edit, default: false
       t.timestamps
     end
-    
+
     # ✅ Agregar foreign keys e índices después
     add_foreign_key :menu_items, :menu_items, column: :parent_id
-    
+
     # Índices
     add_index :roles, :name, unique: true
     add_index :roles, :level
@@ -45,7 +45,7 @@ class CreateRoleHierarchy < ActiveRecord::Migration[8.0]
     add_index :menu_items, :parent_id
     add_index :menu_items, :sort_order
     add_index :menu_items, :minimum_role_level
-    add_index :role_menu_permissions, [:role_id, :menu_item_id], 
+    add_index :role_menu_permissions, [ :role_id, :menu_item_id ],
               unique: true, name: 'idx_role_menu_unique'
   end
 end

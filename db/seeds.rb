@@ -8,7 +8,7 @@ puts "🌱 Iniciando seeds del sistema..."
 puts "📋 Creando roles del sistema..."
 
 roles_data = [
-  { name: 'superadmin', display_name: 'SuperAdministrador', level: 0, system_role: true, 
+  { name: 'superadmin', display_name: 'SuperAdministrador', level: 0, system_role: true,
     description: 'Acceso completo al sistema, configuración de roles y menús' },
   { name: 'admin', display_name: 'Administrador', level: 10, system_role: true,
     description: 'Gestión de usuarios, propiedades y documentos' },
@@ -316,7 +316,7 @@ agent1 = User.find_or_create_by!(email: 'agente1@sistema.com') do |user|
 end
 
 agent2 = User.find_or_create_by!(email: 'agente2@sistema.com') do |user|
-  user.password = 'Agent123!' 
+  user.password = 'Agent123!'
   user.password_confirmation = 'Agent123!'
   user.role = Role.find_by(name: 'agent')
 end
@@ -352,7 +352,7 @@ if Client.column_names.include?('user_id')
   else
     Client.create!(
       name: 'Laura González',
-      email: 'cliente1@email.com', 
+      email: 'cliente1@email.com',
       phone: '+52 555 111 2222',
       address: 'Residencial Norte 789, Ciudad',
       user: client_user
@@ -368,3 +368,53 @@ end
 
 puts " ✅ Usuario cliente creado"
 puts " 🔑 Cliente: cliente1@email.com / Cliente123!"
+# db/seeds.rb (agregar al final)
+
+# BusinessStatuses
+business_statuses = [
+  { name: 'available', display_name: 'Disponible', color: 'success', active: true, sort_order: 10 },
+  { name: 'reserved', display_name: 'Reservado', color: 'warning', active: true, sort_order: 20 },
+  { name: 'sold', display_name: 'Vendido', color: 'info', active: true, sort_order: 30 },
+  { name: 'rented', display_name: 'Alquilado', color: 'primary', active: true, sort_order: 40 },
+  { name: 'cancelled', display_name: 'Cancelado', color: 'danger', active: true, sort_order: 50 }
+]
+
+business_statuses.each do |attrs|
+  BusinessStatus.find_or_create_by(name: attrs[:name]) do |bs|
+    bs.assign_attributes(attrs)
+  end
+end
+
+# OperationTypes  
+operation_types = [
+  { name: 'sale', display_name: 'Venta', active: true, sort_order: 10 },
+  { name: 'rent', display_name: 'Alquiler', active: true, sort_order: 20 },
+  { name: 'short_rent', display_name: 'Alquiler Temporario', active: true, sort_order: 30 }
+]
+
+operation_types.each do |attrs|
+  OperationType.find_or_create_by(name: attrs[:name]) do |ot|
+    ot.assign_attributes(attrs)
+  end
+end
+
+puts "✅ BusinessStatuses y OperationTypes creados"
+# Roles de Copropiedad configurables
+co_ownership_roles = [
+  { name: 'vendedor', display_name: 'Vendedor', description: 'Persona que vende la propiedad', sort_order: 10 },
+  { name: 'heredero_vendedor', display_name: 'Heredero (Vendedor)', description: 'Heredero que vende propiedad heredada', sort_order: 15 },
+  { name: 'comprador', display_name: 'Comprador', description: 'Persona que adquiere la propiedad', sort_order: 20 },
+  { name: 'legatario', display_name: 'Legatario', description: 'Beneficiario de legado específico', sort_order: 30 },
+  { name: 'representante', display_name: 'Representante Legal', description: 'Actúa en nombre de otro', sort_order: 40 },
+  { name: 'fideicomisario', display_name: 'Fideicomisario', description: 'Beneficiario de fideicomiso', sort_order: 50 },
+  { name: 'otro', display_name: 'Otro', description: 'Otra participación no especificada', sort_order: 99 }
+]
+
+
+co_ownership_roles.each do |attrs|
+  CoOwnershipRole.find_or_create_by(name: attrs[:name]) do |role|
+    role.assign_attributes(attrs)
+  end
+end
+
+puts "✅ #{CoOwnershipRole.count} roles de copropiedad configurados"

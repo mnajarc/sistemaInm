@@ -3,14 +3,14 @@ source "https://rubygems.org"
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.0.2", ">= 8.0.2.1"
 
-gem 'sassc-rails'
+gem "sassc-rails"
 
-gem 'bootstrap', '~> 5.3'
+gem "bootstrap", "~> 5.3"
 
-gem 'devise'
+gem "devise"
 
 # Comentado para usar pundit
-# gem 'cancancan', '~> 3.5'
+# gem "cancancan", "~> 3.5"
 
 gem "pundit", "~> 2.5"
 
@@ -22,9 +22,9 @@ gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 # Bundle and transpile JavaScript [https://github.com/rails/jsbundling-rails]
 gem "jsbundling-rails"
-# Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
+# Hotwire"s SPA-like page accelerator [https://turbo.hotwired.dev]
 gem "turbo-rails"
-# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
+# Hotwire"s modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
 # Bundle and process CSS [https://github.com/rails/cssbundling-rails]
 gem "cssbundling-rails"
@@ -52,7 +52,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Incluye validaciones no sólo a nivel de la aplicación sino también a nivel de la base de datos
-gem 'database_validations'
+gem "database_validations"
 
 # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
 gem "brakeman", require: false

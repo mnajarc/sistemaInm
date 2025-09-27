@@ -1,6 +1,6 @@
 # app/controllers/admin/document_validity_rules_controller.rb
 class Admin::DocumentValidityRulesController < Admin::BaseController
-  before_action :set_rule, only: [:show, :edit, :update, :destroy]
+  before_action :set_rule, only: [ :show, :edit, :update, :destroy ]
 
   def index
     @rules = DocumentValidityRule.includes(:document_type).order(:valid_from)
@@ -16,7 +16,7 @@ class Admin::DocumentValidityRulesController < Admin::BaseController
   def create
     @rule = DocumentValidityRule.new(rule_params)
     if @rule.save
-      redirect_to admin_document_validity_rule_path(@rule), notice: 'Regla de vigencia creada.'
+      redirect_to admin_document_validity_rule_path(@rule), notice: "Regla de vigencia creada."
     else
       render :new
     end
@@ -27,7 +27,7 @@ class Admin::DocumentValidityRulesController < Admin::BaseController
 
   def update
     if @rule.update(rule_params)
-      redirect_to admin_document_validity_rule_path(@rule), notice: 'Regla de vigencia actualizada.'
+      redirect_to admin_document_validity_rule_path(@rule), notice: "Regla de vigencia actualizada."
     else
       render :edit
     end
@@ -35,7 +35,7 @@ class Admin::DocumentValidityRulesController < Admin::BaseController
 
   def destroy
     @rule.destroy
-    redirect_to admin_document_validity_rules_path, notice: 'Regla de vigencia eliminada.'
+    redirect_to admin_document_validity_rules_path, notice: "Regla de vigencia eliminada."
   end
 
   private

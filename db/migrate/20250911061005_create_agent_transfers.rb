@@ -10,7 +10,7 @@ class CreateAgentTransfers < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
-    
-    add_index :agent_transfers, [:business_transaction_id, :transferred_at]
+
+    add_index :agent_transfers, [ :business_transaction_id, :transferred_at ]
   end
 end

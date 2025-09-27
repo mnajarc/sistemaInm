@@ -1,0 +1,130 @@
+<%= form_with model: [:superadmin, menu_item], local: true, class: "needs-validation", novalidate: true do |form| %>
+  <% if menu_item.errors.any? %>
+    <div class="alert alert-danger">
+      <h6><%= pluralize(menu_item.errors.count, "error") %> impidieron guardar:</h6>
+      <ul class="mb-0">
+        <% menu_item.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :name, "Clave del Sistema", class: "form-label" %>
+        <%= form.text_field :name, class: "form-control", placeholder: "ej: properties, admin" %>
+        <div class="form-text">Identificador único (sin espacios, en minúsculas)</div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :display_name, "Nombre Visible", class: "form-label" %>
+        <%= form.text_field :display_name, class: "form-control", placeholder: "ej: Propiedades" %>
+        <div class="form-text">Nombre que verán los usuarios en el menú</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :parent_id, "Menú Padre", class: "form-label" %>
+        <%= form.collection_select :parent_id,
+            MenuItem.roots.order(:sort_order),
+            :id, :display_name,
+            { prompt: 'Sin padre (menú principal)', include_blank: true },
+            { class: "form-select" } %>
+        <div class="form-text">Si es submenú, selecciona el menú padre</div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :path, "Ruta/URL", class: "form-label" %>
+        <%= form.text_field :path, class: "form-control", placeholder: "/admin/properties" %>
+        <div class="form-text">URL del menú. Usa '#' para menús con submenús</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :icon, "Icono Bootstrap", class: "form-label" %>
+        <%= form.text_field :icon, class: "form-control", placeholder: "bi-house-door" %>
+        <div class="form-text">
+          Clase de icono Bootstrap 
+          <a href="https://icons.getbootstrap.com/" target="_blank">Ver iconos</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :sort_order, "Orden", class: "form-label" %>
+        <%= form.number_field :sort_order, class: "form-control", min: 0, step: 10 %>
+        <div class="form-text">Orden de aparición (10, 20, 30...)</div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :minimum_role_level, "Nivel Mínimo", class: "form-label" %>
+        <%= form.select :minimum_role_level,
+            options_for_select([
+              ['SuperAdmin (0)', 0],
+              ['Admin (10)', 10],
+              ['Agente (20)', 20],
+              ['Cliente (30)', 30]
+            ], menu_item.minimum_role_level),
+            {},
+            { class: "form-select" } %>
+        <div class="form-text">Rol mínimo para ver este menú</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-check form-switch mb-3">
+        <%= form.check_box :active, class: "form-check-input" %>
+        <%= form.label :active, "Menú Activo", class: "form-check-label" %>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="form-check form-switch mb-3">
+        <%= form.check_box :system_menu, class: "form-check-input" %>
+        <%= form.label :system_menu, "Menú del Sistema", class: "form-check-label" %>
+        <div class="form-text">Los menús del sistema no se pueden eliminar</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="d-flex gap-2">
+    <%= form.submit menu_item.persisted? ? "Actualizar Menú" : "Crear Menú", 
+        class: "btn btn-primary" %>
+    <%= link_to "Cancelar", superadmin_menu_items_path, class: "btn btn-secondary" %>
+  </div>
+<% end %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const parentSelect = document.getElementById('menu_item_parent_id');
+    const pathInput = document.getElementById('menu_item_path');
+    
+    parentSelect.addEventListener('change', function() {
+      if (this.value) {
+        // Si tiene padre, sugerir # como path
+        if (!pathInput.value || pathInput.value === '#') {
+          pathInput.value = '#';
+        }
+      }
+    });
+  });
+</script>
