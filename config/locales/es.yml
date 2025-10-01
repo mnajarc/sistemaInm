@@ -1,0 +1,272 @@
+# config/locales/es.yml
+es:
+  activerecord:
+    models:
+      property: "Propiedad"
+      agent: "Asesor"
+      client: "Cliente"
+      business_transaction: "Transacción"
+      operation_type: "Tipo de Operación"
+      business_status: "Estado"
+      menu_item: "Elemento de Menú"
+      role: "Rol"
+      user: "Usuario"
+      co_ownership_type: "Tipo de Copropiedad"
+      co_ownership_role: "Rol de Copropiedad"
+      property_type: "Tipo de Propiedad"
+      document_type: "Tipo de Documento"
+      agent_transfer: "Transferencia de Asesor"
+    attributes:
+      property:
+        title: "Título"
+        price: "Precio"
+        description: "Descripción"
+        address: "Dirección"
+        city: "Ciudad"
+        state: "Estado"
+        postal_code: "Código Postal"
+        bedrooms: "Recámaras"
+        bathrooms: "Baños"
+        built_area_m2: "Área Construida (m²)"
+        lot_area_m2: "Área del Terreno (m²)"
+        year_built: "Año de Construcción"
+        parking_spaces: "Espacios de Estacionamiento"
+        furnished: "Amueblado"
+        pets_allowed: "Mascotas Permitidas"
+        available_from: "Disponible Desde"
+      business_transaction:
+        start_date: "Fecha de Inicio"
+        price: "Precio"
+        commission_percentage: "Porcentaje de Comisión"
+        estimated_completion_date: "Fecha Estimada de Finalización"
+        actual_completion_date: "Fecha Real de Finalización"
+        notes: "Notas"
+        terms_and_conditions: "Términos y Condiciones"
+      user:
+        email: "Correo Electrónico"
+        password: "Contraseña"
+        password_confirmation: "Confirmación de Contraseña"
+        role: "Rol"
+        active: "Activo"
+      client:
+        name: "Nombre"
+        email: "Correo Electrónico"
+        phone: "Teléfono"
+        address: "Dirección"
+        active: "Activo"
+      agent:
+        license_number: "Número de Licencia"
+        phone: "Teléfono"
+        specialties: "Especialidades"
+        commission_rate: "Tasa de Comisión"
+        is_active: "Activo"
+      business_transaction_co_owner:
+        person_name: "Nombre de la Persona"
+        percentage: "Porcentaje"
+        role: "Rol"
+        deceased: "Fallecido"
+        inheritance_case_notes: "Notas del Caso de Herencia"
+
+  helpers:
+    submit:
+      create: "Crear %{model}"
+      update: "Actualizar %{model}"
+      submit: "Guardar %{model}"
+    label:
+      property:
+        create: "Crear Propiedad"
+        update: "Actualizar Propiedad"
+      business_transaction:
+        create: "Crear Transacción"
+        update: "Actualizar Transacción"
+
+  # Navegación y Menús
+  menu:
+    dashboard: "Panel"
+    properties: "Propiedades"
+    transactions: "Transacciones"
+    agents: "Asesores"
+    clients: "Clientes"
+    admin_panel: "Administración"
+    superadmin: "SuperAdmin"
+    administration: "Administración"
+    property_types: "Tipos de Propiedad"
+    operation_types: "Tipos de Operación"
+    business_statuses: "Estados de Negocio"
+    users: "Gestión de Usuarios"
+    co_ownership_types: "Tipos de Copropiedad"
+    co_ownership_roles: "Roles de Copropiedad"
+    document_types: "Tipos de Documento"
+    document_requirements: "Requisitos de Documentos"
+    roles: "Roles del Sistema"
+    menu_items: "Elementos de Menú"
+
+  # Roles del Sistema
+  roles:
+    superadmin: "SuperAdministrador"
+    admin: "Administrador"
+    agent: "Asesor Inmobiliario"
+    client: "Cliente"
+
+  # Tipos de Operación
+  operation_types:
+    sale: "Venta"
+    rent: "Alquiler"
+    short_rent: "Alquiler Temporario"
+
+  # Estados de Negocio
+  business_statuses:
+    available: "Disponible"
+    reserved: "Reservado"
+    sold: "Vendido"
+    rented: "Alquilado"
+    cancelled: "Cancelado"
+
+  # Tipos de Propiedad
+  property_types:
+    house: "Casa"
+    apartment: "Departamento"
+    commercial: "Local Comercial"
+    office: "Oficina"
+    warehouse: "Bodega"
+    land: "Terreno"
+
+  # Acciones y Botones
+  actions:
+    new: "Nuevo"
+    create: "Crear"
+    edit: "Editar"
+    update: "Actualizar"
+    delete: "Eliminar"
+    destroy: "Eliminar"
+    show: "Ver"
+    back: "Regresar"
+    cancel: "Cancelar"
+    save: "Guardar"
+    submit: "Enviar"
+    search: "Buscar"
+    filter: "Filtrar"
+    reset: "Restablecer"
+    export: "Exportar"
+    import: "Importar"
+    transfer: "Transferir"
+    assign: "Asignar"
+    activate: "Activar"
+    deactivate: "Desactivar"
+
+  # Confirmaciones
+  confirmations:
+    delete: "¿Estás seguro de que deseas eliminar este elemento?"
+    delete_property: "¿Estás seguro de que deseas eliminar esta propiedad?"
+    delete_transaction: "¿Estás seguro de que deseas eliminar esta transacción?"
+    delete_user: "¿Estás seguro de que deseas eliminar este usuario?"
+    transfer_agent: "¿Estás seguro de que deseas transferir este asesor?"
+    change_role: "¿Estás seguro de que deseas cambiar el rol de este usuario?"
+
+  # Mensajes de Éxito (Notices)
+  notices:
+    created: "%{model} creado exitosamente."
+    updated: "%{model} actualizado exitosamente."
+    destroyed: "%{model} eliminado exitosamente."
+    agent_transferred: "Asesor transferido exitosamente."
+    role_changed: "Rol cambiado exitosamente."
+    activated: "%{model} activado exitosamente."
+    deactivated: "%{model} desactivado exitosamente."
+
+  # Mensajes de Error (Alerts)
+  alerts:
+    not_authorized: "No tienes permisos para realizar esta acción."
+    not_found: "El elemento solicitado no fue encontrado."
+    creation_failed: "Error al crear %{model}."
+    update_failed: "Error al actualizar %{model}."
+    deletion_failed: "Error al eliminar %{model}."
+    transfer_failed: "Error al transferir el asesor."
+    role_change_failed: "Error al cambiar el rol."
+    invalid_data: "Los datos proporcionados no son válidos."
+
+  # Errores de Validación Específicos
+  errors:
+    ownership_not_100: "La suma de porcentajes debe ser igual a 100% (actual: %{total}%)"
+    duplicate_operation: "Ya existe una transacción activa de %{operation_type} para esta propiedad"
+    no_conflict_acquiring_client: "No se puede asignar cliente adquiriente porque la operación de %{operation_type} ya tiene cliente asignado (%{client_name})"
+    must_have_co_owners: "Debe tener al menos un propietario/copropietario"
+    percentage_out_of_range: "El porcentaje debe estar entre 0.01% y 100%"
+    invalid_percentage: "Porcentaje inválido"
+    unauthorized_role_change: "No tienes permisos para asignar este rol a este usuario"
+    role_changer_required: "Debe especificar quién autoriza el cambio de rol"
+
+  # Estados y Mensajes de Operaciones
+  statuses:
+    active: "Activo"
+    inactive: "Inactivo"
+    pending: "Pendiente"
+    completed: "Completado"
+    in_progress: "En Proceso"
+    cancelled: "Cancelado"
+
+  # Páginas y Títulos
+  pages:
+    dashboard: "Panel de Control"
+    properties:
+      index: "Listado de Propiedades"
+      show: "Detalles de la Propiedad"
+      new: "Nueva Propiedad"
+      edit: "Editar Propiedad"
+    transactions:
+      index: "Listado de Transacciones"
+      show: "Detalles de la Transacción"
+      new: "Nueva Transacción"
+      edit: "Editar Transacción"
+    users:
+      index: "Gestión de Usuarios"
+      show: "Detalles del Usuario"
+      new: "Nuevo Usuario"
+      edit: "Editar Usuario"
+    admin:
+      title: "Panel de Administración"
+    superadmin:
+      title: "Panel de SuperAdministrador"
+    agent:
+      title: "Panel del Asesor"
+    client:
+      title: "Panel del Cliente"
+
+  # Información y Ayuda
+  help:
+    co_ownership_percentage: "Ingrese el porcentaje de participación. La suma de todos los porcentajes debe ser 100%."
+    agent_transfer: "Transferir la responsabilidad de esta transacción a otro asesor."
+    role_levels: "SuperAdmin (0) > Admin (10) > Asesor (20) > Cliente (30)"
+
+  # Formularios
+  forms:
+    co_owners:
+      add_co_owner: "Agregar Copropietario"
+      remove_co_owner: "Eliminar Copropietario"
+      percentage_total: "Total de Porcentajes: %{total}%"
+      percentage_remaining: "Porcentaje Restante: %{remaining}%"
+
+  # Dashboards por Rol
+  dashboards:
+    superadmin:
+      title: "Panel SuperAdministrador"
+      total_users: "Total de Usuarios"
+      total_roles: "Total de Roles"
+      total_menu_items: "Total de Elementos de Menú"
+      recent_role_changes: "Cambios de Rol Recientes"
+    admin:
+      title: "Panel Administrativo"
+      total_properties: "Total de Propiedades"
+      active_transactions: "Transacciones Activas"
+      pending_documents: "Documentos Pendientes"
+      active_agents: "Asesores Activos"
+    agent:
+      title: "Panel del Asesor"
+      my_transactions: "Mis Transacciones"
+      active_exclusivities: "Exclusividades Activas"
+      assigned_properties: "Propiedades Asignadas"
+      pending_tasks: "Tareas Pendientes"
+    client:
+      title: "Panel del Cliente"
+      my_transactions: "Mis Transacciones"
+      transaction_status: "Estado de Transacciones"
+      suggested_properties: "Propiedades Sugeridas"

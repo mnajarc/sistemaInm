@@ -39,5 +39,24 @@ module SistemaInmobiliarioV2
     # Don't generate system test files.
     config.generators.system_tests = nil
     config.filter_parameters += [ :password, :password_confirmation, :token ]
+    
+    # ============================================================================
+    # CONFIGURACIÓN DE INTERNACIONALIZACIÓN (AGREGAR AQUÍ)
+    # ============================================================================
+    
+    # Configurar español como idioma por defecto
+    config.i18n.default_locale = :es
+    
+    # Mantener inglés como fallback
+    config.i18n.fallbacks = [:en]
+    
+    # Cargar traducciones de subdirectorios
+    config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '**', '*.{rb,yml}')]
+    
+    # Permitir locales disponibles
+    config.i18n.available_locales = [:es, :en]
+    
+    # Configuración de zona horaria
+    config.time_zone = 'America/Mexico_City'
   end
 end

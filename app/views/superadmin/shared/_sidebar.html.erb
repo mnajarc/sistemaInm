@@ -1,63 +1,41 @@
 <nav class="superadmin-sidebar py-3">
-  <!-- Header con identidad visual -->
   <div class="text-center mb-4">
     <i class="bi bi-shield-lock fs-1 text-warning"></i>
     <h5 class="text-warning mt-2">SuperAdmin</h5>
     <hr class="text-light">
   </div>
-  
-  <!-- Menú principal -->
   <ul class="nav flex-column">
-    <!-- Dashboard -->
-    <li class="nav-item">
-      <%= link_to superadmin_root_path, 
-          class: "nav-link text-light #{'active' if current_page?(superadmin_root_path)}" do %>
-        <i class="bi bi-speedometer2"></i> Dashboard
+    <% MenuItem.main_navigation(current_user).each do |menu| %>
+      <% children = menu.accessible_children_for_user(current_user) %>
+      <% if children.any? %>
+        <li class="nav-item mb-2">
+          <a class="nav-link text-light fw-bold" data-bs-toggle="collapse" href="#sidebar-menu-<%= menu.id %>">
+            <i class="bi <%= menu.icon %>"></i> <%= menu.display_name %>
+            <i class="bi bi-chevron-down float-end"></i>
+          </a>
+          <div class="collapse ps-2 show" id="sidebar-menu-<%= menu.id %>">
+            <ul class="nav flex-column">
+              <% children.each do |child| %>
+                <li class="nav-item mb-1">
+                  <%= link_to(child.display_name, (child.path.presence || "#"), class: "nav-link text-light ps-4 fw-normal" + (current_page?(child.path) ? " active" : "")) %>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        </li>
+      <% else %>
+        <li class="nav-item mb-2">
+          <%= link_to(menu.display_name, (menu.path.presence || "#"), class: "nav-link text-light fw-bold" + (current_page?(menu.path) ? " active" : "")) %>
+        </li>
       <% end %>
-    </li>
-    
-    <!-- Gestión de Menús -->
-    <li class="nav-item">
-      <%= link_to superadmin_menu_items_path, 
-          class: "nav-link text-light #{'active' if controller_name == 'menu_items'}" do %>
-        <i class="bi bi-list-ul"></i> Configuración de Menús
-      <% end %>
-    </li>
-    
-    <!-- Gestión de Roles -->
-    <li class="nav-item">
-      <%= link_to superadmin_roles_path, 
-          class: "nav-link text-light #{'active' if controller_name == 'roles'}" do %>
-        <i class="bi bi-person-badge"></i> Configuración de Roles
-      <% end %>
-    </li>
-    
+    <% end %>
     <li><hr class="text-secondary"></li>
-    
-    <!-- Enlaces rápidos -->
-    <li class="nav-item">
-      <%= link_to admin_users_path, class: "nav-link text-light" do %>
-        <i class="bi bi-people"></i> Gestión de Usuarios
-      <% end %>
-    </li>
-    
-    <li class="nav-item">
-      <%= link_to admin_document_types_path, class: "nav-link text-light" do %>
-        <i class="bi bi-file-text"></i> Tipos de Documento
-      <% end %>
-    </li>
-    
-    <li><hr class="text-secondary"></li>
-    
-    <!-- Volver al sistema -->
     <li class="nav-item">
       <%= link_to root_path, class: "nav-link text-muted" do %>
         <i class="bi bi-arrow-left"></i> Volver al Sistema
       <% end %>
     </li>
   </ul>
-  
-  <!-- Footer del sidebar -->
   <div class="mt-auto pt-3">
     <small class="text-muted">
       <i class="bi bi-person-circle"></i> <%= current_user.email %><br>

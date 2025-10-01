@@ -349,3 +349,8 @@ co_ownership_roles.each do |attrs|
 end
 
 puts "✅ #{CoOwnershipRole.count} roles de copropiedad configurados"
+
+require_relative 'seeds/roles'
+require_relative 'seeds/operation_types'
+require_relative 'seeds/business_statuses'
+require_relative 'seeds/menu_items'

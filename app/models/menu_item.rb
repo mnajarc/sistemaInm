@@ -13,18 +13,28 @@ class MenuItem < ApplicationRecord
   scope :roots, -> { where(parent_id: nil) }
   scope :by_sort_order, -> { order(:sort_order, :display_name) }
   scope :visible_for_level, ->(level) { where("minimum_role_level >= ?", level) }
+  scope :parent_items, -> { where(parent_id: nil) }
+  # MÉTODO CRÍTICO para menús dinámicos
+  scope :accessible_for_user, ->(user) {
+    return none unless user&.role
+    
+    where(active: true)
+      .where('minimum_role_level >= ?', user.role.level)
+      .joins(:role_menu_permissions)
+      .where(role_menu_permissions: { role: user.role, can_view: true })
+      .distinct
+      .order(:sort_order)
+  }
 
   before_validation :set_default_sort_order, on: :create
-
+  
   def visible_for_role?(role_level)
     return false unless active?
-    
-    # Verificar nivel mínimo de rol
-    return false if user.role.level > minimum_role_level
+    return false if role_level > minimum_role_level
     
     # Verificar permisos específicos
     permission = role_menu_permissions.joins(:role)
-                                    .where('roles.level <= ?', user.role.level)
+                                    .where('roles.level = ?', role_level)
                                     .where(can_view: true)
                                     .first
     
@@ -32,9 +42,12 @@ class MenuItem < ApplicationRecord
   end
 
   def has_children?
-    children.any?
+    children.where(active: true).any?
   end
 
+  def accessible_children_for_user(user)
+    children.accessible_for_user(user).order(:sort_order)
+  end
   def breadcrumb
     items = []
     current = self
@@ -51,6 +64,10 @@ class MenuItem < ApplicationRecord
 
   def to_s
     display_name
+  end
+
+  def self.main_navigation(user)
+    accessible_for_user(user).parent_items.includes(:children)
   end
 
   private
