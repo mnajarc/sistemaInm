@@ -1,4 +1,5 @@
 class BusinessTransaction < ApplicationRecord
+  include Configurable
   # Relaciones existentes...
   belongs_to :listing_agent, class_name: "User"
   belongs_to :current_agent, class_name: "User"
@@ -23,14 +24,37 @@ class BusinessTransaction < ApplicationRecord
   validate :ownership_percentages_sum_to_100
   validate :no_duplicate_operation_type, on: [ :create, :update ]
   validate :no_conflict_when_acquiring_client_exists, on: [ :create, :update ]
-
+  
+  validate :ownership_percentages_sum_to_target
+  validate :no_duplicate_operation_type, on: [:create, :update]
+  
   # ✅ SOLO ESTAS DOS VALIDACIONES - LÓGICA CORRECTA
   # validate :ownership_percentages_valid
   # validate :ownership_sums_100
   # Scopes
-  scope :active, -> { joins(:business_status).where(business_statuses: { name: [ "available", "reserved" ] }) }
-  scope :completed, -> { joins(:business_status).where(business_statuses: { name: [ "sold", "rented" ] }) }
-  scope :in_progress, -> { joins(:business_status).where(business_statuses: { name: [ "reserved" ] }) }
+  def self.active_status_names
+    SystemConfiguration.get('business.active_statuses', ['available', 'reserved'])
+  end
+  
+  def self.completed_status_names
+    SystemConfiguration.get('business.completed_statuses', ['sold', 'rented'])
+  end
+  
+  def self.in_progress_status_names
+    SystemConfiguration.get('business.in_progress_statuses', ['reserved'])
+  end
+
+  scope :active, -> { 
+    joins(:business_status).where(business_statuses: { name: active_status_names })
+  }
+  
+  scope :completed, -> { 
+    joins(:business_status).where(business_statuses: { name: completed_status_names })
+  }
+  
+  scope :in_progress, -> { 
+    joins(:business_status).where(business_statuses: { name: in_progress_status_names })
+  }
   scope :for_operation, ->(operation_type) { where(operation_type: operation_type) }
   scope :for_property, ->(property) { where(property: property) }
   scope :by_current_agent, ->(agent) { where(current_agent: agent) }
@@ -56,13 +80,14 @@ class BusinessTransaction < ApplicationRecord
   end
 
   def completed?
-    %w[sold rented].include?(business_status.name)
+    self.class.completed_status_names.include?(business_status.name)
   end
-
+  
   def available?
-    business_status.name == "available"
+    available_status_name = get_config('business.available_status_name', 'available')
+    business_status.name == available_status_name
   end
-
+  
   def total_ownership
     co_owners.active.sum(:percentage)
   end
@@ -97,6 +122,18 @@ class BusinessTransaction < ApplicationRecord
 
 
   private
+
+  def ownership_percentages_sum_to_target
+    return if co_owners.active.empty?
+    
+    target_percentage = get_config('business.total_ownership_percentage', 100.0)
+    total = co_owners.active.sum(&:percentage)
+    
+    unless total.round(2) == target_percentage
+      errors.add(:co_owners, 
+        "Los porcentajes deben sumar exactamente #{target_percentage}% (actual: #{total}%)")
+    end
+  end
 
   def must_have_co_owners
     if co_owners.active.empty?

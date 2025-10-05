@@ -1,11 +1,12 @@
 class User < ApplicationRecord
+  include Configurable
+
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :trackable
 
   # anteriormente se tenía en memoria y se cambia por una tabla para dar mayor flexibilidad al modelo
   belongs_to :role
   has_one :agent, dependent: :destroy  # ← Asociación agregada
-
   has_many :properties, dependent: :destroy
 
   validates :role, presence: true
@@ -22,54 +23,60 @@ class User < ApplicationRecord
   }
 
   # ✅ NIVELES DE ROL (para lógica de interfaz)
-  def role_level
-    role&.level || 999
-  end
 
-  # ✅ VERIFICAR SI PUEDE SER GESTIONADO POR OTRO USUARIO
+  def role_level
+    role&.level || get_config('roles.default_level', 999)
+  end
+  
   def can_be_managed_by?(manager_user)
     return false unless manager_user
     self.role.level > manager_user.role.level
   end
-
-  # ✅ VERIFICAR SI SE PUEDE CAMBIAR A UN ROL ESPECÍFICO
+  
   def can_change_role_to?(new_role_name, changer_user)
     return false unless changer_user
-
     new_role = Role.find_by(name: new_role_name)
     return false unless new_role
-
-    # ✅ CORREGIR: SuperAdmin (nivel 0) puede asignar cualquier rol
+    
     return true if changer_user.superadmin?
-
-    # Para otros roles: solo pueden asignar roles de nivel MAYOR (menos privilegios)
+    
     changer_user.role&.level && new_role.level &&
-    changer_user.role.level < new_role.level
+      changer_user.role.level < new_role.level
   end
+
 
   # ✅ MÉTODOS DE VERIFICACIÓN DE ROL
+
   def admin_or_above?
-    role&.level && role.level <= 10
+    role&.level && role.level <= get_config('roles.admin_max_level', 10)
   end
-
+  
   def agent_or_above?
-    role&.level && role.level <= 20
+    role&.level && role.level <= get_config('roles.agent_max_level', 20)
   end
-
+  
   def superadmin?
-    role&.name == "superadmin"
+    return false unless role
+    superadmin_names = get_config('roles.superadmin_names', ['superadmin'])
+    superadmin_names.include?(role.name)
   end
-
+  
   def admin?
-    role&.name == "admin"
+    return false unless role
+    admin_names = get_config('roles.admin_names', ['admin'])
+    admin_names.include?(role.name)
   end
-
+  
   def agent?
-    role&.name == "agent"
+    return false unless role
+    agent_names = get_config('roles.agent_names', ['agent'])
+    agent_names.include?(role.name)
   end
-
+  
   def client?
-    role&.name == "client"
+    return false unless role
+    client_names = get_config('roles.client_names', ['client'])
+    client_names.include?(role.name)
   end
 
   def can_manage_user?(other_user)
@@ -84,7 +91,7 @@ class User < ApplicationRecord
   end
 
     # ✅ NOMBRE DEL ROL EN ESPAÑOL
-    def role_name
+  def role_name
     role&.display_name || "Sin rol"
   end
 
@@ -113,14 +120,17 @@ class User < ApplicationRecord
     client || Client.find_by(email: email)
   end
   
-
+  def default_role_name
+    get_config('roles.default_role_name', 'client')
+  end
+  
   # ✅ ATRIBUTO PARA TRACKEAR QUIÉN HACE EL CAMBIO
   attr_accessor :role_changer
 
   private
-
+  
   def set_default_role
-    self.role ||= Role.find_by(name: "client")
+    self.role ||= Role.find_by(name: default_role_name)
   end
 
   def role_exists
