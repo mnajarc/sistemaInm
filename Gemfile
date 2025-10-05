@@ -59,6 +59,7 @@ gem "brakeman", require: false
 gem "bundler-audit", require: false
 gem "rack-attack", require: false
 
+gem "kaminari"
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 # gem "image_processing", "~> 1.2"
 

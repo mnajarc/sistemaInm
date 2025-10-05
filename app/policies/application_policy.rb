@@ -1,4 +1,6 @@
 class ApplicationPolicy
+  include Configurable
+  
   attr_reader :user, :record
 
   def initialize(user, record)
@@ -7,15 +9,15 @@ class ApplicationPolicy
   end
 
   def index?
-    false
+    user.present?
   end
 
   def show?
-    false
+    user.present?
   end
 
   def create?
-    false
+    user.present?
   end
 
   def new?
@@ -23,7 +25,7 @@ class ApplicationPolicy
   end
 
   def update?
-    false
+    user.present?
   end
 
   def edit?
@@ -31,19 +33,47 @@ class ApplicationPolicy
   end
 
   def destroy?
-    false
+    user.present?
   end
 
   class Scope
-    attr_reader :user, :relation
+    include Configurable
+    
+    attr_reader :user, :scope
 
-    def initialize(user, relation)
+    def initialize(user, scope)
       @user = user
-      @relation = relation
+      @scope = scope
     end
 
     def resolve
-      relation.none
+      raise NotImplementedError, "You must define #resolve in #{self.class}"
     end
+    
+    private
+    
+    def get_config(key, default = nil)
+      if defined?(SystemConfiguration)
+        SystemConfiguration.get(key, default)
+      else
+        default
+      end
+    rescue => e
+      Rails.logger.error "Error getting config in #{self.class}: #{e.message}"
+      default
+    end
+  end
+  
+  private
+  
+  def get_config(key, default = nil)
+    if defined?(SystemConfiguration)
+      SystemConfiguration.get(key, default)
+    else
+      default
+    end
+  rescue => e
+    Rails.logger.error "Error getting config in #{self.class}: #{e.message}"
+    default
   end
 end

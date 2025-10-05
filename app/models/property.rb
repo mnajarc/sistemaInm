@@ -1,4 +1,5 @@
 class Property < ApplicationRecord
+  include Configurable
   # Relaciones existentes
   belongs_to :user
   belongs_to :property_type, optional: true
@@ -25,12 +26,20 @@ class Property < ApplicationRecord
   validates :price, :address, :city, :state, :postal_code,
             :built_area_m2, :lot_area_m2, presence: true
   validates :built_area_m2, :lot_area_m2, numericality: { greater_than: 0 }
-  validates :price, numericality: {
+
+   validates :price, numericality: {
     greater_than: 0,
-    less_than: 1_000_000_000
+    less_than: -> { get_config('property.max_price', 1_000_000_000) }
   }
-  validates :title, presence: true, length: { maximum: 255 }
-  validates :description, presence: true, length: { maximum: 10000 }
+  
+  validates :title, presence: true, length: { 
+    maximum: -> { get_config('property.max_title_length', 255) }
+  }
+  
+  validates :description, presence: true, length: { 
+    maximum: -> { get_config('property.max_description_length', 10000) }
+  }
+  
   validate :sanitize_input
 
   # NUEVOS SCOPES - AGREGAR ESTOS:
@@ -44,7 +53,24 @@ class Property < ApplicationRecord
   scope :available_for_rent, -> { joins(business_transactions: :operation_type)
                                      .where(operation_types: { name: "rent" })
                                      .merge(BusinessTransaction.active) }
-
+  # ✅ SCOPES CONFIGURABLES
+  def self.available_status_names
+    SystemConfiguration.get('property.available_statuses', ['available', 'reserved'])
+  end
+  
+  def self.sale_operation_names
+    SystemConfiguration.get('property.sale_operation_names', ['sale'])
+  end
+  
+  def self.rent_operation_names
+    SystemConfiguration.get('property.rent_operation_names', ['rent'])
+  end
+  
+  scope :with_available_status, -> {
+    joins(business_transactions: :business_status)
+      .where(business_statuses: { name: available_status_names })
+  }
+  
   # Métodos de conveniencia
   def current_status
     primary_business_transaction&.business_status&.display_name || "Sin estado"
@@ -65,13 +91,17 @@ class Property < ApplicationRecord
   end
 
   def available_for_sale?
-    business_transactions.active.joins(:operation_type).exists?(operation_types: { name: "sale" })
+    business_transactions.active
+      .joins(:operation_type)
+      .exists?(operation_types: { name: self.class.sale_operation_names })
   end
-
+  
   def available_for_rent?
-    business_transactions.active.joins(:operation_type).exists?(operation_types: { name: "rent" })
+    business_transactions.active
+      .joins(:operation_type)
+      .exists?(operation_types: { name: self.class.rent_operation_names })
   end
-
+  
   def operation_history
     business_transactions.joins(:operation_type, :business_status)
                         .order(:start_date)
@@ -155,11 +185,18 @@ class Property < ApplicationRecord
   private
 
   def sanitize_input
+    return unless title.present? || description.present?
+    
+    allowed_tags = get_config('property.allowed_html_tags', ['p', 'br', 'strong', 'em'])
+    
     self.title = Rails::Html::FullSanitizer.new.sanitize(title) if title.present?
-    self.description = Rails::Html::WhiteListSanitizer.new.sanitize(
-      description,
-      tags: %w[p br strong em],
-      attributes: []
-    ) if description.present?
+    
+    if description.present?
+      self.description = Rails::Html::WhiteListSanitizer.new.sanitize(
+        description,
+        tags: allowed_tags,
+        attributes: []
+      )
+    end
   end
 end

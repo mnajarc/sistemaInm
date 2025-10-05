@@ -1,24 +1,46 @@
-# app/models/property_type.rb
 class PropertyType < ApplicationRecord
-  has_many :properties
+  include CatalogConfigurable
   
-  validates :name, presence: true, uniqueness: true
-  validates :display_name, presence: true
-  validates :active, inclusion: { in: [true, false] }
-  validates :sort_order, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  has_many :properties, dependent: :restrict_with_error
+  has_many :document_requirements, dependent: :destroy
   
-  scope :active, -> { where(active: true) }
-  scope :by_sort_order, -> { order(:sort_order) }
-  
-  def properties_count
-    properties.count
+  # Configuraciones específicas del tipo de propiedad
+  def default_built_area_min
+    metadata_for('default_built_area_min', 0).to_f
   end
   
-  def active_properties_count
-    properties.joins(:user).where(users: { active: true }).count
+  def default_built_area_max
+    metadata_for('default_built_area_max', 10000).to_f
   end
   
-  def to_s
-    display_name
+  def requires_parking?
+    metadata_for('requires_parking', false)
+  end
+  
+  def allows_pets_by_default?
+    metadata_for('allows_pets_by_default', true)
+  end
+  
+  def standard_amenities
+    metadata_for('standard_amenities', [])
+  end
+  
+  def property_fields_config
+    metadata_for('property_fields_config', {})
+  end
+  
+  def validation_rules
+    metadata_for('validation_rules', {})
+  end
+  
+  # Campos requeridos según tipo
+  def required_fields
+    base_fields = %w[title description price address city state postal_code]
+    additional_fields = metadata_for('required_fields', [])
+    (base_fields + additional_fields).uniq
+  end
+  
+  def optional_fields
+    metadata_for('optional_fields', [])
   end
 end

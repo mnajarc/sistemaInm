@@ -1,45 +1,46 @@
- # app/models/operation_type.rb
 class OperationType < ApplicationRecord
-  has_many :business_transactions
+  include CatalogConfigurable
   
-  validates :name, presence: true, uniqueness: true
-  validates :display_name, presence: true
-  validates :active, inclusion: { in: [true, false] }
-  validates :sort_order, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  has_many :business_transactions, dependent: :restrict_with_error
+  has_many :document_requirements, dependent: :destroy
   
-  scope :active, -> { where(active: true) }
-  scope :by_sort_order, -> { order(:sort_order) }
+  validates :color, presence: true
   
-  def transactions_count
-    business_transactions.count
+  # Tipos específicos configurables
+  def self.sale_types
+    where(name: SystemConfiguration.get('operation.sale_type_names', ['sale']))
   end
   
-  def sale?
-    name == 'sale'
+  def self.rent_types
+    where(name: SystemConfiguration.get('operation.rent_type_names', ['rent', 'short_rent']))
   end
   
-  def rent?
-    %w[rent short_rent].include?(name)
+  def self.commercial_types
+    where(name: SystemConfiguration.get('operation.commercial_type_names', ['commercial_sale', 'commercial_rent']))
   end
   
-  def to_s
-    display_name
+  # Configuraciones específicas del tipo de operación
+  def requires_down_payment?
+    metadata_for('requires_down_payment', false)
   end
-
-  def self.rents
-    where(name: ['rent', 'short_rent'])
+  
+  def default_commission_percentage
+    metadata_for('default_commission_percentage', 0.0).to_f
   end
-
-
-    # Método para contar transacciones activas
-  def active_transactions_count
-    business_transactions.active.count
+  
+  def max_duration_months
+    metadata_for('max_duration_months', nil)&.to_i
   end
-
-  # Método para contar propiedades únicas con transacciones activas
-  def active_properties_count
-    properties.joins(:business_transactions)
-              .merge(business_transactions.active)
-              .distinct.count
+  
+  def requires_guarantor?
+    metadata_for('requires_guarantor', false)
+  end
+  
+  def allows_co_ownership?
+    metadata_for('allows_co_ownership', true)
+  end
+  
+  def required_document_categories
+    metadata_for('required_document_categories', [])
   end
 end

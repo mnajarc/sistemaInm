@@ -84,3 +84,43 @@ class MenuItem < ApplicationRecord
     self.sort_order = max_order + 10
   end
 end
+# app/models/menu_item.rb
+
+class MenuItem < ApplicationRecord
+  belongs_to :parent, class_name: 'MenuItem', optional: true
+  has_many :children, class_name: 'MenuItem', foreign_key: 'parent_id', dependent: :destroy
+  has_many :role_menu_permissions, dependent: :destroy
+  has_many :roles, through: :role_menu_permissions
+
+  validates :name, presence: true, uniqueness: true
+  validates :display_name, presence: true
+  validates :minimum_role_level, presence: true
+  validates :sort_order, presence: true
+
+  scope :active, -> { where(active: true) }
+  scope :parent_items, -> { where(parent_id: nil) }
+  scope :by_sort_order, -> { order(:sort_order) }
+
+  scope :accessible_for_user, ->(user) {
+    return none unless user&.role
+
+    where(active: true)
+      .where('minimum_role_level >= ?', user.role.level)
+      .joins(:role_menu_permissions)
+      .where(role_menu_permissions: { role: user.role, can_view: true })
+      .distinct
+      .order(:sort_order)
+  }
+
+  def self.main_navigation(user)
+    accessible_for_user(user).parent_items.includes(:children)
+  end
+
+  def has_children?
+    children.active.any?
+  end
+
+  def accessible_children_for_user(user)
+    children.accessible_for_user(user).order(:sort_order)
+  end
+end
