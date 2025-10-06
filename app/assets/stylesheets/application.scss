@@ -98,3 +98,22 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
 }
+
+// dropdown-submenu.scss
+
+// Posiciona el submenú a la derecha del menú padre
+.dropdown-menu .dropend .dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-left: .1rem;
+  margin-right: .1rem;
+}
+
+// Ajustes para que el submenú cierre al hacer click en móvil
+@media (max-width: 991px) {
+  .dropdown-menu .dropend .dropdown-menu {
+    position: relative;
+    left: 0;
+    top: 0;
+  }
+}

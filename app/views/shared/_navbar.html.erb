@@ -41,38 +41,64 @@
           MENÚS: <%= menu_count %>
         </span>
 
+        <!-- En app/views/shared/_navbar.html.erb, reemplazar la sección de MENÚS DINÁMICOS: -->
+
         <!-- MENÚS DINÁMICOS -->
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <% MenuItem.main_navigation(current_user).each do |menu_item| %>
-            <% children = menu_item.accessible_children_for_user(current_user) %>
-            
-            <% if children.any? %>
-              <!-- Dropdown menu -->
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle text-white" href="#" role="button" 
-                   data-bs-toggle="dropdown" aria-expanded="false">
-                  🔸 <%= menu_item.display_name %> (<%= children.count %>)
+<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+  <% MenuItem.main_navigation(current_user).each do |menu_item| %>
+    <% children = menu_item.accessible_children_for_user(current_user) %>
+
+    <% if children.any? %>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle text-white"
+           href="#"
+           role="button"
+           data-bs-toggle="dropdown"
+           aria-expanded="false">
+          🔸 <%= menu_item.display_name %> (<%= children.count %>)
+        </a>
+        <ul class="dropdown-menu">
+          <% children.each do |child| %>
+            <% grandchildren = child.accessible_children_for_user(current_user) %>
+            <% if grandchildren.any? %>
+              <li class="dropend">
+                <a class="dropdown-item dropdown-toggle"
+                   href="#"
+                   aria-expanded="false">
+                  🔹 <%= child.display_name %>
                 </a>
                 <ul class="dropdown-menu">
-                  <% children.each do |child| %>
+                  <% grandchildren.each do |gc| %>
                     <li>
-                      <%= link_to (child.path.present? ? child.path : "#"), class: "dropdown-item" do %>
-                        🔹 <%= child.display_name %>
+                      <%= link_to gc.path.presence || "#", class: "dropdown-item" do %>
+                        ▪️ <%= gc.display_name %>
                       <% end %>
                     </li>
                   <% end %>
                 </ul>
               </li>
             <% else %>
-              <!-- Simple menu -->
-              <li class="nav-item">
-                <%= link_to (menu_item.path.present? ? menu_item.path : "#"), class: "nav-link text-white" do %>
-                  🔹 <%= menu_item.display_name %>
+              <li>
+                <%= link_to child.path.presence || "#", class: "dropdown-item" do %>
+                  🔹 <%= child.display_name %>
                 <% end %>
               </li>
             <% end %>
           <% end %>
         </ul>
+      </li>
+    <% else %>
+      <li class="nav-item">
+        <%= link_to(menu_item.path.presence || "#",
+                   class: "nav-link text-white") do %>
+          🔹 <%= menu_item.display_name %>
+        <% end %>
+      </li>
+    <% end %>
+  <% end %>
+</ul>
+
+
 
         <!-- User dropdown -->
         <ul class="navbar-nav ms-auto">

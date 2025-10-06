@@ -33,7 +33,25 @@ document.addEventListener("turbo:load", () => {
     const dropdown = new bootstrap.Dropdown(el)
     allDropdowns.push(dropdown)
   })
-  
+
+  // Detecta hover o click en submenú para abrirlo
+  document.querySelectorAll('.dropdown-menu .dropdown-toggle').forEach(el => {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+// Cerrar todos los submenús abiertos
+      document.querySelectorAll('.dropdown-menu .dropdown-menu.show').forEach(openSubmenu => {
+        openSubmenu.classList.remove('show');
+      });
+
+
+      const subMenu = this.nextElementSibling;
+      if (subMenu) {
+        subMenu.classList.toggle('show');
+      }
+    });
+  });
+
   // Recrear todos los collapses
   document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(el => {
     const targetId = el.getAttribute('data-bs-target')
