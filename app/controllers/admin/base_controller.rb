@@ -1,5 +1,5 @@
 class Admin::BaseController < BaseController
-  layout 'admin'  # ✅ USAR LAYOUT ESPECÍFICO ADMIN
+  layout 'application'
   before_action :ensure_admin_access
 
   private

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>
+      <%= content_for?(:title) ? yield(:title) : "Sistema Inmobiliario" %>
+    </title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    
+    <%= stylesheet_link_tag "application", media: "all", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+  </head>
+
+  <body class="<%= superadmin_area? ? 'superadmin-area' : (admin_area? ? 'admin-area' : 'main-area') %>">
+    <%= render "shared/navbar" %>
+    
+    <% if superadmin_area? %>
+      <!-- Layout SuperAdmin con Sidebar Oscuro -->
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-2 bg-dark text-light">
+            <%= render "superadmin/shared/sidebar" %>
+          </div>
+          <div class="col-md-10">
+            <main class="superadmin-content py-4">
+              <%= render "shared/flash_messages" if flash.any? %>
+              <%= yield %>
+            </main>
+          </div>
+        </div>
+      </div>
+    <% elsif admin_area? %>
+      <!-- Layout Admin con Sidebar -->
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-2 bg-light">
+            <%= render "shared/admin_sidebar" %>
+          </div>
+          <div class="col-md-10">
+            <main class="admin-content py-4">
+              <%= render "shared/flash_messages" if flash.any? %>
+              <%= yield %>
+            </main>
+          </div>
+        </div>
+      </div>
+    <% else %>
+      <!-- Layout Normal -->
+      <div class="container mt-4">
+        <main>
+          <%= render "shared/flash_messages" if flash.any? %>
+          <%= yield %>
+        </main>
+      </div>
+    <% end %>
+  </body>
+</html>

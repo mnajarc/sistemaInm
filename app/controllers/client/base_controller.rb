@@ -1,5 +1,5 @@
 class Client::BaseController < ApplicationController
-    layout "client"
+    layout 'application'
     before_action :authenticate_user!
     before_action :ensure_client_access
 

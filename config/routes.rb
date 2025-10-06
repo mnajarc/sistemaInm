@@ -15,7 +15,6 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
-    resources :properties
     resources :co_ownership_types
     resources :co_ownership_roles
     resources :property_types
@@ -26,7 +25,6 @@ Rails.application.routes.draw do
     resources :document_requirements
     resources :document_validity_rules
     resources :property_documents
-    # Nested routes para copropiedad en transacciones
     resources :business_transactions do
       resources :co_owners, controller: 'business_transaction_co_owners'
     end
@@ -40,8 +38,7 @@ Rails.application.routes.draw do
   end
 
   namespace :agent do
-    root "properties#index"
-    resources :properties, only: [:index, :show, :edit, :update]
+    # SIN ROOT - Los agentes usan el root global /properties
     resources :business_transactions, only: [:index, :show, :edit, :update] do
       resources :co_owners, controller: 'business_transaction_co_owners', except: [:destroy]
     end

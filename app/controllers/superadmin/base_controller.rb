@@ -1,4 +1,5 @@
 class Superadmin::BaseController < BaseController
+  layout 'application'
   before_action :ensure_superadmin
 
   def index

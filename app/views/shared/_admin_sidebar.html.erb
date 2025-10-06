@@ -3,15 +3,49 @@
     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
       <span>Administración</span>
     </h6>
-    
-    <%= render_admin_sidebar(current_user) %>
-    
+
+    <!-- USAR TU SISTEMA DE MENÚS DINÁMICOS -->
+    <ul class="nav nav-pills flex-column mb-2">
+      <% if user_signed_in? %>
+        <% MenuItem.main_navigation(current_user).each do |menu_item| %>
+          <% if menu_item.display_name.in?(['Administración']) %>
+            <% children = menu_item.accessible_children_for_user(current_user) %>
+            <% children.each do |child| %>
+              <li class="nav-item">
+                <%= link_to child.path, class: "nav-link text-dark" do %>
+                  <i class="bi bi-circle"></i>
+                  <%= child.display_name %>
+                <% end %>
+              </li>
+            <% end %>
+          <% end %>
+        <% end %>
+      <% end %>
+      
+      <!-- Enlaces adicionales de admin -->
+      <li class="nav-item">
+        <%= link_to admin_users_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-people"></i> Usuarios
+        <% end %>
+      </li>
+      <li class="nav-item">
+        <%= link_to admin_property_types_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-house-gear"></i> Tipos de Propiedad
+        <% end %>
+      </li>
+      <li class="nav-item">
+        <%= link_to admin_operation_types_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-gear"></i> Tipos de Operación
+        <% end %>
+      </li>
+    </ul>
+
     <hr>
-    
+
     <div class="px-3">
       <small class="text-muted">
         <i class="bi bi-person-badge"></i>
-        <%= current_user.role_name %>
+        <%= current_user&.role&.name&.humanize || 'Usuario' %>
       </small>
     </div>
   </div>

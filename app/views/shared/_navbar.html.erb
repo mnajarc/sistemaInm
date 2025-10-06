@@ -1,9 +1,5 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container-fluid">
-    <!-- MARCA VISIBLE PARA DEBUG -->
-    <span class="navbar-brand">
-      🔹 NAVBAR DINÁMICO v2.0 🔹
-    </span>
     
     <!-- Brand -->
     <%= link_to root_path, class: "navbar-brand d-flex align-items-center" do %>
@@ -14,7 +10,7 @@
     <!-- DEBUG: Mostrar info del usuario -->
     <% if user_signed_in? %>
       <span class="navbar-text text-warning">
-        DEBUG: <%= current_user.role.name %> - <%= current_user.email %>
+        <%= current_user.role.name %>
       </span>
     <% end %>
 
@@ -28,6 +24,19 @@
       <% if user_signed_in? %>
         <!-- DEBUG: Contar menús -->
         <% menu_count = MenuItem.main_navigation(current_user).count %>
+
+        <!-- En _navbar.html.erb, agregar indicador de sección actual: -->
+        <span class="navbar-brand">
+          🔹 NAVBAR DINÁMICO v2.0 
+          <% if request.path.start_with?('/admin') %>
+            <small class="text-warning">| ADMIN</small>
+          <% elsif request.path.start_with?('/superadmin') %>  
+            <small class="text-warning">| SUPERADMIN</small>
+          <% elsif request.path.start_with?('/client') %>
+            <small class="text-warning">| CLIENTE</small>
+          <% end %>
+          🔹
+        </span>
         <span class="navbar-text text-warning me-3">
           MENÚS: <%= menu_count %>
         </span>

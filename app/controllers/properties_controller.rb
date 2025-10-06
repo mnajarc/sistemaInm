@@ -1,62 +1,96 @@
-
 # app/controllers/properties_controller.rb
-class PropertiesController < BaseController  # ✅ Cambiar herencia
+class PropertiesController < ApplicationController
+  include Pundit::Authorization  # ← AGREGAR ESTA LÍNEA
+
+  before_action :set_property, only: [:show, :edit, :update, :destroy]
+  before_action :authenticate_user!
+
   def index
     @properties = policy_scope(Property)
-    authorize Property
+                    .includes(:property_type, :user, :co_ownership_type)
+                    .order(created_at: :desc)
+                    .page(params[:page])
   end
 
   def show
-    @property = Property.find(params[:id])
     authorize @property
   end
 
   def new
     @property = Property.new
     authorize @property
+    load_form_data
   end
 
   def create
-    @property = current_user.properties.build(property_params)
+    @property = Property.new(property_params)
+    @property.user = current_user unless params[:property][:user_id].present?
     authorize @property
 
     if @property.save
-      redirect_to @property, notice: "Propiedad creada exitosamente"
+      redirect_to @property, notice: 'Propiedad creada exitosamente'
     else
+      load_form_data
       render :new
     end
   end
 
   def edit
-    @property = Property.find(params[:id])
     authorize @property
+    load_form_data
   end
 
   def update
-    @property = Property.find(params[:id])
     authorize @property
 
     if @property.update(property_params)
-      redirect_to @property, notice: "Propiedad actualizada exitosamente"
+      redirect_to @property, notice: 'Propiedad actualizada exitosamente'
     else
+      load_form_data
       render :edit
     end
   end
 
   def destroy
-    @property = Property.find(params[:id])
     authorize @property
     @property.destroy
-    redirect_to properties_path, notice: "Propiedad eliminada exitosamente"
+    redirect_to properties_path, notice: 'Propiedad eliminada exitosamente'
   end
 
   private
 
+  def set_property
+    @property = Property.find(params[:id])
+  end
+
+  def load_form_data
+    @property_types = PropertyType.active.order(:sort_order)
+    @co_ownership_types = CoOwnershipType.active.order(:sort_order)
+    @agents = User.joins(:role).where(roles: { name: ['agent', 'admin', 'superadmin'] })
+                  .where(active: true).order(:email) if can_assign_agents?
+  end
+
+  def can_assign_agents?
+    current_user&.role&.name.in?(['admin', 'superadmin'])
+  end
+
   def property_params
-    params.require(:property).permit(:title, :description, :price,
-                                  :property_type_id, # ✅ Solo este
-                                  :address, :city, :state, :postal_code,
-                                  :bedrooms, :bathrooms, :built_area_m2,
-                                  :lot_area_m2, :year_built)
+    permitted = [:title, :description, :price, :address, :city, :state, :postal_code,
+                 :bedrooms, :bathrooms, :built_area_m2, :lot_area_m2, :year_built,
+                 :property_type_id, :co_ownership_type_id, :parking_spaces,
+                 :furnished, :pets_allowed, :elevator, :balcony, :terrace,
+                 :garden, :pool, :security, :gym, :available_from]
+    
+    # Campos adicionales para agentes
+    if current_user&.role&.name.in?(['agent', 'admin', 'superadmin'])
+      permitted += [:contact_phone, :contact_email, :internal_notes]
+    end
+    
+    # Campo de asignación de usuario para admins
+    if current_user&.role&.name.in?(['admin', 'superadmin'])
+      permitted += [:user_id]
+    end
+
+    params.require(:property).permit(permitted)
   end
 end
