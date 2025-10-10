@@ -1,15 +1,231 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>
-    <i class="bi bi-plus-circle"></i>
-    Nueva Transacción de Negocio
-  </h2>
-  <%= link_to business_transactions_path, class: "btn btn-outline-secondary" do %>
-    <i class="bi bi-arrow-left"></i> Volver
-  <% end %>
-</div>
+<!-- app/views/business_transactions/new.html.erb -->
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="mb-1">Nueva Transacción de Negocio</h2>
+          <p class="text-muted mb-0">Complete todos los datos para crear la transacción</p>
+        </div>
+        <%= link_to "← Volver", business_transactions_path, class: "btn btn-outline-secondary" %>
+      </div>
 
-<div class="card">
-  <div class="card-body">
-    <%= render 'form', transaction: @transaction %>
+      <%= form_with model: @transaction, local: true, 
+                   class: "needs-validation", 
+                   novalidate: true, 
+                   data: { controller: "co-owners" } do |form| %>
+        
+        <!-- SECCIÓN 1: DATOS BÁSICOS -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>1. Datos de la Transacción</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <%= form.label :operation_type_id, "Tipo de Operación", class: "form-label required" %>
+                <%= form.select :operation_type_id, 
+                               options_from_collection_for_select(@operation_types, :id, :display_name), 
+                               { prompt: "Seleccione tipo de operación..." }, 
+                               { class: "form-select", required: true } %>
+              </div>
+              <div class="col-md-4">
+                <%= form.label :start_date, "Fecha de Inicio", class: "form-label required" %>
+                <%= form.date_field :start_date, 
+                                   class: "form-control", 
+                                   value: Date.current, 
+                                   required: true %>
+              </div>
+              <div class="col-md-4">
+                <%= form.label :business_status_id, "Estado", class: "form-label" %>
+                <%= form.select :business_status_id, 
+                               options_from_collection_for_select(@business_statuses, :id, :display_name, 
+                                                                 @business_statuses.find_by(name: 'available')&.id), 
+                               {}, { class: "form-select" } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: PROPIEDAD -->
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-home me-2"></i>2. Propiedad</h5>
+          </div>
+          <div class="card-body">
+            <!-- Toggle de propiedad -->
+            <div class="mb-4">
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="property_option" 
+                       value="existing" id="existing_property" checked 
+                       data-action="change->co-owners#togglePropertySection">
+                <label class="form-check-label" for="existing_property">
+                  <i class="fas fa-search me-1"></i> Seleccionar propiedad existente
+                </label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="property_option" 
+                       value="new" id="new_property"
+                       data-action="change->co-owners#togglePropertySection">
+                <label class="form-check-label" for="new_property">
+                  <i class="fas fa-plus me-1"></i> Crear nueva propiedad
+                </label>
+              </div>
+            </div>
+
+            <!-- Propiedad existente -->
+            <div id="existing-property-section">
+              <%= form.label :property_id, "Seleccionar Propiedad", class: "form-label required" %>
+              <%= form.select :property_id, 
+                             options_from_collection_for_select(@properties, :id, :address), 
+                             { prompt: "Buscar por dirección..." },
+                             { class: "form-select" } %>
+            </div>
+
+            <!-- Nueva propiedad -->
+            <div id="new-property-section" style="display: none;">
+              <%= form.fields_for :property, @transaction.build_property do |property_form| %>
+                <div class="row">
+                  <div class="col-md-8">
+                    <%= property_form.label :address, "Dirección", class: "form-label required" %>
+                    <%= property_form.text_area :address, 
+                                               placeholder: "Calle, número, colonia, ciudad, CP", 
+                                               class: "form-control", rows: 2 %>
+                  </div>
+                  <div class="col-md-4">
+                    <%= property_form.label :property_type_id, "Tipo", class: "form-label required" %>
+                    <%= property_form.select :property_type_id, 
+                                           options_from_collection_for_select(@property_types, :id, :display_name),
+                                           { prompt: "Seleccione tipo..." },
+                                           { class: "form-select" } %>
+                  </div>
+                </div>
+                <div class="row mt-3">
+                  <div class="col-md-3">
+                    <%= property_form.label :built_area_m2, "Área Construida (m²)", class: "form-label" %>
+                    <%= property_form.number_field :built_area_m2, 
+                                                 class: "form-control", step: 0.01, min: 0 %>
+                  </div>
+                  <div class="col-md-3">
+                    <%= property_form.label :lot_area_m2, "Área Terreno (m²)", class: "form-label" %>
+                    <%= property_form.number_field :lot_area_m2, 
+                                                 class: "form-control", step: 0.01, min: 0 %>
+                  </div>
+                  <div class="col-md-3">
+                    <%= property_form.label :bedrooms, "Recámaras", class: "form-label" %>
+                    <%= property_form.number_field :bedrooms, class: "form-control", min: 0 %>
+                  </div>
+                  <div class="col-md-3">
+                    <%= property_form.label :bathrooms, "Baños", class: "form-label" %>
+                    <%= property_form.number_field :bathrooms, class: "form-control", min: 0 %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: COPROPIEDAD -->
+        <div class="card mb-4">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>3. Propietarios/Copropietarios</h5>
+          </div>
+          <div class="card-body">
+            <!-- Tipo de copropiedad -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <%= form.label :co_ownership_type_id, "Tipo de Copropiedad", class: "form-label required" %>
+                <%= form.select :co_ownership_type_id, 
+                               options_from_collection_for_select(@co_ownership_types, :id, :display_name),
+                               { prompt: "Seleccione tipo de copropiedad..." },
+                               { class: "form-select", 
+                                 required: true,
+                                 data: { action: "change->co-owners#updateCoOwnershipType" } } %>
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <button type="button" 
+                        class="btn btn-outline-success me-2" 
+                        data-action="click->co-owners#autoSetup">
+                  <i class="fas fa-magic me-1"></i> Setup Automático
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-primary" 
+                        data-action="click->co-owners#addCoOwner">
+                  <i class="fas fa-plus me-1"></i> Agregar
+                </button>
+              </div>
+            </div>
+
+            <!-- Lista de copropietarios -->
+            <div id="co-owners-section" data-co-owners-target="container">
+              <%= form.fields_for :co_owners do |co_owner_form| %>
+                <%= render 'co_owner_fields', form: co_owner_form %>
+              <% end %>
+            </div>
+
+            <!-- Info de porcentajes -->
+            <div class="mt-3 p-3 bg-light rounded">
+              <div class="row text-center">
+                <div class="col-md-4">
+                  <small class="text-muted">Total Asignado:</small>
+                  <div class="fw-bold" data-co-owners-target="totalPercentage">0%</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Disponible:</small>
+                  <div class="fw-bold" data-co-owners-target="remainingPercentage">100%</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Copropietarios:</small>
+                  <div class="fw-bold" data-co-owners-target="totalCount">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 4: DETALLES FINANCIEROS -->
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>4. Detalles Financieros</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <%= form.label :price, "Precio de Operación", class: "form-label required" %>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <%= form.number_field :price, 
+                                       class: "form-control", 
+                                       step: 0.01, 
+                                       min: 0,
+                                       required: true %>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <%= form.label :commission_percentage, "Comisión (%)", class: "form-label" %>
+                <div class="input-group">
+                  <%= form.number_field :commission_percentage, 
+                                       class: "form-control", 
+                                       step: 0.01, 
+                                       min: 0, 
+                                       max: 100 %>
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="d-flex justify-content-between mb-4">
+          <%= link_to "Cancelar", business_transactions_path, 
+                     class: "btn btn-secondary btn-lg" %>
+          
+          <%= form.submit "Crear Transacción", 
+                         class: "btn btn-primary btn-lg px-5" %>
+        </div>
+      <% end %>
+    </div>
   </div>
 </div>

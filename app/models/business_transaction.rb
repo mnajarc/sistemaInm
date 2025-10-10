@@ -12,12 +12,16 @@ class BusinessTransaction < ApplicationRecord
   has_many :agent_transfers, dependent: :destroy
   has_many :co_owners, class_name: 'BusinessTransactionCoOwner', dependent: :destroy
 
+  has_many   :offers, dependent: :destroy
+
+  # ✅ NESTED ATTRIBUTES para crear propiedad
+  accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
   accepts_nested_attributes_for :co_owners, allow_destroy: true, reject_if: :all_blank
 
   # Validaciones básicas
   validates :start_date, presence: true
   validates :price, presence: true, numericality: { greater_than: 0 }
-  
+
   # ✅ VALIDACIONES DE COPROPIEDAD (UNIFICADAS)
   validate :must_have_co_owners
   validate :ownership_percentages_sum_to_100
@@ -35,6 +39,12 @@ class BusinessTransaction < ApplicationRecord
   scope :for_property, ->(property) { where(property: property) }
   scope :by_current_agent, ->(agent) { where(current_agent: agent) }
   scope :needs_attention, -> { where("estimated_completion_date < ?", Date.current) }
+
+  # Callback para iniciar la cola al crear la primera oferta
+  after_create_commit -> { process_offer_queue! }, if: -> { offers.exists? }
+  def current_offer
+    offers.joins(:offer_status).find_by(offer_statuses: { name: 'in_evaluation' })
+  end
 
   # Business Logic
   def transfer_to_agent!(new_agent, reason, transferred_by)
@@ -95,6 +105,96 @@ class BusinessTransaction < ApplicationRecord
     end
   end
 
+# ✅ MÉTODO DE AUTOMATIZACIÓN DE COPROPIETARIOS
+def auto_coproperty_setup!(owners:)
+  # Limpiar copropietarios existentes
+  co_owners.destroy_all if co_owners.exists?
+  
+  owners.each do |owner_data|
+    co_owners.create!(
+      client: owner_data[:client],
+      person_name: owner_data[:client]&.name || owner_data[:name],
+      percentage: owner_data[:percentage],
+      role: owner_data[:role] || 'propietario'
+    )
+  end
+end
+
+
+
+  # Recibe una nueva oferta: la crea como pending y procesa la cola
+  def receive_offer(client, amount, terms: nil, notes: nil, valid_until: nil, offer_date: nil)
+    offer = offers.create!(
+      offerer: client,
+      amount: amount,
+      terms: terms,
+      notes: notes,
+      valid_until: valid_until,
+      offer_date: offer_date, # Puede ser nil, se asignará automáticamente
+      offer_status: OfferStatus.find_by(name: 'pending')
+      )
+    process_offer_queue!
+    offer
+  end
+
+  # Procesa la cola: promueve la siguiente oferta pending a in_evaluation
+  def process_offer_queue!
+    return if offers.joins(:offer_status)
+                    .where(offer_statuses: { name: 'in_evaluation' })
+                    .exists?
+
+    next_offer = offers.joins(:offer_status)
+                       .where(offer_statuses: { name: 'pending' })
+                       .order(:offer_date)
+                       .first
+    return unless next_offer
+
+    next_offer.update!(offer_status: OfferStatus.find_by(name: 'in_evaluation'))
+  end
+
+  # Acepta la oferta: marca accepted, asigna acquiring_client y cierra transacción
+  def accept_offer!(offer)
+    transaction do
+      offer.update!(offer_status: OfferStatus.find_by(name: 'accepted'))
+      update!(acquiring_client: offer.offerer,
+              business_status: BusinessStatus.find_by(name: 'reserved'))
+      # Rechaza todas las demás ofertas activas
+      offers.joins(:offer_status)
+            .where.not(id: offer.id)
+            .where(offer_statuses: { name: %w[pending in_evaluation] })
+            .update_all(offer_status_id: OfferStatus.find_by(name: 'rejected').id)
+    end
+  end
+
+  # Rechaza oferta y avanza la cola
+  def reject_offer!(offer)
+    transaction do
+      offer.update!(offer_status: OfferStatus.find_by(name: 'rejected'))
+      process_offer_queue!
+    end
+  end
+
+  # ✅ MÉTODOS DE CONVENIENCIA
+  def has_multiple_co_owners?
+    co_owners.active.count > 1
+  end
+
+  def co_ownership_summary
+    if co_owners.active.count > 1
+      "#{co_owners.active.count} copropietarios: #{co_owners.active.map(&:display_name).join(', ')}"
+    else
+      "Propietario único: #{co_owners.active.first&.display_name}"
+    end
+  end
+
+
+  def total_documented_percentage
+    co_owners.active.sum(:percentage) || 0
+  end
+
+  def pending_co_owner_documents
+    co_owners.active.map(&:documents_checklist).flatten.select { |doc| doc[:required] && !doc[:uploaded] }
+  end
 
   private
 

@@ -1,38 +1,75 @@
-<div class="co-owner-form border rounded p-3 mb-3 bg-light">
-  <div class="row">
-    <div class="col-md-3">
-      <%= f.label :client_id, "Cliente", class: "form-label" %>
-      <%= f.collection_select :client_id, Client.active.order(:name), :id, :name, {prompt: "Cliente existente"}, {class: "form-select"} %>
+<!-- app/views/business_transactions/_co_owner_fields.html.erb -->
+<div class="co-owner-item border rounded p-3 mb-3" data-co-owners-target="item">
+  <div class="row align-items-center">
+    <div class="col-md-4">
+      <%= form.label :client_id, "Cliente", class: "form-label" %>
+      <%= form.select :client_id, 
+                     options_from_collection_for_select(@clients, :id, :name),
+                     { prompt: "Seleccionar cliente..." },
+                     { class: "form-select client-select",
+                       data: { action: "change->co-owners#updateClientName" } } %>
     </div>
     <div class="col-md-3">
-      <%= f.label :person_name, "Nombre (si no hay cliente)", class: "form-label" %>
-      <%= f.text_field :person_name, class: "form-control", placeholder: "Ej: Juan Heredero" %>
+      <%= form.label :person_name, "O escribir nombre", class: "form-label" %>
+      <%= form.text_field :person_name, 
+                         placeholder: "Nombre completo", 
+                         class: "form-control" %>
     </div>
     <div class="col-md-2">
-      <%= f.label :percentage, "Porcentaje", class: "form-label" %>
-      <%= f.number_field :percentage, class: "form-control", step: 0.01, min: 0, max: 100, placeholder: "0.00" %>
+      <%= form.label :percentage, "Porcentaje", class: "form-label" %>
+      <div class="input-group">
+        <%= form.number_field :percentage, 
+                             class: "form-control", 
+                             step: 0.01, 
+                             min: 0, 
+                             max: 100,
+                             data: { action: "input->co-owners#updatePercentages" } %>
+        <span class="input-group-text">%</span>
+      </div>
     </div>
     <div class="col-md-2">
-      <%= f.label :role, "Rol", class: "form-label" %>
-      <%= f.select :role, CoOwnershipRole.active.pluck(:display_name, :name), {prompt: 'Seleccionar rol'}, {class: "form-select"} %>
+      <%= form.label :role, "Rol", class: "form-label" %>
+      <%= form.select :role, 
+                     @roles,
+                     { prompt: "Seleccionar..." },
+                     { class: "form-select" } %>
     </div>
-    <div class="col-md-2 d-flex flex-column align-items-end">
-      <%= f.hidden_field :_destroy %>
-      <button type="button" class="btn btn-sm btn-outline-danger remove-co-owner" data-action="co-owners#remove" title="Eliminar">
-        <i class="fa fa-trash"></i>
+    <div class="col-md-1">
+      <label class="form-label">&nbsp;</label>
+      <button type="button" 
+              class="btn btn-outline-danger btn-sm d-block" 
+              data-action="click->co-owners#removeCoOwner"
+              title="Eliminar copropietario">
+        <i class="fas fa-trash"></i>
       </button>
     </div>
   </div>
-  <div class="row mt-2">
-    <div class="col-md-2">
-      <div class="form-check">
-        <%= f.check_box :deceased, class: "form-check-input" %>
-        <%= f.label :deceased, "Finado", class: "form-check-label" %>
+  
+  <!-- Campos adicionales colapsables -->
+  <div class="mt-2">
+    <button type="button" 
+            class="btn btn-link btn-sm p-0" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#advanced-<%= form.index || rand(1000) %>"
+            aria-expanded="false">
+      <i class="fas fa-cog me-1"></i> Opciones avanzadas
+    </button>
+  </div>
+  
+  <div class="collapse mt-2" id="advanced-<%= form.index || rand(1000) %>">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-check">
+          <%= form.check_box :deceased, class: "form-check-input" %>
+          <%= form.label :deceased, "Finado", class: "form-check-label" %>
+        </div>
       </div>
-    </div>
-    <div class="col-md-10">
-      <%= f.label :inheritance_case_notes, "Notas de herencia/juicio/representación:", class: "form-label" %>
-      <%= f.text_area :inheritance_case_notes, class: "form-control", rows: 2, placeholder: "Ejemplo: en juicio, representante legal, etc." %>
+      <div class="col-md-6">
+        <%= form.text_area :inheritance_case_notes, 
+                          placeholder: "Notas del caso de herencia...", 
+                          rows: 2,
+                          class: "form-control form-control-sm" %>
+      </div>
     </div>
   </div>
 </div>

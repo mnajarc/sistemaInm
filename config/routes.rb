@@ -26,7 +26,11 @@ Rails.application.routes.draw do
     resources :document_validity_rules
     resources :property_documents
     resources :business_transactions do
-      resources :co_owners, controller: 'business_transaction_co_owners'
+      resources :co_owners, controller: 'business_transaction_co_owners' do
+        collection do
+          post :auto_setup
+        end
+      end
     end
   end
 

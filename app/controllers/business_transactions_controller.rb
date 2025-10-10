@@ -1,5 +1,3 @@
-# BusinessTransactionsController COMPLETO - RESTAURADO
-
 class BusinessTransactionsController < BaseController
   before_action :authenticate_user!
   before_action :set_transaction, only: %i[show edit update destroy transfer_agent]
@@ -22,8 +20,9 @@ class BusinessTransactionsController < BaseController
     @transaction = BusinessTransaction.new
     authorize @transaction
     
-    # ✅ SIEMPRE crear al menos 1 copropietario por defecto
-    @transaction.co_owners.build(percentage: 100.0, role: 'vendedor')
+    # ✅ Preparar objetos anidados
+    @transaction.build_property # Para crear nueva propiedad si es necesario
+    @transaction.co_owners.build(percentage: 100.0, role: 'propietario') # Al menos uno
     
     load_form_data
   end
@@ -32,22 +31,29 @@ class BusinessTransactionsController < BaseController
     @transaction = BusinessTransaction.new(transaction_params)
     authorize @transaction
     
-    # ✅ LÓGICA DE ASIGNACIÓN POR ROL
     assign_agents_by_role
     
-    if @transaction.save
-      redirect_to @transaction, notice: "Transacción creada exitosamente y asignada a #{@transaction.current_agent.email}"
-    else
-      load_form_data
-      render :new, status: :unprocessable_entity
+    ActiveRecord::Base.transaction do
+      # ✅ Crear nueva propiedad si se seleccionó esa opción
+      if params[:property_option] == 'new' && property_params.present?
+        @transaction.property = Property.new(property_params.merge(user: current_user))
+      end
+      
+      if @transaction.save
+        redirect_to @transaction, notice: "Transacción creada exitosamente"
+      else
+        load_form_data
+        render :new, status: :unprocessable_entity
+      end
     end
   end
 
   def edit
     authorize @transaction
     
+    # Asegurar que tiene al menos un copropietario
     if @transaction.co_owners.empty?
-      @transaction.co_owners.build(percentage: 100.0, role: 'vendedor')
+      @transaction.co_owners.build(percentage: 100.0, role: 'propietario')
     end
     
     load_form_data
@@ -56,12 +62,10 @@ class BusinessTransactionsController < BaseController
   def update
     authorize @transaction
     
-    # ✅ PERMITIR REASIGNACIÓN SOLO A ADMIN/SUPERADMIN
     if current_user.admin_or_above? && params[:business_transaction][:current_agent_id].present?
       reassign_agent
     end
     
-    # ✅ PERMITIR ASIGNACIÓN DE SELLING_AGENT
     if current_user.admin_or_above? && params[:business_transaction][:selling_agent_id].present?
       reassign_selling_agent
     end
@@ -93,17 +97,13 @@ class BusinessTransactionsController < BaseController
     @transaction = BusinessTransaction.find(params[:id])
   end
 
-  # ✅ ASIGNACIÓN INTELIGENTE POR ROL - INCLUYE SELLING_AGENT
   def assign_agents_by_role
     case current_user.role.name
     when 'agent'
-      # AGENTE: Solo puede asignarse a sí mismo
       @transaction.listing_agent = current_user
       @transaction.current_agent = current_user
-      # selling_agent se queda nil hasta que se asigne
       
     when 'admin', 'superadmin'
-      # ADMIN/SUPERADMIN: Puede asignar a cualquier agente
       if params[:business_transaction][:current_agent_id].present?
         assigned_agent = User.find(params[:business_transaction][:current_agent_id])
         if assigned_agent.agent?
@@ -114,7 +114,6 @@ class BusinessTransactionsController < BaseController
           return false
         end
       else
-        # Si no especifica agente, asignar al primer agente disponible
         first_agent = User.joins(:agent).where(agents: { is_active: true }).first
         if first_agent
           @transaction.listing_agent = first_agent
@@ -125,7 +124,6 @@ class BusinessTransactionsController < BaseController
         end
       end
       
-      # ✅ ASIGNAR SELLING_AGENT SI SE ESPECIFICA
       if params[:business_transaction][:selling_agent_id].present?
         selling_agent = User.find(params[:business_transaction][:selling_agent_id])
         if selling_agent.agent?
@@ -161,19 +159,19 @@ class BusinessTransactionsController < BaseController
   def load_form_data
     @clients = Client.active.order(:name)
     
-    # ✅ PROPIEDADES SEGÚN ROL
     @properties = if current_user.admin_or_above?
-                    Property.includes(:property_type, :user).order(:title)
+                    Property.includes(:property_type, :user).order(:address)
                   else
-                    # Agentes solo ven sus propiedades
                     Property.where(user: current_user).includes(:property_type)
                   end
     
     @operation_types = OperationType.active.order(:sort_order)
     @business_statuses = BusinessStatus.active.order(:sort_order)
+    @property_types = PropertyType.active.order(:sort_order)
+    @co_ownership_types = CoOwnershipType.active.order(:sort_order)
     @co_ownership_roles = CoOwnershipRole.active.order(:sort_order)
+    @roles = @co_ownership_roles.pluck(:display_name, :name)
     
-    # ✅ AGENTES DISPONIBLES (Solo para Admin/SuperAdmin)
     if current_user.admin_or_above?
       @available_agents = User.joins(:agent)
                               .where(agents: { is_active: true })
@@ -184,7 +182,7 @@ class BusinessTransactionsController < BaseController
   def transaction_params
     permitted_params = [
       :property_id, :operation_type_id, :business_status_id,
-      :offering_client_id, :acquiring_client_id,
+      :offering_client_id, :acquiring_client_id, :co_ownership_type_id,
       :price, :commission_percentage, :start_date, :estimated_completion_date, :notes,
       co_owners_attributes: [
         :id, :client_id, :person_name, :percentage, :role, 
@@ -192,12 +190,19 @@ class BusinessTransactionsController < BaseController
       ]
     ]
     
-    # ✅ SOLO ADMIN/SUPERADMIN PUEDEN ESPECIFICAR AGENTES
     if current_user.admin_or_above?
       permitted_params += [:current_agent_id, :selling_agent_id]
     end
     
     params.require(:business_transaction).permit(permitted_params)
   end
-end
+
+  def property_params
+    return nil unless params[:property_option] == 'new'
     
+    params.require(:business_transaction)[:property_attributes]&.permit(
+      :address, :property_type_id, :built_area_m2, :lot_area_m2, 
+      :bedrooms, :bathrooms, :description
+    )
+  end
+end

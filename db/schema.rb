@@ -10,9 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "btree_gin"
+  enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
+  enable_extension "pgcrypto"
+  enable_extension "unaccent"
+  enable_extension "uuid-ossp"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -79,7 +85,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
+    t.integer "minimum_role_level", default: 999
     t.index ["active"], name: "index_business_statuses_on_active"
+    t.index ["metadata"], name: "index_business_statuses_on_metadata", using: :gin
     t.index ["name"], name: "index_business_statuses_on_name", unique: true
     t.index ["sort_order"], name: "index_business_statuses_on_sort_order"
   end
@@ -88,13 +98,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.bigint "business_transaction_id", null: false
     t.bigint "client_id"
     t.string "person_name"
-    t.decimal "percentage", precision: 5, scale: 2, null: false
+    t.decimal "percentage", precision: 5, scale: 2
     t.string "role"
     t.boolean "deceased", default: false, null: false
     t.text "inheritance_case_notes"
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["business_transaction_id", "active"], name: "idx_co_owners_transaction_active"
     t.index ["business_transaction_id"], name: "idx_on_business_transaction_id_2d9fea40bb"
     t.index ["client_id"], name: "index_business_transaction_co_owners_on_client_id"
   end
@@ -118,8 +129,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.bigint "listing_agent_id", null: false
     t.bigint "current_agent_id", null: false
     t.bigint "selling_agent_id"
+    t.bigint "co_ownership_type_id"
     t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
     t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
+    t.index ["co_ownership_type_id"], name: "index_business_transactions_on_co_ownership_type_id"
     t.index ["current_agent_id"], name: "index_business_transactions_on_current_agent_id"
     t.index ["listing_agent_id"], name: "index_business_transactions_on_listing_agent_id"
     t.index ["offering_client_id"], name: "index_business_transactions_on_offering_client_id"
@@ -151,7 +164,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
     t.index ["active"], name: "index_co_ownership_roles_on_active"
+    t.index ["metadata"], name: "index_co_ownership_roles_on_metadata", using: :gin
     t.index ["name"], name: "index_co_ownership_roles_on_name", unique: true
     t.index ["sort_order"], name: "index_co_ownership_roles_on_sort_order"
   end
@@ -164,7 +180,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order", default: 10
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
+    t.integer "minimum_role_level", default: 30
+    t.string "ownership_mode", default: "único", null: false
     t.index ["active"], name: "index_co_ownership_types_on_active"
+    t.index ["metadata"], name: "index_co_ownership_types_on_metadata", using: :gin
     t.index ["name"], name: "index_co_ownership_types_on_name", unique: true
   end
 
@@ -219,6 +240,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.boolean "is_active", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
+    t.index ["metadata"], name: "index_document_types_on_metadata", using: :gin
     t.index ["name"], name: "index_document_types_on_name", unique: true
     t.check_constraint "valid_until IS NULL OR valid_until > valid_from", name: "valid_until_after_valid_from"
   end
@@ -253,6 +277,36 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.index ["sort_order"], name: "index_menu_items_on_sort_order"
   end
 
+  create_table "offer_statuses", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "status_code", null: false
+    t.string "display_name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status_code"], name: "index_offer_statuses_on_status_code", unique: true
+  end
+
+  create_table "offers", force: :cascade do |t|
+    t.bigint "business_transaction_id", null: false
+    t.bigint "offerer_id", null: false
+    t.decimal "amount", precision: 15, scale: 2, null: false
+    t.datetime "offer_date", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.datetime "valid_until"
+    t.text "terms"
+    t.text "notes"
+    t.integer "status", default: 0, null: false
+    t.integer "queue_position"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "offer_status_id", null: false
+    t.index ["business_transaction_id", "queue_position"], name: "index_offers_on_business_transaction_id_and_queue_position"
+    t.index ["business_transaction_id", "status"], name: "index_offers_on_business_transaction_id_and_status"
+    t.index ["business_transaction_id"], name: "index_offers_on_business_transaction_id"
+    t.index ["offer_status_id"], name: "index_offers_on_offer_status_id"
+    t.index ["offerer_id", "status"], name: "index_offers_on_offerer_id_and_status"
+    t.index ["offerer_id"], name: "index_offers_on_offerer_id"
+  end
+
   create_table "operation_types", force: :cascade do |t|
     t.string "name"
     t.string "display_name"
@@ -261,6 +315,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
+    t.string "color", default: "primary"
+    t.index ["metadata"], name: "index_operation_types_on_metadata", using: :gin
     t.index ["name"], name: "index_operation_types_on_name", unique: true
   end
 
@@ -351,6 +409,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
+    t.index ["metadata"], name: "index_property_statuses_on_metadata", using: :gin
     t.index ["name"], name: "index_property_statuses_on_name", unique: true
   end
 
@@ -362,7 +423,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.integer "sort_order", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
     t.index ["active"], name: "index_property_types_on_active"
+    t.index ["metadata"], name: "index_property_types_on_metadata", using: :gin
     t.index ["name"], name: "index_property_types_on_name", unique: true
     t.index ["sort_order"], name: "index_property_types_on_sort_order"
   end
@@ -398,8 +462,30 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
     t.boolean "system_role", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "icon"
     t.index ["level"], name: "index_roles_on_level"
+    t.index ["metadata"], name: "index_roles_on_metadata", using: :gin
     t.index ["name"], name: "index_roles_on_name", unique: true
+  end
+
+  create_table "system_configurations", force: :cascade do |t|
+    t.string "key", null: false
+    t.text "value", null: false
+    t.string "value_type", default: "string", null: false
+    t.string "category", null: false
+    t.text "description", null: false
+    t.boolean "active", default: true, null: false
+    t.boolean "system_config", default: false, null: false
+    t.json "environments"
+    t.json "metadata"
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_system_configurations_on_active"
+    t.index ["category"], name: "index_system_configurations_on_category"
+    t.index ["key"], name: "index_system_configurations_on_key", unique: true
+    t.index ["system_config"], name: "index_system_configurations_on_system_config"
   end
 
   create_table "users", force: :cascade do |t|
@@ -434,6 +520,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
   add_foreign_key "business_transactions", "business_statuses"
   add_foreign_key "business_transactions", "clients", column: "acquiring_client_id"
   add_foreign_key "business_transactions", "clients", column: "offering_client_id"
+  add_foreign_key "business_transactions", "co_ownership_types"
   add_foreign_key "business_transactions", "operation_types"
   add_foreign_key "business_transactions", "properties"
   add_foreign_key "business_transactions", "users", column: "current_agent_id"
@@ -447,6 +534,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_180725) do
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
+  add_foreign_key "offers", "business_transactions"
+  add_foreign_key "offers", "clients", column: "offerer_id"
+  add_foreign_key "offers", "offer_statuses"
   add_foreign_key "properties", "co_ownership_types"
   add_foreign_key "properties", "property_types"
   add_foreign_key "properties", "users"
