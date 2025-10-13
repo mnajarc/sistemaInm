@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -130,17 +130,58 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.bigint "current_agent_id", null: false
     t.bigint "selling_agent_id"
     t.bigint "co_ownership_type_id"
+    t.string "external_operation_number"
+    t.string "contract_signer_type"
+    t.string "c21_legal_representative"
+    t.integer "contract_days_term"
+    t.date "contract_expiration_date"
+    t.string "celebration_place"
+    t.decimal "commission_amount", precision: 15, scale: 2
+    t.decimal "commission_vat", precision: 15, scale: 2
+    t.decimal "recommended_price", precision: 15, scale: 2
+    t.string "payment_method"
+    t.string "deed_number"
+    t.date "deed_date"
+    t.string "notary_number"
+    t.string "notary_name"
+    t.string "notary_location"
+    t.string "real_folio"
+    t.string "property_registry_location"
+    t.date "registration_date"
+    t.string "acquisition_legal_act"
+    t.date "acquisition_date"
+    t.boolean "is_mortgaged_at_transaction", default: false
+    t.boolean "has_liens_at_transaction", default: false
     t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
+    t.index ["acquisition_legal_act"], name: "index_business_transactions_on_acquisition_legal_act"
     t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
     t.index ["co_ownership_type_id"], name: "index_business_transactions_on_co_ownership_type_id"
+    t.index ["contract_expiration_date"], name: "index_business_transactions_on_contract_expiration_date"
     t.index ["current_agent_id"], name: "index_business_transactions_on_current_agent_id"
+    t.index ["deed_number"], name: "index_business_transactions_on_deed_number"
+    t.index ["external_operation_number"], name: "index_business_transactions_on_external_operation_number", unique: true
+    t.index ["is_mortgaged_at_transaction"], name: "index_business_transactions_on_is_mortgaged_at_transaction"
     t.index ["listing_agent_id"], name: "index_business_transactions_on_listing_agent_id"
     t.index ["offering_client_id"], name: "index_business_transactions_on_offering_client_id"
     t.index ["operation_type_id"], name: "index_business_transactions_on_operation_type_id"
     t.index ["property_id", "is_primary"], name: "index_business_transactions_on_property_id_and_is_primary"
     t.index ["property_id"], name: "index_business_transactions_on_property_id"
+    t.index ["real_folio"], name: "index_business_transactions_on_real_folio"
     t.index ["selling_agent_id"], name: "index_business_transactions_on_selling_agent_id"
     t.index ["start_date"], name: "index_business_transactions_on_start_date"
+  end
+
+  create_table "civil_statuses", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_civil_statuses_on_active"
+    t.index ["name"], name: "index_civil_statuses_on_name", unique: true
+    t.index ["sort_order"], name: "index_civil_statuses_on_sort_order"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -202,6 +243,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.index ["property_id"], name: "index_commissions_on_property_id"
   end
 
+  create_table "contract_signer_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "requires_power_of_attorney", default: false, null: false
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_contract_signer_types_on_active"
+    t.index ["name"], name: "index_contract_signer_types_on_name", unique: true
+    t.index ["requires_power_of_attorney"], name: "index_contract_signer_types_on_requires_power_of_attorney"
+    t.index ["sort_order"], name: "index_contract_signer_types_on_sort_order"
+  end
+
   create_table "contracts", force: :cascade do |t|
     t.bigint "client_id", null: false
     t.bigint "property_id", null: false
@@ -242,8 +298,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.datetime "updated_at", null: false
     t.jsonb "metadata", default: {}, null: false
     t.string "icon"
+    t.string "requirement_context", default: "general"
+    t.string "applies_to_person_type"
+    t.string "applies_to_acquisition_type"
+    t.boolean "mandatory", default: false
+    t.boolean "blocks_transaction", default: false
+    t.index ["applies_to_person_type"], name: "index_document_types_on_applies_to_person_type"
+    t.index ["blocks_transaction"], name: "index_document_types_on_blocks_transaction"
+    t.index ["mandatory"], name: "index_document_types_on_mandatory"
     t.index ["metadata"], name: "index_document_types_on_metadata", using: :gin
     t.index ["name"], name: "index_document_types_on_name", unique: true
+    t.index ["requirement_context"], name: "index_document_types_on_requirement_context"
     t.check_constraint "valid_until IS NULL OR valid_until > valid_from", name: "valid_until_after_valid_from"
   end
 
@@ -257,6 +322,52 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.datetime "updated_at", null: false
     t.index ["document_type_id"], name: "index_document_validity_rules_on_document_type_id"
     t.check_constraint "validity_period_months > 0", name: "validity_period_positive"
+  end
+
+  create_table "financial_institutions", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "short_name"
+    t.string "institution_type"
+    t.string "code"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_financial_institutions_on_active"
+    t.index ["code"], name: "index_financial_institutions_on_code"
+    t.index ["institution_type"], name: "index_financial_institutions_on_institution_type"
+    t.index ["name"], name: "index_financial_institutions_on_name", unique: true
+  end
+
+  create_table "identification_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "issuing_authority"
+    t.integer "validity_years"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_identification_types_on_active"
+    t.index ["name"], name: "index_identification_types_on_name", unique: true
+    t.index ["sort_order"], name: "index_identification_types_on_sort_order"
+  end
+
+  create_table "legal_acts", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "category"
+    t.boolean "requires_notary", default: true, null: false
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_legal_acts_on_active"
+    t.index ["category"], name: "index_legal_acts_on_category"
+    t.index ["name"], name: "index_legal_acts_on_name", unique: true
+    t.index ["sort_order"], name: "index_legal_acts_on_sort_order"
   end
 
   create_table "menu_items", force: :cascade do |t|
@@ -275,6 +386,19 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.index ["name"], name: "index_menu_items_on_name", unique: true
     t.index ["parent_id"], name: "index_menu_items_on_parent_id"
     t.index ["sort_order"], name: "index_menu_items_on_sort_order"
+  end
+
+  create_table "mexican_states", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "code", limit: 5, null: false
+    t.string "full_name", null: false
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_mexican_states_on_active"
+    t.index ["code"], name: "index_mexican_states_on_code", unique: true
+    t.index ["name"], name: "index_mexican_states_on_name", unique: true
   end
 
   create_table "offer_statuses", force: :cascade do |t|
@@ -322,6 +446,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.index ["name"], name: "index_operation_types_on_name", unique: true
   end
 
+  create_table "person_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "tax_regime"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_person_types_on_active"
+    t.index ["name"], name: "index_person_types_on_name", unique: true
+    t.index ["sort_order"], name: "index_person_types_on_sort_order"
+  end
+
   create_table "properties", force: :cascade do |t|
     t.string "title"
     t.text "description"
@@ -359,13 +497,26 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_09_065852) do
     t.bigint "co_ownership_type_id"
     t.text "co_owners_details"
     t.json "co_ownership_percentage"
+    t.string "street"
+    t.string "exterior_number"
+    t.string "interior_number"
+    t.string "neighborhood"
+    t.string "municipality"
+    t.string "country", default: "México"
+    t.boolean "has_extensions", default: false
+    t.string "land_use"
     t.index ["available_from"], name: "index_properties_on_available_from"
+    t.index ["city", "state", "municipality"], name: "index_properties_location"
     t.index ["co_ownership_type_id"], name: "index_properties_on_co_ownership_type_id"
+    t.index ["land_use"], name: "index_properties_on_land_use"
     t.index ["latitude", "longitude"], name: "index_properties_on_coordinates"
+    t.index ["municipality"], name: "index_properties_on_municipality"
+    t.index ["neighborhood"], name: "index_properties_on_neighborhood"
     t.index ["parking_spaces"], name: "index_properties_on_parking_spaces"
     t.index ["price"], name: "index_properties_on_price"
     t.index ["property_type_id"], name: "index_properties_on_property_type_id"
     t.index ["published_at"], name: "index_properties_on_published_at"
+    t.index ["street"], name: "index_properties_on_street"
     t.index ["user_id"], name: "index_properties_on_user_id"
   end
 

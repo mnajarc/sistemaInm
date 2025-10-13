@@ -355,19 +355,19 @@ require_relative 'seeds/operation_types'
 require_relative 'seeds/business_statuses'
 require_relative 'seeds/menu_items'
 
-OfferStatus.create!(name: 'pending',        status_code: 0, display_name: 'En Espera')
-OfferStatus.create!(name: 'in_evaluation',  status_code: 1, display_name: 'En Evaluación')
-OfferStatus.create!(name: 'accepted',       status_code: 2, display_name: 'Aceptada')
-OfferStatus.create!(name: 'rejected',       status_code: 3, display_name: 'Rechazada')
-OfferStatus.create!(name: 'withdrawn',      status_code: 4, display_name: 'Retirada')
+# OfferStatus.create!(name: 'pending',        status_code: 0, display_name: 'En Espera')
+# OfferStatus.create!(name: 'in_evaluation',  status_code: 1, display_name: 'En Evaluación')
+# OfferStatus.create!(name: 'accepted',       status_code: 2, display_name: 'Aceptada')
+# OfferStatus.create!(name: 'rejected',       status_code: 3, display_name: 'Rechazada')
+# OfferStatus.create!(name: 'withdrawn',      status_code: 4, display_name: 'Retirada')
 
-CoOwnershipType.create!([
-  { name: 'individual', display_name: 'Propietario único', ownership_mode: 'único', sort_order: 1 },
-  { name: 'mancomunados', display_name: 'Bienes mancomunados', ownership_mode: 'dividido', sort_order: 2 },
-  { name: 'herencia', display_name: 'Herederos', ownership_mode: 'dividido', sort_order: 3 },
-  { name: 'usufructo', display_name: 'Usufructo', ownership_mode: 'único', sort_order: 4 },
-  { name: 'societaria', display_name: 'Sociedad/Fideicomiso', ownership_mode: 'dividido', sort_order: 5 }
-])
+# CoOwnershipType.create!([
+  # { name: 'individual', display_name: 'Propietario único', ownership_mode: 'único', sort_order: 1 },
+  # { name: 'mancomunados', display_name: 'Bienes mancomunados', ownership_mode: 'dividido', sort_order: 2 },
+  # { name: 'herencia', display_name: 'Herederos', ownership_mode: 'dividido', sort_order: 3 },
+  # { name: 'usufructo', display_name: 'Usufructo', ownership_mode: 'único', sort_order: 4 },
+  # { name: 'societaria', display_name: 'Sociedad/Fideicomiso', ownership_mode: 'dividido', sort_order: 5 }
+# ])
 
 # db/seeds/01_catalogs_base.rb
 # Seeds para poblar catálogos básicos del sistema inmobiliario

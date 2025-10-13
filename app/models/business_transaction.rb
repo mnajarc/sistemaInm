@@ -28,6 +28,10 @@ class BusinessTransaction < ApplicationRecord
   validate :no_duplicate_operation_type, on: [ :create, :update ]
   validate :no_conflict_when_acquiring_client_exists, on: [ :create, :update ]
 
+  validates :external_operation_number, uniqueness: true, allow_blank: true
+  validates :commission_amount, :commission_vat, numericality: true, allow_nil: true
+  validates :deed_number, uniqueness: true, allow_blank: true
+
   # ✅ SOLO ESTAS DOS VALIDACIONES - LÓGICA CORRECTA
   # validate :ownership_percentages_valid
   # validate :ownership_sums_100
@@ -39,6 +43,12 @@ class BusinessTransaction < ApplicationRecord
   scope :for_property, ->(property) { where(property: property) }
   scope :by_current_agent, ->(agent) { where(current_agent: agent) }
   scope :needs_attention, -> { where("estimated_completion_date < ?", Date.current) }
+
+  scope :current, -> { where('contract_expiration_date >= ?', Date.current) }
+  scope :expired, -> { where('contract_expiration_date < ?', Date.current) }
+  scope :by_legal_act, ->(act) { where(acquisition_legal_act: act) }
+  scope :by_municipality, ->(mun) { joins(:property).where('properties.municipality = ?', mun) }
+
 
   # Callback para iniciar la cola al crear la primera oferta
   after_create_commit -> { process_offer_queue! }, if: -> { offers.exists? }
@@ -120,6 +130,14 @@ def auto_coproperty_setup!(owners:)
   end
 end
 
+
+  def current_contract?
+    contract_expiration_date && contract_expiration_date >= Date.current
+  end
+
+  def commercial_description
+    "#{celebration_place}, #{contract_expiration_date}, amount: #{commission_amount}"
+  end
 
 
   # Recibe una nueva oferta: la crea como pending y procesa la cola

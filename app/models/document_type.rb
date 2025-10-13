@@ -18,9 +18,23 @@ class DocumentType < ApplicationRecord
   validates :is_active, inclusion: { in: [ true, false ] }
   validate  :valid_until_after_valid_from
 
+  validates :name, :display_name, presence: true
+  validates :requirement_context, inclusion: { in: %w[general person property acquisition contract], allow_blank: true }
+
+
   scope :current, -> {
     where("valid_from <= ? AND (valid_until IS NULL OR valid_until >= ?)", Date.current, Date.current)
   }
+
+  scope :mandatory, -> { where(mandatory: true) }
+  scope :blocking, -> { where(blocks_transaction: true) }
+  scope :by_context, ->(context) { where(requirement_context: context) }
+  scope :by_person_type, ->(type) { where(applies_to_person_type: type) }
+
+  def long_description
+    "#{display_name}: #{description}"
+  end
+
 
   def valid_on?(date)
     valid_from <= date && (valid_until.nil? || valid_until >= date)

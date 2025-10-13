@@ -33,6 +33,9 @@ class Property < ApplicationRecord
   validates :description, presence: true, length: { maximum: 10000 }
   validate :sanitize_input
 
+  validates :street, :exterior_number, :neighborhood, :municipality, :country, presence: true, if: -> { street.present? }
+  validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
+
   # NUEVOS SCOPES - AGREGAR ESTOS:
   scope :by_type, ->(type) { joins(:property_type).where(property_types: { name: type }) }
   scope :published, -> { where.not(published_at: nil) }
@@ -44,6 +47,12 @@ class Property < ApplicationRecord
   scope :available_for_rent, -> { joins(business_transactions: :operation_type)
                                      .where(operation_types: { name: "rent" })
                                      .merge(BusinessTransaction.active) }
+
+
+  scope :with_extensions, -> { where(has_extensions: true) }
+  scope :by_municipality, ->(mun) { where(municipality: mun) }
+  scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
+  scope :residential, -> { where(land_use: 'habitacional') }
 
   # Métodos de conveniencia
   def current_status
@@ -58,7 +67,21 @@ class Property < ApplicationRecord
     business_transactions.active.joins(:operation_type).pluck("operation_types.display_name")
   end
 
-  
+
+  def full_address
+    [street, exterior_number, interior_number.presence, neighborhood, municipality, state, country].compact.join(', ')
+  end
+
+  def land_use_human
+    case land_use
+    when 'habitacional' then "Residential"
+    when 'comercial' then "Commercial"
+    when 'mixto' then "Mixed"
+    when 'industrial' then "Industrial"
+    else
+      land_use.to_s.titleize
+    end
+  end
 
   def current_operations
     business_transactions.active.joins(:operation_type).pluck("operation_types.display_name")
