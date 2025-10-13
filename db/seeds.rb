@@ -369,4 +369,208 @@ CoOwnershipType.create!([
   { name: 'societaria', display_name: 'Sociedad/Fideicomiso', ownership_mode: 'dividido', sort_order: 5 }
 ])
 
+# db/seeds/01_catalogs_base.rb
+# Seeds para poblar catálogos básicos del sistema inmobiliario
+
+puts "🌱 Poblando catálogos básicos del sistema..."
+
+# Estados de la República Mexicana
+puts "📍 Creando Estados de la República..."
+states_data = [
+  { name: 'Aguascalientes', code: 'AGS', full_name: 'Estado de Aguascalientes', sort_order: 1 },
+  { name: 'Baja California', code: 'BC', full_name: 'Estado de Baja California', sort_order: 2 },
+  { name: 'Baja California Sur', code: 'BCS', full_name: 'Estado de Baja California Sur', sort_order: 3 },
+  { name: 'Campeche', code: 'CAM', full_name: 'Estado de Campeche', sort_order: 4 },
+  { name: 'Chiapas', code: 'CHIS', full_name: 'Estado de Chiapas', sort_order: 5 },
+  { name: 'Chihuahua', code: 'CHIH', full_name: 'Estado de Chihuahua', sort_order: 6 },
+  { name: 'Ciudad de México', code: 'CDMX', full_name: 'Ciudad de México', sort_order: 7 },
+  { name: 'Coahuila', code: 'COAH', full_name: 'Estado de Coahuila de Zaragoza', sort_order: 8 },
+  { name: 'Colima', code: 'COL', full_name: 'Estado de Colima', sort_order: 9 },
+  { name: 'Durango', code: 'DGO', full_name: 'Estado de Durango', sort_order: 10 },
+  { name: 'Estado de México', code: 'MEX', full_name: 'Estado de México', sort_order: 11 },
+  { name: 'Guanajuato', code: 'GTO', full_name: 'Estado de Guanajuato', sort_order: 12 },
+  { name: 'Guerrero', code: 'GRO', full_name: 'Estado de Guerrero', sort_order: 13 },
+  { name: 'Hidalgo', code: 'HGO', full_name: 'Estado de Hidalgo', sort_order: 14 },
+  { name: 'Jalisco', code: 'JAL', full_name: 'Estado de Jalisco', sort_order: 15 },
+  { name: 'Michoacán', code: 'MICH', full_name: 'Estado de Michoacán de Ocampo', sort_order: 16 },
+  { name: 'Morelos', code: 'MOR', full_name: 'Estado de Morelos', sort_order: 17 },
+  { name: 'Nayarit', code: 'NAY', full_name: 'Estado de Nayarit', sort_order: 18 },
+  { name: 'Nuevo León', code: 'NL', full_name: 'Estado de Nuevo León', sort_order: 19 },
+  { name: 'Oaxaca', code: 'OAX', full_name: 'Estado de Oaxaca', sort_order: 20 },
+  { name: 'Puebla', code: 'PUE', full_name: 'Estado de Puebla', sort_order: 21 },
+  { name: 'Querétaro', code: 'QRO', full_name: 'Estado de Querétaro', sort_order: 22 },
+  { name: 'Quintana Roo', code: 'QROO', full_name: 'Estado de Quintana Roo', sort_order: 23 },
+  { name: 'San Luis Potosí', code: 'SLP', full_name: 'Estado de San Luis Potosí', sort_order: 24 },
+  { name: 'Sinaloa', code: 'SIN', full_name: 'Estado de Sinaloa', sort_order: 25 },
+  { name: 'Sonora', code: 'SON', full_name: 'Estado de Sonora', sort_order: 26 },
+  { name: 'Tabasco', code: 'TAB', full_name: 'Estado de Tabasco', sort_order: 27 },
+  { name: 'Tamaulipas', code: 'TAMS', full_name: 'Estado de Tamaulipas', sort_order: 28 },
+  { name: 'Tlaxcala', code: 'TLAX', full_name: 'Estado de Tlaxcala', sort_order: 29 },
+  { name: 'Veracruz', code: 'VER', full_name: 'Estado de Veracruz de Ignacio de la Llave', sort_order: 30 },
+  { name: 'Yucatán', code: 'YUC', full_name: 'Estado de Yucatán', sort_order: 31 },
+  { name: 'Zacatecas', code: 'ZAC', full_name: 'Estado de Zacatecas', sort_order: 32 }
+]
+
+states_data.each do |state_data|
+  MexicanState.find_or_create_by(code: state_data[:code]) do |state|
+    state.name = state_data[:name]
+    state.full_name = state_data[:full_name]
+    state.sort_order = state_data[:sort_order]
+    state.active = true
+  end
+end
+
+# Estados Civiles
+puts "💑 Creando Estados Civiles..."
+civil_statuses_data = [
+  { name: 'soltero', display_name: 'Soltero(a)', description: 'Persona sin vínculo matrimonial', sort_order: 1 },
+  { name: 'casado', display_name: 'Casado(a)', description: 'Persona unida en matrimonio civil', sort_order: 2 },
+  { name: 'divorciado', display_name: 'Divorciado(a)', description: 'Persona con matrimonio disuelto legalmente', sort_order: 3 },
+  { name: 'viudo', display_name: 'Viudo(a)', description: 'Persona cuyo cónyuge ha fallecido', sort_order: 4 },
+  { name: 'union_libre', display_name: 'Unión Libre', description: 'Convivencia sin matrimonio civil', sort_order: 5 },
+  { name: 'separado', display_name: 'Separado(a)', description: 'Separación de hecho sin divorcio legal', sort_order: 6 }
+]
+
+civil_statuses_data.each do |status_data|
+  CivilStatus.find_or_create_by(name: status_data[:name]) do |status|
+    status.display_name = status_data[:display_name]
+    status.description = status_data[:description]
+    status.sort_order = status_data[:sort_order]
+    status.active = true
+  end
+end
+
+# Tipos de Identificación
+puts "🆔 Creando Tipos de Identificación..."
+identification_types_data = [
+  { name: 'ine', display_name: 'INE', description: 'Credencial para votar del INE', 
+    issuing_authority: 'Instituto Nacional Electoral', validity_years: 10, sort_order: 1 },
+  { name: 'pasaporte', display_name: 'Pasaporte', description: 'Pasaporte mexicano', 
+    issuing_authority: 'Secretaría de Relaciones Exteriores', validity_years: 10, sort_order: 2 },
+  { name: 'cedula_profesional', display_name: 'Cédula Profesional', description: 'Cédula profesional', 
+    issuing_authority: 'Secretaría de Educación Pública', validity_years: 999, sort_order: 3 },
+  { name: 'cartilla_militar', display_name: 'Cartilla Militar', description: 'Cartilla del Servicio Militar Nacional', 
+    issuing_authority: 'SEDENA', validity_years: 999, sort_order: 4 },
+  { name: 'licencia_conducir', display_name: 'Licencia de Conducir', description: 'Licencia de conducir vigente', 
+    issuing_authority: 'Gobierno Estatal', validity_years: 3, sort_order: 5 }
+]
+
+identification_types_data.each do |id_data|
+  IdentificationType.find_or_create_by(name: id_data[:name]) do |id_type|
+    id_type.display_name = id_data[:display_name]
+    id_type.description = id_data[:description]
+    id_type.issuing_authority = id_data[:issuing_authority]
+    id_type.validity_years = id_data[:validity_years]
+    id_type.sort_order = id_data[:sort_order]
+    id_type.active = true
+  end
+end
+
+# Actos Jurídicos de Adquisición
+puts "⚖️ Creando Actos Jurídicos de Adquisición..."
+legal_acts_data = [
+  { name: 'compraventa', display_name: 'Compraventa', category: 'Oneroso', 
+    description: 'Contrato por el cual se transfiere la propiedad mediante precio', sort_order: 1 },
+  { name: 'herencia_testamentaria', display_name: 'Herencia Testamentaria', category: 'Gratuito', 
+    description: 'Transmisión de bienes por sucesión con testamento', sort_order: 2 },
+  { name: 'herencia_intestamentaria', display_name: 'Herencia Intestamentaria', category: 'Gratuito', 
+    description: 'Transmisión de bienes por sucesión sin testamento', sort_order: 3 },
+  { name: 'donacion', display_name: 'Donación', category: 'Gratuito', 
+    description: 'Transmisión gratuita de bienes entre vivos', sort_order: 4 },
+  { name: 'adjudicacion_judicial', display_name: 'Adjudicación Judicial', category: 'Judicial', 
+    description: 'Asignación de bienes por sentencia judicial', sort_order: 5 },
+  { name: 'adjudicacion_divorcio', display_name: 'Adjudicación por Divorcio', category: 'Judicial', 
+    description: 'Asignación de bienes en convenio de divorcio', sort_order: 6 }
+]
+
+legal_acts_data.each do |act_data|
+  LegalAct.find_or_create_by(name: act_data[:name]) do |act|
+    act.display_name = act_data[:display_name]
+    act.category = act_data[:category]
+    act.description = act_data[:description]
+    act.sort_order = act_data[:sort_order]
+    act.requires_notary = true
+    act.active = true
+  end
+end
+
+# Instituciones Financieras
+puts "🏦 Creando Instituciones Financieras..."
+financial_institutions_data = [
+  { name: 'Banamex', short_name: 'Banamex', institution_type: 'Banco', code: '002', sort_order: 1 },
+  { name: 'Bancomer', short_name: 'BBVA', institution_type: 'Banco', code: '012', sort_order: 2 },
+  { name: 'Santander México', short_name: 'Santander', institution_type: 'Banco', code: '014', sort_order: 3 },
+  { name: 'Banorte', short_name: 'Banorte', institution_type: 'Banco', code: '072', sort_order: 4 },
+  { name: 'HSBC México', short_name: 'HSBC', institution_type: 'Banco', code: '021', sort_order: 5 },
+  { name: 'Banco Azteca', short_name: 'Azteca', institution_type: 'Banco', code: '127', sort_order: 6 },
+  { name: 'Scotiabank', short_name: 'Scotia', institution_type: 'Banco', code: '044', sort_order: 7 },
+  { name: 'Infonavit', short_name: 'Infonavit', institution_type: 'Organismo', code: 'INF', sort_order: 8 },
+  { name: 'Fovissste', short_name: 'Fovissste', institution_type: 'Organismo', code: 'FOV', sort_order: 9 }
+]
+
+financial_institutions_data.each do |inst_data|
+  FinancialInstitution.find_or_create_by(name: inst_data[:name]) do |inst|
+    inst.short_name = inst_data[:short_name]
+    inst.institution_type = inst_data[:institution_type]
+    inst.code = inst_data[:code]
+    inst.sort_order = inst_data[:sort_order]
+    inst.active = true
+  end
+end
+
+# Tipos de Persona
+puts "👤 Creando Tipos de Persona..."
+person_types_data = [
+  { name: 'PF', display_name: 'Persona Física', 
+    description: 'Individuo con capacidad jurídica', tax_regime: 'Persona Física', sort_order: 1 },
+  { name: 'PM', display_name: 'Persona Moral', 
+    description: 'Entidad jurídica constituida legalmente', tax_regime: 'Persona Moral', sort_order: 2 },
+  { name: 'FIDE', display_name: 'Fideicomiso', 
+    description: 'Relación jurídica fiduciaria', tax_regime: 'Fideicomiso', sort_order: 3 }
+]
+
+person_types_data.each do |person_data|
+  PersonType.find_or_create_by(name: person_data[:name]) do |person_type|
+    person_type.display_name = person_data[:display_name]
+    person_type.description = person_data[:description]
+    person_type.tax_regime = person_data[:tax_regime]
+    person_type.sort_order = person_data[:sort_order]
+    person_type.active = true
+  end
+end
+
+# Tipos de Firmantes de Contrato
+puts "✍️ Creando Tipos de Firmantes de Contrato..."
+signer_types_data = [
+  { name: 'titular_registral', display_name: 'Titular Registral', 
+    description: 'Propietario inscrito en el registro público', requires_power_of_attorney: false, sort_order: 1 },
+  { name: 'apoderado', display_name: 'Apoderado', 
+    description: 'Persona con poder notarial para actos de dominio', requires_power_of_attorney: true, sort_order: 2 },
+  { name: 'representante_legal', display_name: 'Representante Legal', 
+    description: 'Representante de persona moral', requires_power_of_attorney: true, sort_order: 3 },
+  { name: 'albacea', display_name: 'Albacea', 
+    description: 'Ejecutor testamentario o intestamentario', requires_power_of_attorney: false, sort_order: 4 },
+  { name: 'tutor', display_name: 'Tutor', 
+    description: 'Representante legal de menor o incapacitado', requires_power_of_attorney: false, sort_order: 5 }
+]
+
+signer_types_data.each do |signer_data|
+  ContractSignerType.find_or_create_by(name: signer_data[:name]) do |signer_type|
+    signer_type.display_name = signer_data[:display_name]
+    signer_type.description = signer_data[:description]
+    signer_type.requires_power_of_attorney = signer_data[:requires_power_of_attorney]
+    signer_type.sort_order = signer_data[:sort_order]
+    signer_type.active = true
+  end
+end
+
+puts "✅ Catálogos básicos creados exitosamente!"
+puts "📊 Resumen:"
+puts "   - #{MexicanState.count} Estados de la República"
+puts "   - #{CivilStatus.count} Estados Civiles"
+puts "   - #{IdentificationType.count} Tipos de Identificación"
+puts "   - #{LegalAct.count} Actos Jurídicos de Adquisición"
+puts "   - #{FinancialInstitution.count} Instituciones Financieras"
+puts "   - #{PersonType.count} Tipos de Persona"
+puts "   - #{ContractSignerType.count} Tipos de Firmantes de Contrato"
 
