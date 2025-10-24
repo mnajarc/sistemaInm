@@ -91,7 +91,26 @@ class BusinessTransactionsController < BaseController
     redirect_to @transaction, notice: "Agente transferido correctamente"
   end
 
+  def export_documents
+    service = TransactionExportService.new(@business_transaction, base_path: export_base_path)
+    result = service.export
+    
+    if result[:success]
+      redirect_to @business_transaction, 
+                  notice: "📂 #{result[:message]}"
+    else
+      redirect_to @business_transaction, 
+                  alert: "❌ #{result[:message]}"
+    end
+  end
+
+
   private
+
+  def export_base_path
+    # Cambiar según tu configuración
+    Rails.env.production? ? '/mnt/nas_docs' : Rails.root.join('tmp', 'exports')
+  end
 
   def set_transaction
     @transaction = BusinessTransaction.find(params[:id])

@@ -1,0 +1,68 @@
+<!-- app/views/shared/_document_progress_summary.html.erb -->
+<% summary = checklist[:summary] %>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <div class="row text-center">
+      <!-- Progreso general -->
+      <div class="col-md-3">
+        <h6 class="text-muted mb-2">Progreso General</h6>
+        <div class="progress" style="height: 30px;">
+          <div class="progress-bar bg-success" role="progressbar" 
+               style="width: <%= summary[:progress] %>%"
+               aria-valuenow="<%= summary[:progress] %>" 
+               aria-valuemin="0" 
+               aria-valuemax="100">
+            <%= summary[:progress] %>%
+          </div>
+        </div>
+        <small class="text-muted"><%= summary[:uploaded] %>/<%= summary[:total] %> documentos</small>
+      </div>
+
+      <!-- Validados -->
+      <div class="col-md-2">
+        <div class="d-flex flex-column align-items-center">
+          <i class="bi bi-check-circle-fill text-success fs-1"></i>
+          <h3 class="mb-0"><%= summary[:validated] %></h3>
+          <span class="text-muted">Validados</span>
+        </div>
+      </div>
+
+      <!-- Pendientes -->
+      <div class="col-md-2">
+        <div class="d-flex flex-column align-items-center">
+          <i class="bi bi-hourglass-split text-warning fs-1"></i>
+          <h3 class="mb-0"><%= summary[:pending] %></h3>
+          <span class="text-muted">Pendientes</span>
+        </div>
+      </div>
+
+      <!-- Rechazados -->
+      <div class="col-md-2">
+        <div class="d-flex flex-column align-items-center">
+          <i class="bi bi-x-circle-fill text-danger fs-1"></i>
+          <h3 class="mb-0"><%= summary[:rejected] %></h3>
+          <span class="text-muted">Rechazados</span>
+        </div>
+      </div>
+
+      <!-- Vencidos -->
+      <div class="col-md-2">
+        <div class="d-flex flex-column align-items-center">
+          <i class="bi bi-exclamation-triangle-fill text-dark fs-1"></i>
+          <h3 class="mb-0"><%= summary[:expired] %></h3>
+          <span class="text-muted">Vencidos</span>
+        </div>
+      </div>
+
+      <!-- Por vencer -->
+      <div class="col-md-1">
+        <div class="d-flex flex-column align-items-center">
+          <i class="bi bi-clock-fill text-info fs-1"></i>
+          <h3 class="mb-0"><%= summary[:expiring_soon] %></h3>
+          <span class="text-muted">Por vencer</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

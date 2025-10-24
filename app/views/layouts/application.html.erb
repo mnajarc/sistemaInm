@@ -11,6 +11,12 @@
     
     <%= stylesheet_link_tag "application", media: "all", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+
   </head>
 
   <body class="<%= superadmin_area? ? 'superadmin-area' : (admin_area? ? 'admin-area' : 'main-area') %>">

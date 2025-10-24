@@ -1,0 +1,30 @@
+<!-- app/views/shared/_document_checklist_party.html.erb -->
+<div class="row">
+  <% if documents.present? %>
+    <% documents.each do |category_data| %>
+      <!-- Encabezado de categoría -->
+      <div class="col-12 mt-4 mb-3">
+        <h4 class="text-muted border-bottom pb-2">
+          <i class="bi bi-folder"></i>
+          <%= category_data[:category_display] %>
+        </h4>
+      </div>
+      
+      <!-- Documentos de esta categoría -->
+      <% category_data[:documents].each do |doc| %>
+        <div class="col-md-6 col-lg-4 mb-4">
+          <%= render 'shared/document_card', 
+                     submission: doc[:submission], 
+                     business_transaction: business_transaction %>
+        </div>
+      <% end %>
+    <% end %>
+  <% else %>
+    <div class="col-12">
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No hay documentos requeridos para esta parte.
+      </div>
+    </div>
+  <% end %>
+</div>

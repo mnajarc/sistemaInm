@@ -8,11 +8,15 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :property
   belongs_to :operation_type
   belongs_to :business_status
-
+  belongs_to :transaction_scenario, optional: true
+ 
+  has_many :document_submissions, dependent: :destroy
   has_many :agent_transfers, dependent: :destroy
   has_many :co_owners, class_name: 'BusinessTransactionCoOwner', dependent: :destroy
 
   has_many   :offers, dependent: :destroy
+  has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
+  accepts_nested_attributes_for :business_transaction_co_owners
 
   # ✅ NESTED ATTRIBUTES para crear propiedad
   accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
@@ -52,6 +56,31 @@ class BusinessTransaction < ApplicationRecord
 
   # Callback para iniciar la cola al crear la primera oferta
   after_create_commit -> { process_offer_queue! }, if: -> { offers.exists? }
+  after_update :setup_required_documents, if: :saved_change_to_transaction_scenario_id?
+
+  def required_documents_for_oferente
+    return [] unless transaction_scenario
+    transaction_scenario.scenario_documents.for_oferente.required
+  end
+  
+  def required_documents_for_adquiriente
+    return [] unless transaction_scenario
+    transaction_scenario.scenario_documents.for_adquiriente.required
+  end
+  
+  def document_completeness_percentage
+    total = document_submissions.count
+    return 0 if total.zero?
+    
+    completed = document_submissions.completed.count
+    (completed.to_f / total * 100).round(1)
+  end
+  
+  def setup_required_documents
+    return unless transaction_scenario
+    DocumentSetupService.new(self).setup_required_documents
+  end
+
   def current_offer
     offers.joins(:offer_status).find_by(offer_statuses: { name: 'in_evaluation' })
   end
@@ -216,21 +245,72 @@ end
 
   private
 
+
   def must_have_co_owners
-    if co_owners.active.empty?
-      errors.add(:co_owners, "Debe tener al menos un propietario/copropietario")
+    # Para transacciones nuevas: revisar nested attributes
+    if new_record?
+      incoming = []
+      
+      # Revisar business_transaction_co_owners_attributes
+      if respond_to?(:business_transaction_co_owners_attributes) && business_transaction_co_owners_attributes.present?
+        incoming += business_transaction_co_owners_attributes.reject do |attrs|
+          attrs['_destroy'] == '1' || attrs[:_destroy] == true || 
+          attrs['active'] == false || attrs[:active] == false
+        end
+      end
+      
+      # Revisar co_owners_attributes (alias)
+      if respond_to?(:co_owners_attributes) && co_owners_attributes.present?
+        incoming += co_owners_attributes.reject do |attrs|
+          attrs['_destroy'] == '1' || attrs[:_destroy] == true || 
+          attrs['active'] == false || attrs[:active] == false
+        end
+      end
+      
+      # También considerar co_owners ya cargados en memoria (build)
+      existing_in_memory = co_owners.reject(&:marked_for_destruction?)
+      
+      total = incoming.count + existing_in_memory.count
+      
+      if total == 0
+        errors.add(:co_owners, "Debe tener al menos un propietario/copropietario")
+      end
+    else
+      # Para transacciones existentes: revisar base de datos
+      if co_owners.active.empty?
+        errors.add(:co_owners, "Debe tener al menos un propietario/copropietario")
+      end
     end
   end
 
   def ownership_percentages_sum_to_100
-    return if co_owners.active.empty?
+    # Solo validar si hay copropietarios
+    return if co_owners.empty?
     
-    # ✅ USAR .active.sum para consistencia
-    total = co_owners.active.sum(&:percentage)
-    unless total.round(2) == 100.0
-      errors.add(:co_owners, "Los porcentajes deben sumar exactamente 100% (actual: #{total}%)")
+    # Para nuevos registros, sumar lo que viene en nested + lo que está en memoria
+    if new_record?
+      total = 0
+      
+      co_owners.each do |co_owner|
+        next if co_owner.marked_for_destruction?
+        total += (co_owner.percentage || 0)
+      end
+      
+      # Si total es 0, significa que aún no se asignaron porcentajes
+      return if total == 0
+      
+      unless total.round(2) == 100.0
+        errors.add(:co_owners, "Los porcentajes deben sumar exactamente 100% (actual: #{total.round(2)}%)")
+      end
+    else
+      # Para registros existentes
+      total = co_owners.active.sum(&:percentage)
+      unless total.round(2) == 100.0
+        errors.add(:co_owners, "Los porcentajes deben sumar exactamente 100% (actual: #{total.round(2)}%)")
+      end
     end
   end
+
 
   def no_duplicate_operation_type
     return unless property && operation_type

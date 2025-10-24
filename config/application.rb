@@ -36,6 +36,7 @@ module SistemaInmobiliarioV2
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
+    config.active_storage.variant_processor = :vips
     # Don't generate system test files.
     config.generators.system_tests = nil
     config.filter_parameters += [ :password, :password_confirmation, :token ]

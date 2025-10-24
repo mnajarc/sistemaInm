@@ -63,6 +63,18 @@ gem "kaminari"
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 # gem "image_processing", "~> 1.2"
 
+# OCR y análisis de imágenes
+gem 'image_processing', '~> 1.2'
+gem 'ruby-vips' # Procesamiento eficiente de imágenes
+gem 'rtesseract' # OCR para extraer texto
+gem 'mini_magick' # Manipulación de imágenes
+
+# IA y Machine Learning (opcional pero recomendado)
+# gem 'ruby-openai' # Para análisis avanzado con GPT # comentados en lo que decido su conveniencia
+# gem 'aws-sdk-textract' # OCR en la nube (alternativa) # comentados en lo que decido su conveniencia
+
+# Active Storage ya incluido en Rails 8
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -75,3 +87,4 @@ group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
 end
+

@@ -9,9 +9,20 @@ Rails.application.routes.draw do
   root "properties#index"
   resources :properties
 
+
   resources :business_transactions do
     patch :transfer_agent, on: :member
+    post :export_documents, on: :member  # ← NUEVA RUTA
     resources :agent_transfers, only: [:create, :index]
+    resources :document_submissions, only: [:index, :show, :destroy] do
+      member do
+        get :preview
+        post :upload
+        post :validate_document
+        post :reject_document
+        get :download
+      end
+    end
   end
 
   namespace :admin do

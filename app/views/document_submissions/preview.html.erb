@@ -1,0 +1,165 @@
+<!-- app/views/document_submissions/preview.html.erb -->
+<div class="document-preview-container">
+  <!-- Header con info del documento -->
+  <div class="preview-header bg-light p-3 border-bottom">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h5 class="mb-1">
+          <i class="bi bi-file-earmark-text"></i>
+          <%= @submission.document_type.name %>
+        </h5>
+        <small class="text-muted">
+          Subido: <%= @submission.submitted_at&.strftime('%d/%m/%Y %H:%M') %> |
+          Por: <%= @submission.uploaded_by&.email %>
+        </small>
+      </div>
+      <div class="col-md-4 text-end">
+        <span class="badge <%= @submission.status_badge_class %> fs-6">
+          <%= @submission.document_status&.name&.titleize %>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Análisis IA -->
+  <% if @submission.analyzed? %>
+    <div class="preview-analysis bg-info bg-opacity-10 p-3 border-bottom">
+      <h6><i class="bi bi-robot"></i> Análisis con IA</h6>
+      <div class="row">
+        <div class="col-md-3">
+          <strong>Legibilidad:</strong>
+          <span class="badge bg-<%= @submission.legibility_score.to_i > 60 ? 'success' : 'warning' %>">
+            <%= @submission.legibility_score&.round(1) %>%
+          </span>
+        </div>
+        <div class="col-md-3">
+          <strong>Auto-validado:</strong>
+          <%= @submission.auto_validated? ? '✅ Sí' : '❌ No' %>
+        </div>
+        <div class="col-md-6">
+          <strong>Estado análisis:</strong>
+          <span class="badge bg-info"><%= @submission.analysis_status %></span>
+        </div>
+      </div>
+      
+      <% if @submission.ocr_text.present? %>
+        <div class="mt-2">
+          <strong>Texto extraído (OCR):</strong>
+          <div class="bg-white p-2 border rounded mt-1" style="max-height: 100px; overflow-y: auto;">
+            <small><%= @submission.ocr_text %></small>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Documento -->
+  <div class="preview-document p-3">
+    <% if @submission.document_file.attached? %>
+      <% if @submission.document_file.content_type.start_with?('image/') %>
+        <!-- Imagen -->
+        <div class="text-center">
+          <%= image_tag @submission.document_file, 
+                        class: 'img-fluid border shadow-sm preview-image',
+                        style: 'max-height: 70vh; cursor: zoom-in;',
+                        data: { bs_toggle: 'modal', bs_target: '#imageZoomModal' } %>
+        </div>
+      <% elsif @submission.document_file.content_type == 'application/pdf' %>
+        <!-- PDF -->
+        <div class="pdf-viewer">
+          <embed src="<%= url_for(@submission.document_file) %>" 
+                 type="application/pdf" 
+                 width="100%" 
+                 height="600px">
+          <p class="text-center mt-3">
+            <a href="<%= url_for(@submission.document_file) %>" 
+               target="_blank" 
+               class="btn btn-outline-primary">
+              <i class="bi bi-file-pdf"></i> Abrir PDF en nueva pestaña
+            </a>
+          </p>
+        </div>
+      <% else %>
+        <!-- Otros tipos -->
+        <div class="text-center p-5">
+          <i class="bi bi-file-earmark display-1 text-muted"></i>
+          <p class="mt-3">
+            Tipo de archivo: <%= @submission.document_file.content_type %>
+          </p>
+          <a href="<%= download_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>" 
+             class="btn btn-primary">
+            <i class="bi bi-download"></i> Descargar para ver
+          </a>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center p-5 text-muted">
+        <i class="bi bi-file-x display-1"></i>
+        <p class="mt-3">No hay archivo adjunto</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Acciones de validación -->
+  <% if current_user.admin? || current_user.agent? %>
+    <div class="preview-actions bg-light p-3 border-top">
+      <div class="row">
+        <div class="col-md-8">
+          <div class="input-group">
+            <%= form_with url: validate_document_business_transaction_document_submission_path(@submission.business_transaction, @submission),
+                          method: :post, local: false, class: 'd-inline' do |f| %>
+              <%= text_field_tag :validation_notes, '', 
+                                placeholder: 'Notas de validación (opcional)', 
+                                class: 'form-control' %>
+            <% end %>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="btn-group w-100">
+            <%= button_to validate_document_business_transaction_document_submission_path(@submission.business_transaction, @submission),
+                          method: :post,
+                          class: 'btn btn-success',
+                          data: { turbo_confirm: '¿Validar este documento?' },
+                          form: { data: { turbo: false } } do %>
+              <i class="bi bi-check-lg"></i> Validar
+            <% end %>
+            
+            <%= button_to reject_document_business_transaction_document_submission_path(@submission.business_transaction, @submission),
+                          method: :post,
+                          class: 'btn btn-danger',
+                          data: { turbo_confirm: '¿Rechazar este documento?' },
+                          form: { data: { turbo: false } } do %>
+              <i class="bi bi-x-lg"></i> Rechazar
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Modal para zoom de imagen -->
+<div class="modal fade" id="imageZoomModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Vista ampliada</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <% if @submission.document_file.attached? && @submission.document_file.content_type.start_with?('image/') %>
+          <%= image_tag @submission.document_file, class: 'img-fluid' %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.preview-image {
+  transition: transform 0.2s;
+}
+.preview-image:hover {
+  transform: scale(1.02);
+}
+</style>

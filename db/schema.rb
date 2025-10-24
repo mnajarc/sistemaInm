@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_22_171421) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -152,6 +152,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.date "acquisition_date"
     t.boolean "is_mortgaged_at_transaction", default: false
     t.boolean "has_liens_at_transaction", default: false
+    t.bigint "transaction_scenario_id"
     t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
     t.index ["acquisition_legal_act"], name: "index_business_transactions_on_acquisition_legal_act"
     t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
@@ -169,6 +170,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.index ["real_folio"], name: "index_business_transactions_on_real_folio"
     t.index ["selling_agent_id"], name: "index_business_transactions_on_selling_agent_id"
     t.index ["start_date"], name: "index_business_transactions_on_start_date"
+    t.index ["transaction_scenario_id"], name: "index_business_transactions_on_transaction_scenario_id"
   end
 
   create_table "civil_statuses", force: :cascade do |t|
@@ -286,6 +288,78 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.index ["document_type_id"], name: "index_document_requirements_on_document_type_id"
   end
 
+  create_table "document_reviews", force: :cascade do |t|
+    t.bigint "document_submission_id", null: false
+    t.bigint "user_id", null: false
+    t.string "action", null: false
+    t.text "notes"
+    t.datetime "reviewed_at", null: false
+    t.string "previous_status"
+    t.string "new_status"
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["action"], name: "index_document_reviews_on_action"
+    t.index ["document_submission_id", "reviewed_at"], name: "idx_on_document_submission_id_reviewed_at_437b708bdf"
+    t.index ["document_submission_id"], name: "index_document_reviews_on_document_submission_id"
+    t.index ["reviewed_at"], name: "index_document_reviews_on_reviewed_at"
+    t.index ["user_id"], name: "index_document_reviews_on_user_id"
+  end
+
+  create_table "document_statuses", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.string "color", default: "secondary"
+    t.string "icon", default: "circle"
+    t.integer "position", default: 0, null: false
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_document_statuses_on_name", unique: true
+    t.index ["position"], name: "index_document_statuses_on_position"
+  end
+
+  create_table "document_submissions", force: :cascade do |t|
+    t.bigint "business_transaction_id", null: false
+    t.bigint "document_type_id", null: false
+    t.bigint "document_status_id"
+    t.string "party_type", null: false
+    t.string "submitted_by_type"
+    t.bigint "submitted_by_id"
+    t.datetime "submitted_at"
+    t.bigint "validated_by_id"
+    t.datetime "validated_at"
+    t.date "expiry_date"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "analysis_status", default: "pending"
+    t.jsonb "analysis_result", default: {}
+    t.text "ocr_text"
+    t.decimal "legibility_score", precision: 5, scale: 2
+    t.boolean "auto_validated", default: false
+    t.text "validation_notes"
+    t.datetime "analyzed_at"
+    t.bigint "uploaded_by_id"
+    t.bigint "business_transaction_co_owner_id"
+    t.index ["analysis_status"], name: "index_document_submissions_on_analysis_status"
+    t.index ["auto_validated"], name: "index_document_submissions_on_auto_validated"
+    t.index ["business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_co_owner_id"
+    t.index ["business_transaction_id", "business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_id_and_co_owner_id"
+    t.index ["business_transaction_id", "document_type_id", "party_type"], name: "idx_submissions_transaction_document_party"
+    t.index ["business_transaction_id", "party_type"], name: "idx_doc_sub_on_bt_id_and_party"
+    t.index ["business_transaction_id"], name: "index_document_submissions_on_business_transaction_id"
+    t.index ["document_status_id"], name: "index_document_submissions_on_document_status_id"
+    t.index ["document_type_id"], name: "index_document_submissions_on_document_type_id"
+    t.index ["expiry_date"], name: "index_document_submissions_on_expiry_date"
+    t.index ["legibility_score"], name: "index_document_submissions_on_legibility_score"
+    t.index ["party_type"], name: "index_document_submissions_on_party_type"
+    t.index ["submitted_at"], name: "index_document_submissions_on_submitted_at"
+    t.index ["submitted_by_type", "submitted_by_id"], name: "index_document_submissions_on_submitted_by"
+    t.index ["uploaded_by_id"], name: "index_document_submissions_on_uploaded_by_id"
+    t.index ["validated_by_id"], name: "index_document_submissions_on_validated_by_id"
+  end
+
   create_table "document_types", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -303,8 +377,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.string "applies_to_acquisition_type"
     t.boolean "mandatory", default: false
     t.boolean "blocks_transaction", default: false
+    t.string "display_name", null: false
     t.index ["applies_to_person_type"], name: "index_document_types_on_applies_to_person_type"
     t.index ["blocks_transaction"], name: "index_document_types_on_blocks_transaction"
+    t.index ["display_name"], name: "index_document_types_on_display_name"
     t.index ["mandatory"], name: "index_document_types_on_mandatory"
     t.index ["metadata"], name: "index_document_types_on_metadata", using: :gin
     t.index ["name"], name: "index_document_types_on_name", unique: true
@@ -620,6 +696,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.index ["name"], name: "index_roles_on_name", unique: true
   end
 
+  create_table "scenario_documents", force: :cascade do |t|
+    t.bigint "transaction_scenario_id", null: false
+    t.bigint "document_type_id", null: false
+    t.string "party_type", default: "ambos", null: false
+    t.boolean "required", default: true
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["document_type_id"], name: "index_scenario_documents_on_document_type_id"
+    t.index ["party_type"], name: "index_scenario_documents_on_party_type"
+    t.index ["transaction_scenario_id", "document_type_id"], name: "idx_scenario_documents_scenario_document"
+    t.index ["transaction_scenario_id"], name: "index_scenario_documents_on_transaction_scenario_id"
+  end
+
   create_table "system_configurations", force: :cascade do |t|
     t.string "key", null: false
     t.text "value", null: false
@@ -637,6 +727,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
     t.index ["category"], name: "index_system_configurations_on_category"
     t.index ["key"], name: "index_system_configurations_on_key", unique: true
     t.index ["system_config"], name: "index_system_configurations_on_system_config"
+  end
+
+  create_table "transaction_scenarios", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.string "category", null: false
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_transaction_scenarios_on_category"
+    t.index ["name"], name: "index_transaction_scenarios_on_name", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -674,6 +775,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
   add_foreign_key "business_transactions", "co_ownership_types"
   add_foreign_key "business_transactions", "operation_types"
   add_foreign_key "business_transactions", "properties"
+  add_foreign_key "business_transactions", "transaction_scenarios"
   add_foreign_key "business_transactions", "users", column: "current_agent_id"
   add_foreign_key "business_transactions", "users", column: "listing_agent_id"
   add_foreign_key "business_transactions", "users", column: "selling_agent_id"
@@ -683,6 +785,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "properties"
   add_foreign_key "document_requirements", "document_types"
+  add_foreign_key "document_reviews", "document_submissions"
+  add_foreign_key "document_reviews", "users"
+  add_foreign_key "document_submissions", "business_transaction_co_owners"
+  add_foreign_key "document_submissions", "business_transactions"
+  add_foreign_key "document_submissions", "document_statuses"
+  add_foreign_key "document_submissions", "document_types"
+  add_foreign_key "document_submissions", "users", column: "uploaded_by_id"
+  add_foreign_key "document_submissions", "users", column: "validated_by_id"
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
   add_foreign_key "offers", "business_transactions"
@@ -699,5 +809,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_13_171934) do
   add_foreign_key "role_change_logs", "users"
   add_foreign_key "role_menu_permissions", "menu_items"
   add_foreign_key "role_menu_permissions", "roles"
+  add_foreign_key "scenario_documents", "document_types"
+  add_foreign_key "scenario_documents", "transaction_scenarios"
   add_foreign_key "users", "roles"
 end

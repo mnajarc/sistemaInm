@@ -1,0 +1,155 @@
+<!-- app/views/shared/_document_card.html.erb -->
+<% uploaded = submission.uploaded? %>
+<% analyzed = submission.analyzed? %>
+
+<div class="card h-100 shadow-sm <%= 'border-success' if submission.document_status&.name == 'validado' %>" 
+     id="document_<%= submission.id %>">
+  
+  <!-- Header -->
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+      <i class="bi bi-file-earmark-text fs-4 me-2"></i>
+      <strong class="text-truncate"><%= submission.document_type.name %></strong>
+    </div>
+    <span class="badge <%= submission.status_badge_class %>">
+      <%= submission.document_status&.name&.titleize || 'Sin estado' %>
+    </span>
+  </div>
+
+  <!-- Body -->
+  <div class="card-body">
+    <!-- Estado de carga -->
+    <% if uploaded %>
+      <div class="mb-3">
+        <div class="d-flex align-items-center mb-2">
+          <i class="bi bi-check-circle-fill text-success me-2"></i>
+          <span class="text-success">Documento cargado</span>
+        </div>
+        
+        <small class="text-muted">
+          Subido: <%= submission.submitted_at&.strftime('%d/%m/%Y %H:%M') || 'N/A' %><br>
+          Por: <%= submission.uploaded_by&.email || 'N/A' %>
+        </small>
+        
+        <!-- Thumbnail si es imagen -->
+        <% if submission.document_file.attached? && submission.document_file.image? %>
+          <div class="mt-2">
+            <%= image_tag submission.document_file.variant(:thumb), 
+                          class: 'img-thumbnail cursor-pointer',
+                          style: 'max-width: 200px;' %>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Análisis de IA -->
+      <% if analyzed %>
+        <div class="alert alert-info alert-sm mb-2">
+          <strong><i class="bi bi-robot"></i> Análisis IA:</strong>
+          <ul class="mb-0 mt-1 small">
+            <li>Legibilidad: 
+              <span class="badge bg-<%= submission.legibility_score.to_i > 60 ? 'success' : 'warning' %>">
+                <%= submission.legibility_score&.round(1) %>%
+              </span>
+            </li>
+          </ul>
+        </div>
+      <% elsif submission.analysis_status == 'processing' %>
+        <div class="alert alert-warning alert-sm">
+          <i class="bi bi-hourglass-split"></i> Analizando...
+        </div>
+      <% end %>
+
+      <!-- Vigencia -->
+      <% if submission.expiry_date.present? %>
+        <div class="alert alert-<%= submission.expired? ? 'danger' : 'info' %> alert-sm">
+          <strong>Vigencia:</strong> <%= submission.expiry_date.strftime('%d/%m/%Y') %>
+          <% if submission.expired? %>
+            <i class="bi bi-exclamation-triangle-fill"></i> Vencido
+          <% elsif submission.expiring_soon? %>
+            <i class="bi bi-clock-fill"></i> Por vencer
+          <% end %>
+        </div>
+      <% end %>
+
+    <% else %>
+      <!-- Formulario de carga -->
+      <%= form_with url: upload_business_transaction_document_submission_path(business_transaction, submission),
+                    method: :post,
+                    multipart: true,
+                    local: true do |f| %>
+        
+        <div class="mb-3">
+          <label class="form-label">Seleccionar archivo</label>
+          <%= file_field_tag :document_file, 
+                             accept: 'image/*,application/pdf',
+                             class: 'form-control',
+                             required: true %>
+          <div class="form-text">
+            Formatos: PDF, JPG, PNG, HEIC (máx 10MB)
+          </div>
+        </div>
+
+        <%= f.submit 'Subir Documento', class: 'btn btn-primary w-100' %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Footer con acciones -->
+  <% if uploaded %>
+    <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
+
+      <!-- Validar/Rechazar (solo admins/agents) -->
+      <% if current_user.admin? || current_user.agent? %>
+        <div class="btn-group">
+          <% unless submission.document_status&.name == 'validado' %>
+            <%= button_to validate_document_business_transaction_document_submission_path(business_transaction, submission),
+                          method: :post,
+                          class: 'btn btn-sm btn-success',
+                          data: { turbo_confirm: '¿Validar este documento?' } do %>
+              <i class="bi bi-check-lg"></i> Validar
+            <% end %>
+          <% end %>
+
+          <%= button_to reject_document_business_transaction_document_submission_path(business_transaction, submission),
+                        method: :post,
+                        class: 'btn btn-sm btn-danger',
+                        data: { turbo_confirm: '¿Rechazar este documento?' } do %>
+            <i class="bi bi-x-lg"></i> Rechazar
+          <% end %>
+        </div>
+      <% end %>
+
+
+      <!-- En _document_card.html.erb, en el footer -->
+      <% if uploaded %>
+        <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
+          <!-- Preview (NUEVO) -->
+
+          <%= link_to preview_business_transaction_document_submission_path(business_transaction, submission),
+                      class: 'btn btn-sm btn-info preview-document-btn',
+                      data: { 
+                        preview_url: preview_business_transaction_document_submission_path(business_transaction, submission)
+                      } do %>
+            <i class="bi bi-eye"></i> Ver
+          <% end %>
+
+          <!-- Descargar -->
+          <%= link_to download_business_transaction_document_submission_path(business_transaction, submission),
+                      class: 'btn btn-sm btn-outline-primary' do %>
+            <i class="bi bi-download"></i> Descargar
+          <% end %>
+
+          <!-- Resto de botones... -->
+        </div>
+      <% end %>
+
+      <!-- Eliminar -->
+      <%= button_to business_transaction_document_submission_path(business_transaction, submission),
+                    method: :delete,
+                    class: 'btn btn-sm btn-outline-danger',
+                    data: { turbo_confirm: '¿Eliminar este documento?' } do %>
+        <i class="bi bi-trash"></i>
+      <% end %>
+    </div>
+  <% end %>
+</div>

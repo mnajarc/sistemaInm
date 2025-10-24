@@ -92,7 +92,7 @@
 
     <!-- Historial de Transferencias -->
     <% if @transaction.agent_transfers.any? %>
-      <div class="card">
+      <div class="card mb-4">
         <div class="card-header">
           <h5 class="mb-0">
             <i class="bi bi-arrow-repeat"></i>
@@ -201,8 +201,37 @@
       </div>
     </div>
 
+    <!-- Exportar Documentos (ÚNICO BLOQUE) -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-folder-symlink"></i>
+          Exportar Documentos
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="mb-3">
+          Exporta todos los documentos organizados en carpetas por oferente, adquiriente y copropietarios.
+        </p>
+        
+        <%= button_to export_documents_business_transaction_path(@transaction),
+                      method: :post,
+                      class: 'btn btn-success w-100 mb-3',
+                      data: { turbo_confirm: '¿Exportar todos los documentos a carpeta organizada?' } do %>
+          <i class="bi bi-folder-symlink me-2"></i>
+          Exportar a NAS
+        <% end %>
+        
+        <small class="text-muted">
+          <i class="bi bi-info-circle"></i>
+          Se organizarán en:
+          <code class="d-block mt-1"><%= Rails.env.production? ? '/mnt/nas_docs' : Rails.root.join('tmp', 'exports') %></code>
+        </small>
+      </div>
+    </div>
+
     <!-- Acciones -->
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-header">
         <h5 class="mb-0">
           <i class="bi bi-gear"></i>
@@ -226,7 +255,7 @@
           <%= link_to business_transaction_path(@transaction), 
               method: :delete,
               data: { 
-                confirm: "¿Estás seguro de eliminar esta transacción?" 
+                turbo_confirm: "¿Estás seguro de eliminar esta transacción?" 
               },
               class: "btn btn-outline-danger w-100" do %>
             <i class="bi bi-trash"></i> Eliminar

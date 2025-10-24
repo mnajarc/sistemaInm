@@ -574,3 +574,27 @@ puts "   - #{FinancialInstitution.count} Instituciones Financieras"
 puts "   - #{PersonType.count} Tipos de Persona"
 puts "   - #{ContractSignerType.count} Tipos de Firmantes de Contrato"
 
+# Seeds documentales
+# load Rails.root.join('db', 'seeds', 'document_statuses.rb')
+# load Rails.root.join('db', 'seeds', 'transaction_scenarios.rb')
+# Cargar asociaciones documento-escenario
+# load Rails.root.join('db', 'seeds', 'scenario_documents.rb')
+# db/seeds.rb
+
+# Cargar en orden de dependencias
+puts "\n🚀 Iniciando seeds del sistema..."
+
+# 1. Catálogos base (ya existentes)
+puts "\n📚 Cargando catálogos base..."
+load Rails.root.join('db', 'seeds', 'document_statuses.rb')
+load Rails.root.join('db', 'seeds', 'transaction_scenarios.rb')
+
+# 2. Tipos de documentos (NUEVO - debe ir ANTES de scenario_documents)
+puts "\n📄 Cargando tipos de documentos..."
+load Rails.root.join('db', 'seeds', 'document_types_complete.rb')
+
+# 3. Asociaciones documento-escenario (NUEVO - depende de document_types)
+puts "\n🔗 Asociando documentos a escenarios..."
+load Rails.root.join('db', 'seeds', 'scenario_documents.rb')
+
+puts "\n✅ Seeds completados exitosamente"
