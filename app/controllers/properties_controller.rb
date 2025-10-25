@@ -24,14 +24,17 @@ class PropertiesController < ApplicationController
 
   def create
     @property = Property.new(property_params)
-    @property.user = current_user unless params[:property][:user_id].present?
-    authorize @property
+    # @property.user = current_user unless params[:property][:user_id].present?
+    @property.user = current_user
 
+    authorize @property
+# ✅ AGREGAR ESTOS PUTS PARA DEBUG
+  
     if @property.save
       redirect_to @property, notice: 'Propiedad creada exitosamente'
     else
       load_form_data
-      render :new
+      render :new, status: :unprocessable_entity
     end
   end
 
@@ -75,22 +78,29 @@ class PropertiesController < ApplicationController
   end
 
   def property_params
-    permitted = [:title, :description, :price, :address, :city, :state, :postal_code,
-                 :bedrooms, :bathrooms, :built_area_m2, :lot_area_m2, :year_built,
-                 :property_type_id, :co_ownership_type_id, :parking_spaces,
-                 :furnished, :pets_allowed, :elevator, :balcony, :terrace,
-                 :garden, :pool, :security, :gym, :available_from]
+    permitted = [
+      :title, :description, :price, :address, :city, :state, :postal_code,
+      :bedrooms, :bathrooms, :built_area_m2, :lot_area_m2, :year_built,
+      :property_type_id, :co_ownership_type_id, :parking_spaces,
+      :furnished, :pets_allowed, :elevator, :balcony, :terrace,
+      :garden, :pool, :security, :gym, :available_from,
+      # ✅ AGREGAR ESTOS (ya existen en BD):
+      :street, :exterior_number, :interior_number,
+      :neighborhood, :municipality, :country,
+      :land_use, :has_extensions, :co_owners_details,
+      :latitude, :longitude,
+      :contact_phone, :contact_email, :internal_notes, :published_at
+    ]
     
-    # Campos adicionales para agentes
-    if current_user&.role&.name.in?(['agent', 'admin', 'superadmin'])
+    if current_user&.role&.level.to_i <= 30
       permitted += [:contact_phone, :contact_email, :internal_notes]
     end
     
-    # Campo de asignación de usuario para admins
-    if current_user&.role&.name.in?(['admin', 'superadmin'])
+    if current_user&.role&.level.to_i <= 10
       permitted += [:user_id]
     end
-
+  
     params.require(:property).permit(permitted)
   end
 end
+  

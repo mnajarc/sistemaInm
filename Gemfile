@@ -54,6 +54,8 @@ gem "thruster", require: false
 # Incluye validaciones no sólo a nivel de la aplicación sino también a nivel de la base de datos
 gem "database_validations"
 
+gem "cocoon"
+
 # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
 gem "brakeman", require: false
 gem "bundler-audit", require: false

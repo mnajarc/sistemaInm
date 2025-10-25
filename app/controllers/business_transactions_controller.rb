@@ -200,11 +200,11 @@ class BusinessTransactionsController < BaseController
 
   def transaction_params
     permitted_params = [
-      :property_id, :operation_type_id, :business_status_id,
+    :property_id, :operation_type_id, :business_status_id,
       :offering_client_id, :acquiring_client_id, :co_ownership_type_id,
       :price, :commission_percentage, :start_date, :estimated_completion_date, :notes,
-      co_owners_attributes: [
-        :id, :client_id, :person_name, :percentage, :role, 
+      business_transaction_co_owners_attributes: [
+        :id, :client_id, :person_name, :percentage, :role,
         :deceased, :inheritance_case_notes, :active, :_destroy
       ]
     ]

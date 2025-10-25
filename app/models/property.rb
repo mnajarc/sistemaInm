@@ -5,6 +5,7 @@ class Property < ApplicationRecord
   belongs_to :co_ownership_type, optional: true
 
 
+  before_validation :generate_full_address
 
   has_many :exclusivities, class_name: "PropertyExclusivity", dependent: :destroy
   has_many :commissions, dependent: :nullify
@@ -20,6 +21,7 @@ class Property < ApplicationRecord
   has_many :offering_clients, through: :business_transactions
   has_many :acquiring_clients, through: :business_transactions
 
+  # Callback para generar address automáticamente
 
   # Validaciones existentes...
   validates :price, :address, :city, :state, :postal_code,
@@ -31,7 +33,15 @@ class Property < ApplicationRecord
   }
   validates :title, presence: true, length: { maximum: 255 }
   validates :description, presence: true, length: { maximum: 10000 }
-  validate :sanitize_input
+
+  validates :street, :exterior_number, :neighborhood, :municipality, :country,
+          presence: true, if: -> { street.present? }
+
+  validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
+
+
+  before_save :sanitize_input
+  validates :property_type_id, presence: true
 
   validates :street, :exterior_number, :neighborhood, :municipality, :country, presence: true, if: -> { street.present? }
   validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
@@ -54,6 +64,38 @@ class Property < ApplicationRecord
   scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
   scope :residential, -> { where(land_use: 'habitacional') }
 
+  # ✅ SCOPES NUEVOS
+  scope :residential, -> { where(land_use: 'habitacional') }
+  scope :with_extensions, -> { where(has_extensions: true) }
+  scope :by_municipality, ->(mun) { where(municipality: mun) }
+  scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
+
+  # ✅ MÉTODOS NUEVOS
+  def full_address
+    [street, exterior_number, interior_number.presence, neighborhood, 
+    municipality, state, country].compact.join(', ')
+  end
+
+  def land_use_display
+    case land_use
+    when 'habitacional' then 'Residencial'
+    when 'comercial' then 'Comercial'
+    when 'mixto' then 'Mixto'
+    when 'industrial' then 'Industrial'
+    else land_use&.titleize || 'No especificado'
+    end
+  end
+
+  def has_active_transaction?
+    business_transactions.joins(:business_status)
+                        .where(business_statuses: { name: ['available', 'reserved'] })
+                        .exists?
+  end
+
+  def current_agent
+    current_business_transaction&.current_agent
+  end
+
   # Métodos de conveniencia
   def current_status
     primary_business_transaction&.business_status&.display_name || "Sin estado"
@@ -68,9 +110,6 @@ class Property < ApplicationRecord
   end
 
 
-  def full_address
-    [street, exterior_number, interior_number.presence, neighborhood, municipality, state, country].compact.join(', ')
-  end
 
   def land_use_human
     case land_use
@@ -176,6 +215,22 @@ class Property < ApplicationRecord
   end
 
   private
+
+
+  
+  def generate_full_address
+    # Generar dirección completa si tiene datos desglosados
+    if street.present? || exterior_number.present?
+      self.address = [
+        street,
+        exterior_number,
+        interior_number.presence,
+        neighborhood,
+        municipality
+      ].compact.join(', ')
+    end
+  end
+
 
   def sanitize_input
     self.title = Rails::Html::FullSanitizer.new.sanitize(title) if title.present?

@@ -1,14 +1,21 @@
-<%= form_with model: property, local: true, html: { class: "needs-validation", novalidate: true } do |form| %>
-  <% if property.errors.any? %>
-    <div class="alert alert-danger">
-      <h6><%= pluralize(property.errors.count, "error") %> impidieron guardar esta propiedad:</h6>
-      <ul class="mb-0">
-        <% property.errors.full_messages.each do |message| %>
-          <li><%= message %></li>
-        <% end %>
-      </ul>
-    </div>
-  <% end %>
+<!-- AGREGAR AL INICIO DEL FORMULARIO -->
+<% if @property.errors.any? %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <h6 class="alert-heading">
+      <i class="bi bi-exclamation-circle"></i>
+      <%= pluralize(@property.errors.count, "error") %> impidieron guardar esta propiedad:
+    </h6>
+    <ul class="mb-0">
+      <% @property.errors.full_messages.each do |message| %>
+        <li><strong><%= message %></strong></li>
+      <% end %>
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<% end %>
+<!-- RESTO DEL FORMULARIO AQUÍ -->
+
+<%= form_with model: @property, local: true, html: { class: "needs-validation", novalidate: true } do |form| %>
 
   <div class="row">
     <!-- Información Básica -->
@@ -107,48 +114,87 @@
     </div>
   </div>
 
-
-  <!-- Ubicación -->
+  <!-- Ubicación COMPLETA -->
   <div class="card mt-4">
     <div class="card-header">
       <h5 class="mb-0">Ubicación</h5>
     </div>
     <div class="card-body">
+      <!-- País -->
+      <div class="row mb-3">
+        <div class="col-md-12">
+          <%= form.label :country, "País", class: "form-label" %>
+          <%= form.text_field :country, class: "form-control", placeholder: "México" %>
+        </div>
+      </div>
+
+      <!-- Calle y Números -->
       <div class="row">
-        <!-- Dirección -->
-        <div class="col-md-6">
+        <div class="col-md-5">
           <div class="mb-3">
-            <%= form.label :address, "Dirección", class: "form-label" %>
-            <%= form.text_field :address, class: "form-control", placeholder: "Calle y número" %>
+            <%= form.label :street, "Calle", class: "form-label" %>
+            <%= form.text_field :street, class: "form-control", placeholder: "Av. Paseo de la Reforma" %>
           </div>
         </div>
 
-        <!-- Ciudad -->
+        <div class="col-md-2">
+          <div class="mb-3">
+            <%= form.label :exterior_number, "No. Exterior", class: "form-label" %>
+            <%= form.text_field :exterior_number, class: "form-control", placeholder: "505" %>
+          </div>
+        </div>
+
+        <div class="col-md-2">
+          <div class="mb-3">
+            <%= form.label :interior_number, "No. Interior", class: "form-label" %>
+            <%= form.text_field :interior_number, class: "form-control", placeholder: "Apto" %>
+          </div>
+        </div>
+
         <div class="col-md-3">
+          <div class="mb-3">
+            <%= form.label :postal_code, "CP", class: "form-label" %>
+            <%= form.text_field :postal_code, class: "form-control", placeholder: "00000" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zona Geográfica -->
+      <div class="row">
+        <div class="col-md-4">
+          <div class="mb-3">
+            <%= form.label :neighborhood, "Colonia/Barrio", class: "form-label" %>
+            <%= form.text_field :neighborhood, class: "form-control", placeholder: "Juárez" %>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="mb-3">
+            <%= form.label :municipality, "Municipio", class: "form-label" %>
+            <%= form.text_field :municipality, class: "form-control", placeholder: "Cuauhtémoc" %>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="mb-3">
+            <%= form.label :state, "Estado", class: "form-label" %>
+            <%= form.text_field :state, class: "form-control", placeholder: "CDMX" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ciudad (Redundante pero en BD) -->
+      <div class="row">
+        <div class="col-md-12">
           <div class="mb-3">
             <%= form.label :city, "Ciudad", class: "form-label" %>
             <%= form.text_field :city, class: "form-control", placeholder: "Ciudad" %>
           </div>
         </div>
-
-        <!-- Estado -->
-        <div class="col-md-3">
-          <div class="mb-3">
-            <%= form.label :state, "Estado", class: "form-label" %>
-            <%= form.text_field :state, class: "form-control", placeholder: "Estado/Provincia" %>
-          </div>
-        </div>
-
-        <!-- Código Postal -->
-        <div class="col-md-3">
-          <div class="mb-3">
-            <%= form.label :postal_code, "Código Postal", class: "form-label" %>
-            <%= form.text_field :postal_code, class: "form-control", placeholder: "00000" %>
-          </div>
-        </div>
       </div>
     </div>
   </div>
+
 
   <!-- Características -->
   <div class="card mt-4">
@@ -201,7 +247,58 @@
   </div>
 
   <!-- Campos Adicionales (si existen en tu migración) -->
-  <% if property.respond_to?(:parking_spaces) %>
+   <!-- Información Adicional -->
+  <div class="card mt-4">
+    <div class="card-header">
+      <h5 class="mb-0">Información Adicional</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <!-- Uso de Suelo -->
+        <div class="col-md-6">
+          <div class="mb-3">
+            <%= form.label :land_use, "Uso de Suelo", class: "form-label" %>
+            <%= form.select :land_use,
+                [
+                  ['Habitacional', 'habitacional'],
+                  ['Comercial', 'comercial'],
+                  ['Mixto', 'mixto'],
+                  ['Industrial', 'industrial'],
+                  ['Otros', 'otros']
+                ],
+                { prompt: 'Selecciona uso de suelo' },
+                { class: "form-select" } %>
+          </div>
+        </div>
+
+        <!-- Ampliaciones -->
+        <div class="col-md-6">
+          <div class="form-check mt-4">
+            <%= form.check_box :has_extensions, class: "form-check-input" %>
+            <%= form.label :has_extensions, "Tiene ampliaciones", class: "form-check-label" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Facilidades Cercanas -->
+      <div class="row mt-3">
+        <div class="col-md-12">
+          <div class="mb-3">
+            <%= form.label :co_owners_details, "Facilidades Cercanas", class: "form-label" %>
+            <%= form.text_area :co_owners_details, 
+                class: "form-control", 
+                rows: 4,
+                placeholder: "Iglesia a 0.5 km, Escuela a 1 km, Centro Comercial a 2 km, Hospital a 3 km..." %>
+            <small class="form-text text-muted">Describe iglesias, escuelas, comercios, hospitales, parques, etc.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
+
+
+  <% if @property.respond_to?(:parking_spaces) %>
     <div class="card mt-4">
       <div class="card-header">
         <h5 class="mb-0">Características Adicionales</h5>
@@ -252,7 +349,7 @@
 
   <!-- Botones -->
   <div class="mt-4">
-    <%= form.submit property.persisted? ? "Actualizar Propiedad" : "Crear Propiedad", 
+    <%= form.submit @property.persisted? ? "Actualizar Propiedad" : "Crear Propiedad", 
         class: "btn btn-primary" %>
     <%= link_to "Cancelar", properties_path, class: "btn btn-secondary ms-2" %>
   </div>

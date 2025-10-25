@@ -16,8 +16,9 @@ class BusinessTransaction < ApplicationRecord
 
   has_many   :offers, dependent: :destroy
   has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
-  accepts_nested_attributes_for :business_transaction_co_owners
-
+  accepts_nested_attributes_for :business_transaction_co_owners, 
+                                allow_destroy: true,
+                                reject_if: proc { |attributes| attributes['client_id'].blank? }
   # ✅ NESTED ATTRIBUTES para crear propiedad
   accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
   accepts_nested_attributes_for :co_owners, allow_destroy: true, reject_if: :all_blank
@@ -241,6 +242,66 @@ end
 
   def pending_co_owner_documents
     co_owners.active.map(&:documents_checklist).flatten.select { |doc| doc[:required] && !doc[:uploaded] }
+  end
+
+  # ✅ AUDITORÍA USANDO agent_transfers EXISTENTE
+  def log_agent_transfer(from_agent, to_agent, reason)
+    AgentTransfer.create!(
+      business_transaction: self,
+      from_agent: from_agent,
+      to_agent: to_agent,
+      transferred_by: Current.user,
+      reason: reason,
+      transferred_at: Time.current
+    )
+  end
+
+  def audit_trail
+    audits = []
+    
+    # Creación
+    audits << {
+      event: 'created',
+      description: "Transacción creada",
+      user: user&.full_name || 'Sistema',
+      timestamp: created_at,
+      icon: 'plus-circle'
+    }
+    
+    # Cambios de agente
+    agent_transfers.each do |transfer|
+      audits << {
+        event: 'agent_changed',
+        description: "Agente: #{transfer.from_agent&.full_name} → #{transfer.to_agent&.full_name}",
+        reason: transfer.reason,
+        user: transfer.transferred_by&.full_name,
+        timestamp: transfer.transferred_at,
+        icon: 'exchange-alt'
+      }
+    end
+    
+    # Documentos
+    document_submissions.order(:created_at).each do |doc|
+      audits << {
+        event: 'document_uploaded',
+        description: "Documento: #{doc.document_type&.display_name}",
+        user: doc.uploaded_by&.full_name || 'Sistema',
+        timestamp: doc.created_at,
+        icon: 'file-upload'
+      }
+      
+      if doc.validated_at.present?
+        audits << {
+          event: 'document_validated',
+          description: "Documento validado: #{doc.document_type&.display_name}",
+          user: doc.validated_by&.full_name,
+          timestamp: doc.validated_at,
+          icon: 'check-circle'
+        }
+      end
+    end
+    
+    audits.sort_by { |a| a[:timestamp] }.reverse
   end
 
   private
