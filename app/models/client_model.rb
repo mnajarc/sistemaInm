@@ -32,4 +32,13 @@ class Client < ApplicationRecord
   def display_name
     name.presence || email.presence || "Cliente ##{id}"
   end
+  
+  def full_name
+    # Si tiene client asociado, usar su nombre
+    return client_record&.name if client_record.present?
+    
+    # Si no, retornar email
+    email
+  end
+
 end

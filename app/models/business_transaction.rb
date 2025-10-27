@@ -1,5 +1,4 @@
 class BusinessTransaction < ApplicationRecord
-  # Relaciones existentes...
   belongs_to :listing_agent, class_name: "User"
   belongs_to :current_agent, class_name: "User"
   belongs_to :selling_agent, class_name: "User", optional: true
@@ -9,6 +8,7 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :operation_type
   belongs_to :business_status
   belongs_to :transaction_scenario, optional: true
+  belongs_to :co_ownership_type, optional: true
  
   has_many :document_submissions, dependent: :destroy
   has_many :agent_transfers, dependent: :destroy
@@ -18,7 +18,7 @@ class BusinessTransaction < ApplicationRecord
   has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
   accepts_nested_attributes_for :business_transaction_co_owners, 
                                 allow_destroy: true,
-                                reject_if: proc { |attributes| attributes['client_id'].blank? }
+                                reject_if: proc { |attributes| attributes['client_id'].blank? && attributes['person_name'].blank?}
   # ✅ NESTED ATTRIBUTES para crear propiedad
   accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
   accepts_nested_attributes_for :co_owners, allow_destroy: true, reject_if: :all_blank

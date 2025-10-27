@@ -1,267 +1,533 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>
-    <i class="bi bi-briefcase-fill"></i>
-    Transacción #<%= @transaction.id %>
-  </h2>
-  <div>
-    <% if policy(@transaction).edit? %>
-      <%= link_to edit_business_transaction_path(@transaction), class: "btn btn-primary" do %>
-        <i class="bi bi-pencil"></i> Editar
-      <% end %>
-    <% end %>
-    <%= link_to business_transactions_path, class: "btn btn-outline-secondary" do %>
-      <i class="bi bi-arrow-left"></i> Volver
-    <% end %>
-  </div>
-</div>
-
-<div class="row">
-  <!-- Información Principal -->
-  <div class="col-md-8">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">
-          <i class="bi bi-info-circle"></i>
-          Información de la Transacción
-        </h5>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <dl class="row">
-              <dt class="col-sm-5">Propiedad:</dt>
-              <dd class="col-sm-7">
-                <%= link_to @transaction.property do %>
-                  <strong><%= @transaction.property.title %></strong>
-                <% end %>
-              </dd>
-              
-              <dt class="col-sm-5">Operación:</dt>
-              <dd class="col-sm-7">
-                <span class="badge bg-info">
-                  <%= @transaction.operation_type.display_name %>
-                </span>
-              </dd>
-              
-              <dt class="col-sm-5">Estado:</dt>
-              <dd class="col-sm-7">
-                <span class="badge bg-<%= @transaction.business_status.color %>">
-                  <%= @transaction.business_status.display_name %>
-                </span>
-              </dd>
-              
-              <dt class="col-sm-5">Precio:</dt>
-              <dd class="col-sm-7">
-                <strong class="text-success">
-                  $<%= number_with_delimiter(@transaction.price) %>
-                </strong>
-              </dd>
-            </dl>
-          </div>
-          
-          <div class="col-md-6">
-            <dl class="row">
-              <dt class="col-sm-5">Fecha Inicio:</dt>
-              <dd class="col-sm-7"><%= @transaction.start_date.strftime('%d/%m/%Y') %></dd>
-              
-              <dt class="col-sm-5">Estimada:</dt>
-              <dd class="col-sm-7">
-                <%= @transaction.estimated_completion_date&.strftime('%d/%m/%Y') || 'No definida' %>
-              </dd>
-              
-              <dt class="col-sm-5">Comisión:</dt>
-              <dd class="col-sm-7"><%= @transaction.commission_percentage %>%</dd>
-              
-              <dt class="col-sm-5">Revenue:</dt>
-              <dd class="col-sm-7">
-                <strong class="text-success">
-                  $<%= number_with_delimiter(@transaction.revenue) %>
-                </strong>
-              </dd>
-            </dl>
-          </div>
-        </div>
-        
-        <% if @transaction.notes.present? %>
-          <hr>
-          <h6>Notas:</h6>
-          <p class="text-muted"><%= simple_format(@transaction.notes) %></p>
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="bi bi-briefcase-fill"></i>
+      Transacción #<%= @transaction.id %>
+    </h2>
+    <div>
+      <% if policy(@transaction).edit? %>
+        <%= link_to edit_business_transaction_path(@transaction), class: "btn btn-primary" do %>
+          <i class="bi bi-pencil"></i> Editar
         <% end %>
-      </div>
+      <% end %>
+      <%= link_to business_transactions_path, class: "btn btn-outline-secondary" do %>
+        <i class="bi bi-arrow-left"></i> Volver
+      <% end %>
     </div>
+  </div>
 
-    <!-- Historial de Transferencias -->
-    <% if @transaction.agent_transfers.any? %>
+  <div class="row">
+    <!-- COLUMNA PRINCIPAL -->
+    <div class="col-md-8">
+      <!-- Información Principal -->
       <div class="card mb-4">
         <div class="card-header">
           <h5 class="mb-0">
-            <i class="bi bi-arrow-repeat"></i>
-            Historial de Transferencias
+            <i class="bi bi-info-circle"></i>
+            Información de la Transacción
           </h5>
         </div>
         <div class="card-body">
-          <div class="timeline">
-            <% @transaction.agent_transfers.order(:transferred_at).each do |transfer| %>
-              <div class="d-flex mb-3">
-                <div class="flex-shrink-0">
-                  <i class="bi bi-arrow-right-circle text-info"></i>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                  <strong><%= transfer.from_agent.email %></strong> → 
-                  <strong><%= transfer.to_agent.email %></strong>
-                  <br>
-                  <small class="text-muted">
-                    <%= transfer.transferred_at.strftime('%d/%m/%Y %H:%M') %> - 
-                    <%= transfer.reason %>
-                  </small>
-                </div>
-              </div>
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Propiedad:</dt>
+                <dd class="col-sm-7">
+                  <%= link_to @transaction.property do %>
+                    <strong><%= @transaction.property.title %></strong>
+                  <% end %>
+                </dd>
+                
+                <dt class="col-sm-5">Operación:</dt>
+                <dd class="col-sm-7">
+                  <span class="badge bg-info">
+                    <%= @transaction.operation_type.display_name %>
+                  </span>
+                </dd>
+                
+                <dt class="col-sm-5">Estado:</dt>
+                <dd class="col-sm-7">
+                  <span class="badge bg-<%= @transaction.business_status.color %>">
+                    <%= @transaction.business_status.display_name %>
+                  </span>
+                </dd>
+                
+                <dt class="col-sm-5">Precio:</dt>
+                <dd class="col-sm-7">
+                  <strong class="text-success fs-5">
+                    $<%= number_with_delimiter(@transaction.price, delimiter: ',') %>
+                  </strong>
+                </dd>
+              </dl>
+            </div>
+            
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Fecha Inicio:</dt>
+                <dd class="col-sm-7"><%= @transaction.start_date.strftime('%d/%m/%Y') %></dd>
+                
+                <dt class="col-sm-5">Fecha Estimada:</dt>
+                <dd class="col-sm-7">
+                  <%= @transaction.estimated_completion_date&.strftime('%d/%m/%Y') || 'No definida' %>
+                </dd>
+                
+                <dt class="col-sm-5">Comisión:</dt>
+                <dd class="col-sm-7"><%= @transaction.commission_percentage %>%</dd>
+                
+                <dt class="col-sm-5">Revenue:</dt>
+                <dd class="col-sm-7">
+                  <strong class="text-success">
+                    $<%= number_with_delimiter(@transaction.revenue, delimiter: ',') %>
+                  </strong>
+                </dd>
+              </dl>
+            </div>
+          </div>
+          
+          <% if @transaction.notes.present? %>
+            <hr>
+            <h6>Notas:</h6>
+            <p class="text-muted"><%= simple_format(@transaction.notes) %></p>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- COPROPIETARIOS - CRÍTICO -->
+      <% if @transaction.co_owners.any? %>
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-people-fill"></i>
+              Copropietarios
+            </h5>
+          </div>
+          <div class="card-body">
+            <p class="mb-3">
+              <strong>Tipo de Copropiedad:</strong>
+              <% if @transaction.co_ownership_type.present? %>
+                <span class="badge bg-info"><%= @transaction.co_ownership_type.display_name %></span>
+              <% else %>
+                <span class="text-muted">No especificado</span>
+              <% end %>
+            </p>
+            
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Porcentaje</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @transaction.co_owners.each do |co_owner| %>
+                    <tr>
+                      <td>
+                        <% if co_owner.client.present? %>
+                          <%= link_to co_owner.client.display_name, client_path(co_owner.client) %>
+                        <% else %>
+                          <%= co_owner.person_name || "Sin nombre" %>
+                        <% end %>
+                      </td>
+                      <td>
+                        <% if co_owner.percentage.present? %>
+                          <span class="badge bg-info"><%= co_owner.percentage %>%</span>
+                        <% else %>
+                          <span class="text-muted">N/A</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%= co_owner.role.presence || "Propietario" %>
+                      </td>
+                      <td>
+                        <% if co_owner.is_primary? %>
+                          <span class="badge bg-success">Principal</span>
+                        <% else %>
+                          <span class="badge bg-secondary">Secundario</span>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            
+            <% if @transaction.co_ownership_notes.present? %>
+              <hr>
+              <h6>Notas de Copropiedad:</h6>
+              <p class="text-muted small"><%= simple_format(@transaction.co_ownership_notes) %></p>
             <% end %>
           </div>
         </div>
-      </div>
-    <% end %>
-  </div>
+      <% end %>
 
-  <!-- Sidebar -->
-  <div class="col-md-4">
-    <!-- Agentes -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">
-          <i class="bi bi-people"></i>
-          Agentes
-        </h5>
-      </div>
-      <div class="card-body">
-        <dl class="row">
-          <dt class="col-sm-6">Listador:</dt>
-          <dd class="col-sm-6"><%= @transaction.listing_agent.email %></dd>
-          
-          <dt class="col-sm-6">Actual:</dt>
-          <dd class="col-sm-6">
-            <strong><%= @transaction.current_agent.email %></strong>
-          </dd>
-          
-          <dt class="col-sm-6">Vendedor:</dt>
-          <dd class="col-sm-6">
-            <%= @transaction.selling_agent&.email || 'Pendiente' %>
-          </dd>
-        </dl>
-        
-        <% if policy(@transaction).update? && current_user.admin_or_above? %>
-          <hr>
-          <%= form_with url: transfer_agent_business_transaction_path(@transaction), 
-              method: :patch, local: true, class: "row g-2" do |form| %>
-            <div class="col-12">
-              <%= form.collection_select :new_agent_id, 
-                  User.joins(:role).where(roles: { name: 'agent' }),
-                  :id, :email,
-                  { prompt: 'Seleccionar nuevo agente' },
-                  { class: "form-select form-select-sm" } %>
+      <!-- DOCUMENTOS -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-file-earmark-check"></i>
+            Documentos
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if @transaction.document_submissions.any? %>
+            <div class="accordion" id="documentsAccordion">
+              <!-- Documentos por Cliente -->
+              <% @transaction.document_submissions.group_by(&:client).each_with_index do |(client, documents), index| %>
+                <div class="accordion-item">
+                  <h2 class="accordion-header" id="heading<%= index %>">
+                    <button class="accordion-button <%= index > 0 ? 'collapsed' : '' %>" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>" 
+                            aria-expanded="<%= index == 0 ? 'true' : 'false' %>" aria-controls="collapse<%= index %>">
+                      <strong><%= client&.display_name || "Sin cliente asignado" %></strong>
+                      <span class="badge bg-secondary ms-2"><%= documents.count %> documentos</span>
+                    </button>
+                  </h2>
+                  <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index == 0 ? 'show' : '' %>" 
+                       aria-labelledby="heading<%= index %>" data-bs-parent="#documentsAccordion">
+                    <div class="accordion-body">
+                      <div class="list-group">
+                        <% documents.each do |doc| %>
+                          <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                              <h6 class="mb-1">
+                                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                <%= doc.document_type&.display_name %>
+                              </h6>
+                              <small>
+                                <% if doc.validated_at.present? %>
+                                  <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Validado
+                                  </span>
+                                <% else %>
+                                  <span class="badge bg-warning">
+                                    <i class="bi bi-clock"></i> Pendiente
+                                  </span>
+                                <% end %>
+                              </small>
+                            </div>
+                            <p class="mb-1 small text-muted">
+                              Subido: <%= doc.created_at.strftime('%d/%m/%Y %H:%M') %>
+                            </p>
+                            <% if doc.validated_at.present? %>
+                              <p class="mb-0 small text-success">
+                                Validado: <%= doc.validated_at.strftime('%d/%m/%Y %H:%M') %> 
+                                por <%= doc.validated_by&.email %>
+                              </p>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
             </div>
-            <div class="col-12">
-              <%= form.text_field :reason, placeholder: "Razón de transferencia", 
-                  class: "form-control form-control-sm" %>
-            </div>
-            <div class="col-12">
-              <%= form.submit "Transferir", class: "btn btn-warning btn-sm w-100" %>
+          <% else %>
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle"></i>
+              <strong>Sin documentos subidos</strong>
+              <p class="mb-0">Aún no se han subido documentos para esta transacción.</p>
             </div>
           <% end %>
-        <% end %>
+        </div>
       </div>
-    </div>
 
-    <!-- Clientes -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">
-          <i class="bi bi-person-check"></i>
-          Clientes
-        </h5>
-      </div>
-      <div class="card-body">
-        <dl class="row">
-          <dt class="col-sm-6">Ofertante:</dt>
-          <dd class="col-sm-6">
-            <strong><%= @transaction.offering_client.name %></strong><br>
-            <small class="text-muted"><%= @transaction.offering_client.email %></small>
-          </dd>
-          
-          <dt class="col-sm-6">Adquiriente:</dt>
-          <dd class="col-sm-6">
-            <% if @transaction.acquiring_client %>
-              <strong><%= @transaction.acquiring_client.name %></strong><br>
-              <small class="text-muted"><%= @transaction.acquiring_client.email %></small>
+      <!-- AUDITORÍA / TIMELINE -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-clock-history"></i>
+            Historial de Eventos
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if @transaction.respond_to?(:audit_trail) %>
+            <% events = @transaction.audit_trail %>
+            <% if events.any? %>
+              <div class="timeline">
+                <% events.each do |event| %>
+                  <div class="d-flex mb-3 pb-3 border-bottom">
+                    <div class="flex-shrink-0 me-3">
+                      <div class="text-center">
+                        <i class="bi bi-<%= event[:icon] %> text-<%= event_color(event[:event]) %> fs-4"></i>
+                        <br>
+                        <small class="text-muted">
+                          <%= event[:timestamp].strftime('%d/%m') %>
+                        </small>
+                      </div>
+                    </div>
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">
+                        <span class="badge bg-<%= event_color(event[:event]) %>">
+                          <%= event[:event].titleize %>
+                        </span>
+                      </h6>
+                      <p class="mb-1"><%= event[:description] %></p>
+                      <% if event[:reason].present? %>
+                        <p class="mb-1 small text-muted">
+                          <strong>Razón:</strong> <%= event[:reason] %>
+                        </p>
+                      <% end %>
+                      <small class="text-muted">
+                        Por: <%= event[:user] %> - 
+                        <%= time_ago_in_words(event[:timestamp]) %> atrás
+                      </small>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
             <% else %>
-              <em class="text-muted">Pendiente</em>
+              <p class="text-muted">No hay eventos registrados aún.</p>
             <% end %>
-          </dd>
-        </dl>
-      </div>
-    </div>
-
-    <!-- Exportar Documentos (ÚNICO BLOQUE) -->
-    <div class="card mb-4">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0">
-          <i class="bi bi-folder-symlink"></i>
-          Exportar Documentos
-        </h5>
-      </div>
-      <div class="card-body">
-        <p class="mb-3">
-          Exporta todos los documentos organizados en carpetas por oferente, adquiriente y copropietarios.
-        </p>
-        
-        <%= button_to export_documents_business_transaction_path(@transaction),
-                      method: :post,
-                      class: 'btn btn-success w-100 mb-3',
-                      data: { turbo_confirm: '¿Exportar todos los documentos a carpeta organizada?' } do %>
-          <i class="bi bi-folder-symlink me-2"></i>
-          Exportar a NAS
-        <% end %>
-        
-        <small class="text-muted">
-          <i class="bi bi-info-circle"></i>
-          Se organizarán en:
-          <code class="d-block mt-1"><%= Rails.env.production? ? '/mnt/nas_docs' : Rails.root.join('tmp', 'exports') %></code>
-        </small>
-      </div>
-    </div>
-
-    <!-- Acciones -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">
-          <i class="bi bi-gear"></i>
-          Acciones
-        </h5>
-      </div>
-      <div class="card-body">
-        <% if policy(@transaction).edit? %>
-          <%= link_to edit_business_transaction_path(@transaction), 
-              class: "btn btn-primary w-100 mb-2" do %>
-            <i class="bi bi-pencil"></i> Editar Transacción
+          <% else %>
+            <!-- FALLBACK: Historial de Transferencias -->
+            <% if @transaction.agent_transfers.any? %>
+              <div class="timeline">
+                <% @transaction.agent_transfers.order(:transferred_at).each do |transfer| %>
+                  <div class="d-flex mb-3">
+                    <div class="flex-shrink-0">
+                      <i class="bi bi-arrow-right-circle text-info"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                      <strong><%= transfer.from_agent&.full_name %></strong> → 
+                      <strong><%= transfer.to_agent&.full_name %></strong>
+                      <br>
+                      <small class="text-muted">
+                        <%= transfer.transferred_at.strftime('%d/%m/%Y %H:%M') %> - 
+                        <%= transfer.reason %>
+                      </small>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <p class="text-muted">No hay transferencias de agentes registradas.</p>
+            <% end %>
           <% end %>
-        <% end %>
-        
-        <%= link_to @transaction.property, 
-            class: "btn btn-outline-info w-100 mb-2" do %>
-          <i class="bi bi-house-door"></i> Ver Propiedad
-        <% end %>
-        
-        <% if policy(@transaction).destroy? %>
-          <%= link_to business_transaction_path(@transaction), 
-              method: :delete,
-              data: { 
-                turbo_confirm: "¿Estás seguro de eliminar esta transacción?" 
-              },
-              class: "btn btn-outline-danger w-100" do %>
-            <i class="bi bi-trash"></i> Eliminar
+        </div>
+      </div>
+
+      <!-- OFERTAS (si existen) -->
+      <% if @transaction.respond_to?(:offers) && @transaction.offers.any? %>
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="bi bi-hand-thumbs-up"></i>
+              Ofertas Recibidas
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="list-group">
+              <% @transaction.offers.order(created_at: :desc).each do |offer| %>
+                <div class="list-group-item">
+                  <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">
+                      <%= offer.offerer&.display_name || "Oferente desconocido" %>
+                    </h6>
+                    <span class="badge bg-<%= offer.offer_status&.color %>">
+                      <%= offer.offer_status&.display_name %>
+                    </span>
+                  </div>
+                  <p class="mb-1">
+                    <strong>Monto:</strong> 
+                    <span class="text-success">$<%= number_with_delimiter(offer.amount, delimiter: ',') %></span>
+                  </p>
+                  <small class="text-muted">
+                    <%= offer.created_at.strftime('%d/%m/%Y %H:%M') %>
+                  </small>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <!-- FIN COLUMNA PRINCIPAL -->
+
+    <!-- SIDEBAR -->
+    <div class="col-md-4">
+      <!-- Agentes -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-people"></i>
+            Agentes
+          </h5>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-6">Listador:</dt>
+            <dd class="col-sm-6">
+              <%= @transaction.listing_agent&.full_name || @transaction.listing_agent&.email %>
+            </dd>
+            
+            <dt class="col-sm-6">Actual:</dt>
+            <dd class="col-sm-6">
+              <strong><%= @transaction.current_agent&.full_name || @transaction.current_agent&.email %></strong>
+            </dd>
+            
+            <% if @transaction.respond_to?(:selling_agent) && @transaction.selling_agent.present? %>
+              <dt class="col-sm-6">Vendedor:</dt>
+              <dd class="col-sm-6">
+                <%= @transaction.selling_agent.full_name || @transaction.selling_agent.email %>
+              </dd>
+            <% end %>
+          </dl>
+          
+          <% if policy(@transaction).update? && current_user.admin_or_above? %>
+            <hr>
+            <%= form_with url: transfer_agent_business_transaction_path(@transaction), 
+                method: :patch, local: true, class: "row g-2" do |form| %>
+              <div class="col-12">
+                <%= form.collection_select :new_agent_id, 
+                    User.joins(:role).where(roles: { name: 'agent' }),
+                    :id, :email,
+                    { prompt: 'Seleccionar nuevo agente' },
+                    { class: "form-select form-select-sm" } %>
+              </div>
+              <div class="col-12">
+                <%= form.text_field :reason, placeholder: "Razón de transferencia", 
+                    class: "form-control form-control-sm" %>
+              </div>
+              <div class="col-12">
+                <%= form.submit "Transferir", class: "btn btn-warning btn-sm w-100" %>
+              </div>
+            <% end %>
           <% end %>
-        <% end %>
+        </div>
+      </div>
+
+      <!-- Clientes -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-person-check"></i>
+            Clientes
+          </h5>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-6">Ofertante:</dt>
+            <dd class="col-sm-6">
+              <% if @transaction.offering_client.present? %>
+                <%= link_to @transaction.offering_client.display_name, client_path(@transaction.offering_client) %>
+                <br>
+                <small class="text-muted"><%= @transaction.offering_client.email %></small>
+              <% else %>
+                <em class="text-muted">No asignado</em>
+              <% end %>
+            </dd>
+            
+            <dt class="col-sm-6">Adquiriente:</dt>
+            <dd class="col-sm-6">
+              <% if @transaction.acquiring_client.present? %>
+                <%= link_to @transaction.acquiring_client.display_name, client_path(@transaction.acquiring_client) %>
+                <br>
+                <small class="text-muted"><%= @transaction.acquiring_client.email %></small>
+              <% else %>
+                <em class="text-muted">Pendiente</em>
+              <% end %>
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Exportar Documentos -->
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-folder-symlink"></i>
+            Exportar Documentos
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-3 small">
+            Exporta todos los documentos organizados en carpetas por oferente, adquiriente y copropietarios.
+          </p>
+          
+          <%= button_to export_documents_business_transaction_path(@transaction),
+                        method: :post,
+                        class: 'btn btn-success w-100 mb-3',
+                        data: { turbo_confirm: '¿Exportar todos los documentos a carpeta organizada?' } do %>
+            <i class="bi bi-folder-symlink me-2"></i>
+            Exportar a NAS
+          <% end %>
+          
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            Se organizarán en:
+            <code class="d-block mt-1 small"><%= Rails.env.production? ? '/mnt/nas_docs' : Rails.root.join('tmp', 'exports') %></code>
+          </small>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-gear"></i>
+            Acciones
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if policy(@transaction).edit? %>
+            <%= link_to edit_business_transaction_path(@transaction), 
+                class: "btn btn-primary w-100 mb-2" do %>
+              <i class="bi bi-pencil"></i> Editar Transacción
+            <% end %>
+          <% end %>
+          
+          <%= link_to @transaction.property, 
+              class: "btn btn-outline-info w-100 mb-2" do %>
+            <i class="bi bi-house-door"></i> Ver Propiedad
+          <% end %>
+          
+          <% if policy(@transaction).destroy? %>
+            <%= link_to business_transaction_path(@transaction), 
+                data: { 
+                  turbo_method: :delete,
+                  turbo_confirm: "¿Estás seguro de eliminar esta transacción?" 
+                },
+                class: "btn btn-outline-danger w-100" do %>
+              <i class="bi bi-trash"></i> Eliminar
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Información del Registro -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-calendar"></i>
+            Registro
+          </h5>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0 small">
+            <dt class="col-sm-5">Creada:</dt>
+            <dd class="col-sm-7">
+              <%= @transaction.created_at.strftime('%d/%m/%Y %H:%M') %>
+            </dd>
+            
+            <dt class="col-sm-5">Actualizada:</dt>
+            <dd class="col-sm-7">
+              <%= @transaction.updated_at.strftime('%d/%m/%Y %H:%M') %>
+            </dd>
+            
+            <% if @transaction.completed_at.present? %>
+              <dt class="col-sm-5">Completada:</dt>
+              <dd class="col-sm-7 text-success">
+                <%= @transaction.completed_at.strftime('%d/%m/%Y %H:%M') %>
+              </dd>
+            <% end %>
+          </dl>
+        </div>
       </div>
     </div>
+    <!-- FIN SIDEBAR -->
   </div>
 </div>

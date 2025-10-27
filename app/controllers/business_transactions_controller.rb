@@ -25,29 +25,52 @@ class BusinessTransactionsController < BaseController
     @transaction.co_owners.build(percentage: 100.0, role: 'propietario') # Al menos uno
     
     load_form_data
+    
+        @clients = Client.active.order(:name)
   end
+
 
   def create
     @transaction = BusinessTransaction.new(transaction_params)
-    authorize @transaction
     
-    assign_agents_by_role
-    
-    ActiveRecord::Base.transaction do
-      # ✅ Crear nueva propiedad si se seleccionó esa opción
-      if params[:property_option] == 'new' && property_params.present?
-        @transaction.property = Property.new(property_params.merge(user: current_user))
-      end
-      
-      if @transaction.save
-        redirect_to @transaction, notice: "Transacción creada exitosamente"
+    if params[:property_option] == "new"
+      property_attrs = params[:business_transaction][:property_attributes]
+      if property_attrs && property_attrs[:address].present?
+        @transaction.build_property(property_attrs.permit!.merge(user: current_user))
       else
+        @transaction.errors.add(:base, "Debes completar los datos de la propiedad")
         load_form_data
         render :new, status: :unprocessable_entity
+        return
       end
+    elsif params[:property_option] == "existing"
+      @transaction.property_attributes = nil
+    end
+
+    authorize @transaction
+    assign_agents_by_role if respond_to?(:assign_agents_by_role, true)
+
+    # ✅ AGREGAR ESTE BLOQUE:
+    if @transaction.business_transaction_co_owners.empty? && @transaction.offering_client_id.present?
+      @transaction.business_transaction_co_owners.build(
+        client_id: @transaction.offering_client_id,
+        person_name: @transaction.offering_client&.display_name,
+        percentage: 100,
+        role: 'vendedor'
+      )
+      puts "✅ Auto-agregado offering_client como copropietario"
+    end
+
+    if @transaction.save
+      redirect_to @transaction, notice: "Transacción creada exitosamente"
+    else
+      puts "❌ ERRORES: #{@transaction.errors.full_messages.inspect}"
+      load_form_data
+      render :new, status: :unprocessable_entity
     end
   end
 
+  
   def edit
     authorize @transaction
     
@@ -198,30 +221,18 @@ class BusinessTransactionsController < BaseController
     end
   end
 
-  def transaction_params
-    permitted_params = [
-    :property_id, :operation_type_id, :business_status_id,
-      :offering_client_id, :acquiring_client_id, :co_ownership_type_id,
-      :price, :commission_percentage, :start_date, :estimated_completion_date, :notes,
-      business_transaction_co_owners_attributes: [
-        :id, :client_id, :person_name, :percentage, :role,
-        :deceased, :inheritance_case_notes, :active, :_destroy
-      ]
-    ]
-    
-    if current_user.admin_or_above?
-      permitted_params += [:current_agent_id, :selling_agent_id]
-    end
-    
-    params.require(:business_transaction).permit(permitted_params)
-  end
 
-  def property_params
-    return nil unless params[:property_option] == 'new'
-    
-    params.require(:business_transaction)[:property_attributes]&.permit(
-      :address, :property_type_id, :built_area_m2, :lot_area_m2, 
-      :bedrooms, :bathrooms, :description
+  def transaction_params
+    params.require(:business_transaction).permit(
+      :operation_type_id, :business_status_id, :start_date, :estimated_completion_date,
+      :property_id, :offering_client_id, :acquiring_client_id,
+      :co_ownership_type_id, :price, :commission_percentage, :notes,
+      property_attributes: [:address, :property_type_id, :built_area_m2, :lot_area_m2, 
+                           :bedrooms, :bathrooms, :street, :exterior_number, :interior_number, 
+                           :postal_code, :neighborhood, :municipality, :state, :city, :country],
+      co_owners_attributes: [:id, :client_id, :person_name, :percentage, :role, :deceased, 
+                            :inheritance_case_notes, :_destroy]
     )
   end
+
 end

@@ -17,14 +17,20 @@
           <h5 class="mb-0">Propiedad y Operacin</h5>
         </div>
         <div class="card-body">
+          
           <div class="mb-3">
             <%= form.label :property_id, "Propiedad", class: "form-label" %>
-            <%= form.collection_select :property_id,
-                Property.all,
-                :id, :title,
-                { prompt: 'Selecciona propiedad' },
-                { class: "form-select" } %>
+            <div class="input-group">
+              <%= form.collection_select :property_id, Property.order(:title), :id, :title,
+                  { prompt: 'Selecciona propiedad...' },
+                  { class: "form-select" } %>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
+                      data-bs-target="#newPropertyModal" title="Crear nueva propiedad">
+                <i class="bi bi-plus-circle"></i> Nueva
+              </button>
+            </div>
           </div>
+
           <div class="mb-3">
             <%= form.label :operation_type_id, "Tipo de Operacin", class: "form-label" %>
             <%= form.collection_select :operation_type_id,
@@ -121,24 +127,35 @@
           <h5 class="mb-0">Clientes</h5>
         </div>
         <div class="card-body">
+          
           <div class="mb-3">
             <%= form.label :offering_client_id, "Cliente Ofertante", class: "form-label" %>
-            <%= form.collection_select :offering_client_id,
-                Client.active,
-                :id, :name,
-                { prompt: 'Selecciona cliente' },
-                { class: "form-select" } %>
-            <div class="form-text">Quien ofrece la propiedad</div>
+            <div class="input-group">
+              <%= form.collection_select :offering_client_id, Client.active.order(:name), :id, :display_name,
+                  { prompt: 'Selecciona cliente...' },
+                  { class: "form-select" } %>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
+                      data-bs-target="#newClientModal" title="Crear nuevo cliente">
+                <i class="bi bi-plus-circle"></i> Nuevo
+              </button>
+            </div>
           </div>
+
           <div class="mb-3">
             <%= form.label :acquiring_client_id, "Cliente Adquiriente", class: "form-label" %>
-            <%= form.collection_select :acquiring_client_id,
-                Client.active,
-                :id, :name,
-                { prompt: 'Selecciona cliente (opcional)' },
-                { class: "form-select" } %>
-            <div class="form-text">Quien est interesado (puede agregarse despus)</div>
+            <div class="input-group">
+              <%= form.collection_select :acquiring_client_id, Client.active.order(:name), :id, :display_name,
+                  { prompt: 'Selecciona cliente (opcional)...' },
+                  { class: "form-select" } %>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
+                      data-bs-target="#newClientModal" title="Crear nuevo cliente">
+                <i class="bi bi-plus-circle"></i> Nuevo
+              </button>
+            </div>
           </div>
+
+
+
         </div>
       </div>
     </div>
@@ -255,6 +272,208 @@
           transaction.persisted? ? transaction : business_transactions_path,
           class: "btn btn-outline-secondary" %>
     </div>
+    
+
+    <!-- MODAL: Crear Nueva Propiedad -->
+    <div class="modal fade" id="newPropertyModal" tabindex="-1" aria-labelledby="newPropertyLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="newPropertyLabel">
+              <i class="bi bi-house-add"></i> Crear Nueva Propiedad
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <%= form_with model: Property.new, local: true, id: 'newPropertyForm' do |f| %>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :title, "Título", class: "form-label" %>
+                    <%= f.text_field :title, class: "form-control", placeholder: "Ej: Casa moderna" %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :property_type_id, "Tipo de Propiedad", class: "form-label" %>
+                    <%= f.collection_select :property_type_id, PropertyType.active.order(:sort_order), :id, :display_name,
+                        { prompt: 'Selecciona tipo' }, { class: "form-select" } %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :price, "Precio", class: "form-label" %>
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <%= f.number_field :price, class: "form-control", step: 0.01 %>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :built_area_m2, "Área Construida (m²)", class: "form-label" %>
+                    <%= f.number_field :built_area_m2, class: "form-control", step: 0.01 %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <%= f.label :description, "Descripción", class: "form-label" %>
+                <%= f.text_area :description, class: "form-control", rows: 3 %>
+              </div>
+
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <%= f.label :street, "Calle", class: "form-label" %>
+                    <%= f.text_field :street, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="mb-3">
+                    <%= f.label :exterior_number, "No. Ext", class: "form-label" %>
+                    <%= f.text_field :exterior_number, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="mb-3">
+                    <%= f.label :interior_number, "No. Int", class: "form-label" %>
+                    <%= f.text_field :interior_number, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <%= f.label :postal_code, "CP", class: "form-label" %>
+                    <%= f.text_field :postal_code, class: "form-control" %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <%= f.label :neighborhood, "Colonia", class: "form-label" %>
+                    <%= f.text_field :neighborhood, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <%= f.label :municipality, "Municipio", class: "form-label" %>
+                    <%= f.text_field :municipality, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <%= f.label :state, "Estado", class: "form-label" %>
+                    <%= f.text_field :state, class: "form-control" %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :city, "Ciudad", class: "form-label" %>
+                    <%= f.text_field :city, class: "form-control" %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :country, "País", class: "form-label" %>
+                    <%= f.text_field :country, class: "form-control" %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="alert alert-info">
+                <small>
+                  <i class="bi bi-info-circle"></i>
+                  Se asignará automáticamente a ti como propietario/agente responsable.
+                </small>
+              </div>
+            <% end %>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="savePropertyBtn">
+              <i class="bi bi-check"></i> Crear Propiedad
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Crear Nuevo Cliente -->
+    <div class="modal fade" id="newClientModal" tabindex="-1" aria-labelledby="newClientLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="newClientLabel">
+              <i class="bi bi-person-plus"></i> Crear Nuevo Cliente
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <%= form_with model: Client.new, local: true, id: 'newClientForm' do |f| %>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :name, "Nombre Completo", class: "form-label" %>
+                    <%= f.text_field :name, class: "form-control", placeholder: "Ej: Juan Pérez García" %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :email, "Email", class: "form-label" %>
+                    <%= f.email_field :email, class: "form-control", placeholder: "cliente@email.com" %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :phone, "Teléfono", class: "form-label" %>
+                    <%= f.telephone_field :phone, class: "form-control", placeholder: "+52 1234567890" %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <%= f.label :address, "Domicilio", class: "form-label" %>
+                    <%= f.text_field :address, class: "form-control" %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div class="form-check">
+                  <%= f.check_box :active, { checked: true }, class: "form-check-input" %>
+                  <%= f.label :active, "Cliente Activo", class: "form-check-label" %>
+                </div>
+              </div>
+
+              <div class="alert alert-info">
+                <small>
+                  <i class="bi bi-info-circle"></i>
+                  El cliente se creará como entidad externa. Podrá acceder al sistema si se le asigna un usuario.
+                </small>
+              </div>
+            <% end %>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="saveClientBtn">
+              <i class="bi bi-check"></i> Crear Cliente
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
     <div>
       <%= form.submit transaction.persisted? ? " Actualizar Transaccin" : " Crear Transaccin",
           class: "btn btn-primary btn-lg" %>
@@ -292,19 +511,91 @@
 
 
 <% end %>
-<!-- JavaScript bsico para funcionalidad -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Funcionalidad para eliminar copropietarios
-  document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('remove-co-owner')) {
-      const coOwnerForm = e.target.closest('.co-owner-form');
-      const destroyField = coOwnerForm.querySelector('input[name*="_destroy"]');
-      if (destroyField) {
-        destroyField.value = '1';
-        coOwnerForm.style.display = 'none';
+  // Guardar nueva propiedad
+  document.getElementById('savePropertyBtn')?.addEventListener('click', function() {
+    const form = document.getElementById('newPropertyForm');
+    const formData = new FormData(form);
+    
+    fetch('<%= properties_path %>', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+        'Accept': 'application/json'
+      },
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.id) {
+        // Agregar a select
+        const select = document.querySelector('select[name="business_transaction[property_id]"]');
+        const option = new Option(data.title, data.id, true, true);
+        select.add(option);
+        select.value = data.id;
+        
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById('newPropertyModal')).hide();
+        
+        // Limpiar form
+        form.reset();
+        
+        alert('✅ Propiedad creada exitosamente');
+      } else {
+        const errorMsg = data.errors ? data.errors.join(', ') : 'Error desconocido';
+        alert('❌ Error al crear propiedad: ' + errorMsg);
       }
-    }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('❌ Error de conexión al crear propiedad');
+    });
+  });
+
+  // Guardar nuevo cliente
+  document.getElementById('saveClientBtn')?.addEventListener('click', function() {
+    const form = document.getElementById('newClientForm');
+    const formData = new FormData(form);
+    
+    fetch('<%= clients_path %>', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+        'Accept': 'application/json'
+      },
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.id) {
+        // Agregar a ambos selects (ofertante y adquiriente)
+        const offeringSelect = document.querySelector('select[name="business_transaction[offering_client_id]"]');
+        const acquiringSelect = document.querySelector('select[name="business_transaction[acquiring_client_id]"]');
+        
+        const option1 = new Option(data.display_name || data.name, data.id, true, true);
+        const option2 = new Option(data.display_name || data.name, data.id);
+        
+        offeringSelect.add(option1);
+        acquiringSelect.add(option2);
+        offeringSelect.value = data.id;
+        
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById('newClientModal')).hide();
+        
+        // Limpiar form
+        form.reset();
+        
+        alert('✅ Cliente creado exitosamente');
+      } else {
+        const errorMsg = data.errors ? data.errors.join(', ') : 'Error desconocido';
+        alert('❌ Error al crear cliente: ' + errorMsg);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('❌ Error de conexión al crear cliente');
+    });
   });
 });
 </script>

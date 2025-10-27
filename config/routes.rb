@@ -5,10 +5,12 @@ Rails.application.routes.draw do
     root "dashboard#index"
     resources :transactions, only: [:index, :show]
   end
+  
+  resources :clients, only: [:index, :create, :show]
 
   root "properties#index"
   resources :properties
-
+  
 
   resources :business_transactions do
     patch :transfer_agent, on: :member

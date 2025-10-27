@@ -24,19 +24,26 @@ class PropertiesController < ApplicationController
 
   def create
     @property = Property.new(property_params)
-    # @property.user = current_user unless params[:property][:user_id].present?
     @property.user = current_user
-
     authorize @property
-# ✅ AGREGAR ESTOS PUTS PARA DEBUG
-  
+
     if @property.save
-      redirect_to @property, notice: 'Propiedad creada exitosamente'
+      # ✅ Si es AJAX, retornar JSON
+      if request.xhr? || request.format.json?
+        render json: @property.to_json(only: [:id, :title, :price, :address]), status: :created
+      else
+        redirect_to @property, notice: 'Propiedad creada exitosamente'
+      end
     else
-      load_form_data
-      render :new, status: :unprocessable_entity
+      if request.xhr? || request.format.json?
+        render json: { errors: @property.errors.full_messages }, status: :unprocessable_entity
+      else
+        load_form_data
+        render :new, status: :unprocessable_entity
+      end
     end
   end
+
 
   def edit
     authorize @property

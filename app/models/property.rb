@@ -72,9 +72,19 @@ class Property < ApplicationRecord
 
   # ✅ MÉTODOS NUEVOS
   def full_address
-    [street, exterior_number, interior_number.presence, neighborhood, 
-    municipality, state, country].compact.join(', ')
+    # Generar dirección completa si tiene datos desglosados
+    if street.present? || exterior_number.present?
+      self.address = [
+        "#{street} #{exterior_number}".strip,
+        interior_number.presence,
+        neighborhood,
+        municipality,
+        state,
+        country
+      ].compact.join(', ')
+    end
   end
+
 
   def land_use_display
     case land_use
@@ -222,8 +232,7 @@ class Property < ApplicationRecord
     # Generar dirección completa si tiene datos desglosados
     if street.present? || exterior_number.present?
       self.address = [
-        street,
-        exterior_number,
+        "#{street} #{exterior_number}".strip,
         interior_number.presence,
         neighborhood,
         municipality

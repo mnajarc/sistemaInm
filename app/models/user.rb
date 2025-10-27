@@ -109,10 +109,14 @@ class User < ApplicationRecord
     puts "========================="
   end
   # ✅ AGREGAR MÉTODO DE CONVENIENCIA:
-  def client_record
-    client || Client.find_by(email: email)
+
+  def full_name
+    # Buscar Client asociado
+    client = Client.find_by(user_id: id) || Client.find_by(email: email)
+    
+    # Si existe, retornar nombre, si no, retornar email
+    client&.name || email
   end
-  
 
   # ✅ ATRIBUTO PARA TRACKEAR QUIÉN HACE EL CAMBIO
   attr_accessor :role_changer
