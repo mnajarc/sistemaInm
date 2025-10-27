@@ -48,6 +48,15 @@ class BusinessTransactionsController < BaseController
     end
 
     authorize @transaction
+    if @transaction.business_transaction_co_owners.empty? && @transaction.offering_client_id.present?
+    @transaction.business_transaction_co_owners.build(
+      client_id: @transaction.offering_client_id,
+      person_name: @transaction.offering_client&.display_name,
+      percentage: 100,
+      role: 'vendedor'
+    )
+    puts "✅ Auto-agregado offering_client como copropietario"
+  end
     assign_agents_by_role if respond_to?(:assign_agents_by_role, true)
 
     # ✅ AGREGAR ESTE BLOQUE:
