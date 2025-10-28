@@ -4,45 +4,42 @@ export default class extends Controller {
   static targets = ["container", "item", "totalPercentage", "remainingPercentage", "totalCount"]
 
   connect() {
+    console.log('✅ Co-owners controller conectado')
     this.updateSummary()
   }
 
-  togglePropertySection(event) {
-    const existingSection = document.getElementById('existing-property-section')
-    const newSection = document.getElementById('new-property-section')
-    
-    if (event.target.value === 'existing') {
-      existingSection.style.display = 'block'
-      newSection.style.display = 'none'
-    } else {
-      existingSection.style.display = 'none'
-      newSection.style.display = 'block'
-    }
+  updateCoOwnershipType(event) {
+    console.log('📌 Tipo de copropiedad cambiado:', event.target.value)
   }
 
-  addCoOwner() {
+  addCoOwner(event) {
+    if (event) event.preventDefault()
+
+    if (this.itemTargets.length === 0) {
+      console.warn('⚠️ No hay template')
+      return
+    }
+
     const template = this.itemTargets[0].cloneNode(true)
-    
-    // Limpiar valores
-    template.querySelectorAll('input, select, textarea').forEach(input => {
+    template.querySelectorAll('input, select').forEach(input => {
       if (input.type === 'checkbox') {
         input.checked = false
       } else {
         input.value = ''
       }
     })
-    
-    // Actualizar IDs y nombres únicos
+
     const newIndex = this.itemTargets.length
-    template.querySelectorAll('[id]').forEach(element => {
-      element.id = element.id.replace(/\d+/, newIndex)
+    template.querySelectorAll('[id]').forEach(el => {
+      el.id = el.id.replace(/\d+/, newIndex)
     })
-    
+
     this.containerTarget.appendChild(template)
     this.updateSummary()
   }
 
   removeCoOwner(event) {
+    event.preventDefault()
     if (this.itemTargets.length > 1) {
       event.target.closest('.co-owner-item').remove()
       this.updateSummary()
@@ -54,104 +51,51 @@ export default class extends Controller {
   }
 
   updateSummary() {
-    const items = this.itemTargets
-    let totalPercentage = 0
-    
-    items.forEach(item => {
-      const percentageInput = item.querySelector('input[name*="percentage"]')
-      if (percentageInput && percentageInput.value) {
-        totalPercentage += parseFloat(percentageInput.value)
+    let total = 0
+    this.itemTargets.forEach(item => {
+      const input = item.querySelector('input[name*="percentage"]')
+      if (input && input.value) {
+        total += parseFloat(input.value)
       }
     })
-    
+
     if (this.hasTotalPercentageTarget) {
-      this.totalPercentageTarget.textContent = `${totalPercentage.toFixed(2)}%`
+      this.totalPercentageTarget.textContent = `${total.toFixed(2)}%`
     }
     if (this.hasRemainingPercentageTarget) {
-      this.remainingPercentageTarget.textContent = `${(100 - totalPercentage).toFixed(2)}%`
+      this.remainingPercentageTarget.textContent = `${(100 - total).toFixed(2)}%`
     }
     if (this.hasTotalCountTarget) {
-      this.totalCountTarget.textContent = items.length
+      this.totalCountTarget.textContent = this.itemTargets.length
     }
   }
 
-  autoSetup() {
-    const coOwnershipSelect = document.querySelector('select[name*="co_ownership_type_id"]')
-    const selectedOption = coOwnershipSelect.options[coOwnershipSelect.selectedIndex]
+  autoSetup(event) {
+    event.preventDefault()
+    const select = document.querySelector('select[name*="co_ownership_type_id"]')
     
-    if (!selectedOption.value) {
-      alert('Primero seleccione un tipo de copropiedad')
+    if (!select || !select.value) {
+      alert('⚠️ Seleccione un tipo de copropiedad')
       return
     }
-    
-    // Limpiar copropietarios existentes excepto el primero
-    const items = this.itemTargets
-    for (let i = items.length - 1; i > 0; i--) {
-      items[i].remove()
-    }
-    
-    // Configurar según tipo
-    const typeName = selectedOption.textContent.toLowerCase()
-    
-    if (typeName.includes('individual') || typeName.includes('único')) {
-      this.setupIndividual()
-    } else if (typeName.includes('mancomunado') || typeName.includes('matrimon')) {
-      this.setupMancomunados()
-    } else if (typeName.includes('herencia') || typeName.includes('heredero')) {
-      this.setupHerencia()
-    }
-    
+
+    const firstItem = this.itemTargets[0]
+    const pct = firstItem.querySelector('input[name*="percentage"]')
+    const role = firstItem.querySelector('select[name*="role"]')
+
+    if (pct) pct.value = '100'
+    if (role) role.value = 'propietario'
+
     this.updateSummary()
   }
 
-  setupIndividual() {
-    const firstItem = this.itemTargets[0]
-    const percentageInput = firstItem.querySelector('input[name*="percentage"]')
-    const roleSelect = firstItem.querySelector('select[name*="role"]')
-    
-    if (percentageInput) percentageInput.value = '100'
-    if (roleSelect) roleSelect.value = 'propietario'
-  }
-
-  setupMancomunados() {
-    // Primer copropietario
-    const firstItem = this.itemTargets[0]
-    const firstPercentage = firstItem.querySelector('input[name*="percentage"]')
-    const firstRole = firstItem.querySelector('select[name*="role"]')
-    
-    if (firstPercentage) firstPercentage.value = '50'
-    if (firstRole) firstRole.value = 'conyuge'
-    
-    // Agregar segundo copropietario
-    this.addCoOwner()
-    
-    const secondItem = this.itemTargets[1]
-    const secondPercentage = secondItem.querySelector('input[name*="percentage"]')
-    const secondRole = secondItem.querySelector('select[name*="role"]')
-    
-    if (secondPercentage) secondPercentage.value = '50'
-    if (secondRole) secondRole.value = 'conyuge'
-  }
-
-  setupHerencia() {
-    // Agregar segundo heredero
-    this.addCoOwner()
-    
-    // Configurar ambos como herederos
-    this.itemTargets.forEach(item => {
-      const roleSelect = item.querySelector('select[name*="role"]')
-      if (roleSelect) roleSelect.value = 'heredero'
-    })
-  }
-
   updateClientName(event) {
-    const clientSelect = event.target
-    const coOwnerItem = clientSelect.closest('.co-owner-item')
-    const nameInput = coOwnerItem.querySelector('input[name*="person_name"]')
-    
-    if (clientSelect.value && nameInput) {
-      const selectedText = clientSelect.options[clientSelect.selectedIndex].text
-      nameInput.value = selectedText
+    const select = event.target
+    const item = select.closest('.co-owner-item')
+    const nameInput = item.querySelector('input[name*="person_name"]')
+
+    if (select.value && nameInput) {
+      nameInput.value = select.options[select.selectedIndex].text
     }
   }
 }

@@ -1,4 +1,3 @@
-<!-- app/views/business_transactions/new.html.erb -->
 <div class="container-fluid">
   <div class="row">
     <div class="col-12">
@@ -11,11 +10,13 @@
         <%= link_to "← Volver", business_transactions_path, class: "btn btn-outline-secondary" %>
       </div>
 
-      <%= form_with model: @transaction, local: true, 
-                   class: "needs-validation", 
-                   novalidate: true, 
-                   data: { controller: "co-owners" } do |form| %>
+      <!-- FORM HTML PURO - SIN TURBO -->
+      <form action="<%= business_transactions_path %>" method="POST" class="needs-validation" novalidate data-turbo="false">
+        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <input type="hidden" name="utf8" value="✓">
         
+        <div data-controller="co-owners">
+
         <!-- SECCIÓN 1: DATOS BÁSICOS -->
         <div class="card mb-4">
           <div class="card-header bg-primary text-white">
@@ -24,25 +25,28 @@
           <div class="card-body">
             <div class="row">
               <div class="col-md-4">
-                <%= form.label :operation_type_id, "Tipo de Operación", class: "form-label required" %>
-                <%= form.select :operation_type_id, 
-                               options_from_collection_for_select(@operation_types, :id, :display_name), 
-                               { prompt: "Seleccione tipo de operación..." }, 
-                               { class: "form-select", required: true } %>
+                <label for="operation_type_id" class="form-label required">Tipo de Operación</label>
+                <select name="business_transaction[operation_type_id]" id="operation_type_id" class="form-select" required>
+                  <option value="">Seleccione tipo de operación...</option>
+                  <% @operation_types.each do |op| %>
+                    <option value="<%= op.id %>"><%= op.display_name %></option>
+                  <% end %>
+                </select>
               </div>
               <div class="col-md-4">
-                <%= form.label :start_date, "Fecha de Inicio", class: "form-label required" %>
-                <%= form.date_field :start_date, 
-                                   class: "form-control", 
-                                   value: Date.current, 
-                                   required: true %>
+                <label for="start_date" class="form-label required">Fecha de Inicio</label>
+                <input type="date" name="business_transaction[start_date]" id="start_date" class="form-control" value="<%= Date.current %>" required>
               </div>
               <div class="col-md-4">
-                <%= form.label :business_status_id, "Estado", class: "form-label" %>
-                <%= form.select :business_status_id, 
-                               options_from_collection_for_select(@business_statuses, :id, :display_name, 
-                                                                 @business_statuses.find_by(name: 'available')&.id), 
-                               {}, { class: "form-select" } %>
+                <label for="business_status_id" class="form-label">Estado</label>
+                <select name="business_transaction[business_status_id]" id="business_status_id" class="form-select">
+                  <option value="">Seleccione estado...</option>
+                  <% @business_statuses.each do |status| %>
+                    <option value="<%= status.id %>" <%= "selected" if status.name == 'available' %>>
+                      <%= status.display_name %>
+                    </option>
+                  <% end %>
+                </select>
               </div>
             </div>
           </div>
@@ -54,83 +58,18 @@
             <h5 class="mb-0"><i class="fas fa-home me-2"></i>2. Propiedad</h5>
           </div>
           <div class="card-body">
-            <!-- Toggle de propiedad -->
-            <div class="mb-4">
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="property_option" 
-                       value="existing" id="existing_property" checked 
-                       data-action="change->co-owners#togglePropertySection">
-                <label class="form-check-label" for="existing_property">
-                  <i class="fas fa-search me-1"></i> Seleccionar propiedad existente
-                </label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="property_option" 
-                       value="new" id="new_property"
-                       data-action="change->co-owners#togglePropertySection">
-                <label class="form-check-label" for="new_property">
-                  <i class="fas fa-plus me-1"></i> Crear nueva propiedad
-                </label>
-              </div>
+            <label for="property_id" class="form-label required">Seleccionar Propiedad</label>
+            <div class="input-group">
+              <select name="business_transaction[property_id]" id="property_id" class="form-select" required>
+                <option value="">Buscar por dirección...</option>
+                <% @properties.each do |prop| %>
+                  <option value="<%= prop.id %>"><%= prop.address %></option>
+                <% end %>
+              </select>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newPropertyModal">
+                <i class="bi bi-plus-circle"></i> Nueva
+              </button>
             </div>
-
-            <!-- Propiedad existente -->
-            <div id="existing-property-section">
-              <%= form.label :property_id, "Seleccionar Propiedad", class: "form-label required" %>
-              <div class="input-group">
-                <%= form.select :property_id, 
-                               options_from_collection_for_select(@properties, :id, :address), 
-                               { prompt: "Buscar por dirección..." },
-                               { class: "form-select" } %>
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
-                        data-bs-target="#newPropertyModal" title="Crear nueva propiedad">
-                  <i class="bi bi-plus-circle"></i> Nueva
-                </button>
-              </div>
-            </div>
-
-            <!-- Nueva propiedad -->
-            <div id="new-property-section" style="display: none;">
-              <%= form.fields_for :property, @transaction.build_property do |property_form| %>
-                <div class="row">
-                  <div class="col-md-8">
-                    <%= property_form.label :address, "Dirección", class: "form-label required" %>
-                    <%= property_form.text_area :address, 
-                                               placeholder: "Calle, número, colonia, ciudad, CP", 
-                                               class: "form-control", rows: 2, required: true %>
-                  </div>
-                  <div class="col-md-4">
-                    <%= property_form.label :property_type_id, "Tipo", class: "form-label required" %>
-                    <%= property_form.select :property_type_id, 
-                                           options_from_collection_for_select(@property_types, :id, :display_name),
-                                           { prompt: "Seleccione tipo..." },
-                                           { class: "form-select", required: true } %>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <div class="col-md-3">
-                    <%= property_form.label :built_area_m2, "Área Construida (m²)", class: "form-label" %>
-                    <%= property_form.number_field :built_area_m2, 
-                                                 class: "form-control", step: 0.01, min: 0 %>
-                  </div>
-                  <div class="col-md-3">
-                    <%= property_form.label :lot_area_m2, "Área Terreno (m²)", class: "form-label" %>
-                    <%= property_form.number_field :lot_area_m2, 
-                                                 class: "form-control", step: 0.01, min: 0 %>
-                  </div>
-                  <div class="col-md-3">
-                    <%= property_form.label :bedrooms, "Recámaras", class: "form-label" %>
-                    <%= property_form.number_field :bedrooms, class: "form-control", min: 0 %>
-                  </div>
-                  <div class="col-md-3">
-                    <%= property_form.label :bathrooms, "Baños", class: "form-label" %>
-                    <%= property_form.number_field :bathrooms, class: "form-control", min: 0 %>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-
-
           </div>
         </div>
 
@@ -143,14 +82,15 @@
             <div class="row">
               <!-- Cliente Ofertante -->
               <div class="col-md-6">
-                <%= form.label :offering_client_id, "Cliente Ofertante (Vendedor)", class: "form-label required" %>
+                <label for="offering_client_id" class="form-label required">Cliente Ofertante (Vendedor)</label>
                 <div class="input-group">
-                  <%= form.select :offering_client_id, 
-                                 options_from_collection_for_select(@clients || [], :id, :display_name), 
-                                 { prompt: "Seleccione cliente..." },
-                                 { class: "form-select", required: true } %>
-                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
-                          data-bs-target="#newClientModal" title="Crear nuevo cliente">
+                  <select name="business_transaction[offering_client_id]" id="offering_client_id" class="form-select" required>
+                    <option value="">Seleccione cliente...</option>
+                    <% @clients.each do |client| %>
+                      <option value="<%= client.id %>"><%= client.display_name %></option>
+                    <% end %>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newClientModal">
                     <i class="bi bi-plus-circle"></i> Nuevo
                   </button>
                 </div>
@@ -159,14 +99,15 @@
 
               <!-- Cliente Adquiriente -->
               <div class="col-md-6">
-                <%= form.label :acquiring_client_id, "Cliente Adquiriente (Comprador)", class: "form-label" %>
+                <label for="acquiring_client_id" class="form-label">Cliente Adquiriente (Comprador)</label>
                 <div class="input-group">
-                  <%= form.select :acquiring_client_id, 
-                                 options_from_collection_for_select(@clients || [], :id, :display_name), 
-                                 { prompt: "Seleccione cliente (opcional)..." },
-                                 { class: "form-select" } %>
-                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" 
-                          data-bs-target="#newClientModal" title="Crear nuevo cliente">
+                  <select name="business_transaction[acquiring_client_id]" id="acquiring_client_id" class="form-select">
+                    <option value="">Seleccione cliente (opcional)...</option>
+                    <% @clients.each do |client| %>
+                      <option value="<%= client.id %>"><%= client.display_name %></option>
+                    <% end %>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newClientModal">
                     <i class="bi bi-plus-circle"></i> Nuevo
                   </button>
                 </div>
@@ -182,26 +123,21 @@
             <h5 class="mb-0"><i class="fas fa-users me-2"></i>3. Propietarios/Copropietarios</h5>
           </div>
           <div class="card-body">
-            <!-- Tipo de copropiedad -->
             <div class="row mb-3">
               <div class="col-md-6">
-                <%= form.label :co_ownership_type_id, "Tipo de Copropiedad", class: "form-label required" %>
-                <%= form.select :co_ownership_type_id, 
-                               options_from_collection_for_select(@co_ownership_types, :id, :display_name),
-                               { prompt: "Seleccione tipo de copropiedad..." },
-                               { class: "form-select", 
-                                 required: true,
-                                 data: { action: "change->co-owners#updateCoOwnershipType" } } %>
+                <label for="co_ownership_type_id" class="form-label required">Tipo de Copropiedad</label>
+                <select name="business_transaction[co_ownership_type_id]" id="co_ownership_type_id" class="form-select" required data-action="change->co-owners#updateCoOwnershipType">
+                  <option value="">Seleccione tipo de copropiedad...</option>
+                  <% @co_ownership_types.each do |type| %>
+                    <option value="<%= type.id %>"><%= type.display_name %></option>
+                  <% end %>
+                </select>
               </div>
               <div class="col-md-6 d-flex align-items-end">
-                <button type="button" 
-                        class="btn btn-outline-success me-2" 
-                        data-action="click->co-owners#autoSetup">
+                <button type="button" class="btn btn-outline-success me-2" data-action="click->co-owners#autoSetup">
                   <i class="fas fa-magic me-1"></i> Setup Automático
                 </button>
-                <button type="button" 
-                        class="btn btn-outline-primary" 
-                        data-action="click->co-owners#addCoOwner">
+                <button type="button" class="btn btn-outline-primary" data-action="click->co-owners#addCoOwner">
                   <i class="fas fa-plus me-1"></i> Agregar
                 </button>
               </div>
@@ -209,9 +145,46 @@
 
             <!-- Lista de copropietarios -->
             <div id="co-owners-section" data-co-owners-target="container">
-              <%= form.fields_for :co_owners do |co_owner_form| %>
-                <%= render 'co_owner_fields', f: co_owner_form %>
-              <% end %>
+              <!-- Los co-owners se renderizan aquí -->
+              <div class="co-owner-item border rounded p-3 mb-3" data-co-owners-target="item">
+                <div class="row align-items-center">
+                  <div class="col-md-4">
+                    <label class="form-label">Cliente</label>
+                    <select name="business_transaction[business_transaction_co_owners_attributes][][client_id]" class="form-select">
+                      <option value="">Seleccionar cliente...</option>
+                      <% @clients.each do |client| %>
+                        <option value="<%= client.id %>"><%= client.display_name %></option>
+                      <% end %>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">O escribir nombre</label>
+                    <input type="text" name="business_transaction[business_transaction_co_owners_attributes][][person_name]" placeholder="Nombre completo" class="form-control">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Porcentaje</label>
+                    <div class="input-group">
+                      <input type="number" name="business_transaction[business_transaction_co_owners_attributes][][percentage]" class="form-control" step="0.01" min="0" max="100" value="100" data-action="input->co-owners#updatePercentages">
+                      <span class="input-group-text">%</span>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Rol</label>
+                    <select name="business_transaction[business_transaction_co_owners_attributes][][role]" class="form-select">
+                      <option value="propietario">Propietario</option>
+                      <option value="vendedor">Vendedor</option>
+                      <option value="conyuge">Cónyuge</option>
+                      <option value="heredero">Heredero</option>
+                    </select>
+                  </div>
+                  <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-danger btn-sm d-block" data-action="click->co-owners#removeCoOwner">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Info de porcentajes -->
@@ -242,24 +215,16 @@
           <div class="card-body">
             <div class="row">
               <div class="col-md-6">
-                <%= form.label :price, "Precio de Operación", class: "form-label required" %>
+                <label for="price" class="form-label required">Precio de Operación</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <%= form.number_field :price, 
-                                       class: "form-control", 
-                                       step: 0.01, 
-                                       min: 0,
-                                       required: true %>
+                  <input type="number" name="business_transaction[price]" id="price" class="form-control" step="0.01" min="0" required>
                 </div>
               </div>
               <div class="col-md-6">
-                <%= form.label :commission_percentage, "Comisión (%)", class: "form-label" %>
+                <label for="commission_percentage" class="form-label">Comisión (%)</label>
                 <div class="input-group">
-                  <%= form.number_field :commission_percentage, 
-                                       class: "form-control", 
-                                       step: 0.01, 
-                                       min: 0, 
-                                       max: 100 %>
+                  <input type="number" name="business_transaction[commission_percentage]" id="commission_percentage" class="form-control" step="0.01" min="0" max="100">
                   <span class="input-group-text">%</span>
                 </div>
               </div>
@@ -269,126 +234,136 @@
 
         <!-- Botones de acción -->
         <div class="d-flex justify-content-between mb-4">
-          <%= link_to "Cancelar", business_transactions_path, 
-                     class: "btn btn-secondary btn-lg" %>
-          
-          <%= form.submit "Crear Transacción", 
-                         class: "btn btn-primary btn-lg px-5" %>
+          <%= link_to "Cancelar", business_transactions_path, class: "btn btn-secondary btn-lg" %>
+          <button type="submit" class="btn btn-primary btn-lg px-5">Crear Transacción</button>
         </div>
-      <% end %>
 
+        </div> <!-- cierre data-controller -->
+      </form> <!-- cierre form HTML puro -->
 
       <!-- MODAL: Crear Nueva Propiedad -->
-      <div class="modal fade" id="newPropertyModal" tabindex="-1" aria-labelledby="newPropertyLabel" aria-hidden="true">
+      <div class="modal fade" id="newPropertyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="newPropertyLabel">
-                <i class="bi bi-house-add"></i> Crear Nueva Propiedad
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+              <h5 class="modal-title"><i class="bi bi-house-add"></i> Crear Nueva Propiedad</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-              <%= form_with model: Property.new, local: true, id: 'newPropertyForm' do |f| %>
+              <form id="newPropertyForm">
                 <div class="mb-3">
-                  <%= f.label :title, "Título", class: "form-label" %>
-                  <%= f.text_field :title, class: "form-control", placeholder: "Ej: Casa moderna" %>
+                  <label for="prop_title" class="form-label">Título</label>
+                  <input type="text" id="prop_title" class="form-control" placeholder="Ej: Casa moderna">
                 </div>
-
                 <div class="mb-3">
-                  <%= f.label :property_type_id, "Tipo de Propiedad", class: "form-label" %>
-                  <%= f.collection_select :property_type_id, PropertyType.active.order(:sort_order), :id, :display_name,
-                      { prompt: 'Selecciona tipo' }, { class: "form-select" } %>
+                  <label for="prop_type" class="form-label">Tipo de Propiedad</label>
+                  <select id="prop_type" class="form-select">
+                    <option value="">Selecciona tipo</option>
+                    <% @property_types.each do |type| %>
+                      <option value="<%= type.id %>"><%= type.display_name %></option>
+                    <% end %>
+                  </select>
                 </div>
-
                 <div class="mb-3">
-                  <%= f.label :description, "Descripción", class: "form-label" %>
-                  <%= f.text_area :description, class: "form-control", rows: 3 %>
+                  <label for="prop_description" class="form-label">Descripción</label>
+                  <textarea id="prop_description" class="form-control" rows="3"></textarea>
                 </div>
-
                 <div class="row">
                   <div class="col-md-6">
-                    <%= f.label :price, "Precio", class: "form-label" %>
-                    <div class="input-group">
-                      <span class="input-group-text">$</span>
-                      <%= f.number_field :price, class: "form-control", step: 0.01, min: 0 %>
+                    <div class="mb-3">
+                      <label for="prop_price" class="form-label">Precio</label>
+                      <input type="number" id="prop_price" class="form-control" step="0.01" min="0">
                     </div>
                   </div>
                   <div class="col-md-6">
-                    <%= f.label :built_area_m2, "Área Construida (m²)", class: "form-label" %>
-                    <%= f.number_field :built_area_m2, class: "form-control", step: 0.01, min: 0 %>
+                    <div class="mb-3">
+                      <label for="prop_built" class="form-label">Área Construida (m²)</label>
+                      <input type="number" id="prop_built" class="form-control" step="0.01" min="0">
+                    </div>
                   </div>
                 </div>
-
-                <div class="row mt-3">
+                <div class="row">
                   <div class="col-md-6">
-                    <%= f.label :lot_area_m2, "Área Terreno (m²)", class: "form-label" %>
-                    <%= f.number_field :lot_area_m2, class: "form-control", step: 0.01, min: 0 %>
+                    <div class="mb-3">
+                      <label for="prop_lot" class="form-label">Área Terreno (m²)</label>
+                      <input type="number" id="prop_lot" class="form-control" step="0.01" min="0">
+                    </div>
                   </div>
                   <div class="col-md-3">
-                    <%= f.label :bedrooms, "Recámaras", class: "form-label" %>
-                    <%= f.number_field :bedrooms, class: "form-control", min: 0 %>
+                    <div class="mb-3">
+                      <label for="prop_beds" class="form-label">Recámaras</label>
+                      <input type="number" id="prop_beds" class="form-control" min="0">
+                    </div>
                   </div>
                   <div class="col-md-3">
-                    <%= f.label :bathrooms, "Baños", class: "form-label" %>
-                    <%= f.number_field :bathrooms, class: "form-control", min: 0 %>
+                    <div class="mb-3">
+                      <label for="prop_baths" class="form-label">Baños</label>
+                      <input type="number" id="prop_baths" class="form-control" min="0">
+                    </div>
                   </div>
                 </div>
-
                 <hr>
-
                 <div class="row">
                   <div class="col-md-4">
-                    <%= f.label :street, "Calle", class: "form-label" %>
-                    <%= f.text_field :street, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_street" class="form-label">Calle</label>
+                      <input type="text" id="prop_street" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-2">
-                    <%= f.label :exterior_number, "No. Ext", class: "form-label" %>
-                    <%= f.text_field :exterior_number, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_ext" class="form-label">No. Ext</label>
+                      <input type="text" id="prop_ext" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-2">
-                    <%= f.label :interior_number, "No. Int", class: "form-label" %>
-                    <%= f.text_field :interior_number, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_int" class="form-label">No. Int</label>
+                      <input type="text" id="prop_int" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-4">
-                    <%= f.label :postal_code, "CP", class: "form-label" %>
-                    <%= f.text_field :postal_code, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_cp" class="form-label">CP</label>
+                      <input type="text" id="prop_cp" class="form-control">
+                    </div>
                   </div>
                 </div>
-
-                <div class="row mt-3">
+                <div class="row">
                   <div class="col-md-4">
-                    <%= f.label :neighborhood, "Colonia", class: "form-label" %>
-                    <%= f.text_field :neighborhood, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_neighborhood" class="form-label">Colonia</label>
+                      <input type="text" id="prop_neighborhood" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-4">
-                    <%= f.label :municipality, "Municipio", class: "form-label" %>
-                    <%= f.text_field :municipality, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_municipality" class="form-label">Municipio</label>
+                      <input type="text" id="prop_municipality" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-4">
-                    <%= f.label :state, "Estado", class: "form-label" %>
-                    <%= f.text_field :state, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_state" class="form-label">Estado</label>
+                      <input type="text" id="prop_state" class="form-control">
+                    </div>
                   </div>
                 </div>
-
-                <div class="row mt-3">
+                <div class="row">
                   <div class="col-md-6">
-                    <%= f.label :city, "Ciudad", class: "form-label" %>
-                    <%= f.text_field :city, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_city" class="form-label">Ciudad</label>
+                      <input type="text" id="prop_city" class="form-control">
+                    </div>
                   </div>
                   <div class="col-md-6">
-                    <%= f.label :country, "País", class: "form-label" %>
-                    <%= f.text_field :country, class: "form-control" %>
+                    <div class="mb-3">
+                      <label for="prop_country" class="form-label">País</label>
+                      <input type="text" id="prop_country" class="form-control">
+                    </div>
                   </div>
                 </div>
-
-                <div class="alert alert-info mt-4">
-                  <small>
-                    <i class="bi bi-info-circle"></i>
-                    Se asignará automáticamente a ti como propietario/agente responsable.
-                  </small>
-                </div>
-              <% end %>
+              </form>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -400,266 +375,134 @@
         </div>
       </div>
 
-      <!-- ============================================ -->
       <!-- MODAL: Crear Nuevo Cliente -->
-      <!-- ============================================ -->
-      <div class="modal fade" id="newClientModal" tabindex="-1" aria-labelledby="newClientLabel" aria-hidden="true">
+      <div class="modal fade" id="newClientModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-md">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="newClientLabel">
-                <i class="bi bi-person-plus"></i> Crear Nuevo Cliente
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <h5 class="modal-title"><i class="bi bi-person-plus"></i> Crear Nuevo Cliente</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-              <%= form_with model: Client.new, local: true, id: 'newClientForm' do |f| %>
-                <!-- Nombre Completo -->
+              <form id="newClientForm">
                 <div class="mb-3">
-                  <%= f.label :name, "Nombre Completo", class: "form-label" %>
-                  <%= f.text_field :name, class: "form-control", placeholder: "Juan Pérez García", required: true %>
-                  <small class="text-muted">Nombre completo del cliente</small>
+                  <label for="client_name" class="form-label">Nombre Completo</label>
+                  <input type="text" id="client_name" class="form-control" placeholder="Juan Pérez García" required>
                 </div>
-
-                <!-- Email -->
                 <div class="mb-3">
-                  <%= f.label :email, "Email", class: "form-label" %>
-                  <%= f.email_field :email, class: "form-control", placeholder: "cliente@email.com", required: true %>
-                  <small class="text-muted">Email único del cliente</small>
+                  <label for="client_email" class="form-label">Email</label>
+                  <input type="email" id="client_email" class="form-control" placeholder="cliente@email.com" required>
                 </div>
-
-                <!-- Teléfono -->
                 <div class="mb-3">
-                  <%= f.label :phone, "Teléfono", class: "form-label" %>
-                  <%= f.telephone_field :phone, class: "form-control", placeholder: "+52 5512345678" %>
-                  <small class="text-muted">Teléfono de contacto</small>
+                  <label for="client_phone" class="form-label">Teléfono</label>
+                  <input type="tel" id="client_phone" class="form-control" placeholder="+52 5512345678">
                 </div>
-
-                <!-- Domicilio -->
                 <div class="mb-3">
-                  <%= f.label :address, "Domicilio", class: "form-label" %>
-                  <%= f.text_field :address, class: "form-control", placeholder: "Calle Principal 123, Apartamento 4B" %>
-                  <small class="text-muted">Domicilio del cliente</small>
+                  <label for="client_address" class="form-label">Domicilio</label>
+                  <input type="text" id="client_address" class="form-control" placeholder="Calle Principal 123">
                 </div>
-
-                <!-- Estado Activo -->
                 <div class="mb-3">
-                  <div class="form-check">
-                    <%= f.check_box :active, { checked: true, class: "form-check-input" } %>
-                    <%= f.label :active, "Cliente Activo", class: "form-check-label" %>
-                  </div>
-                  <small class="text-muted">Marca si el cliente está activo en el sistema</small>
+                  <input type="checkbox" id="client_active" class="form-check-input" checked>
+                  <label for="client_active" class="form-check-label">Cliente Activo</label>
                 </div>
-
-                <div class="alert alert-info alert-dismissible fade show">
-                  <i class="bi bi-info-circle me-2"></i>
-                  <small>El cliente se creará como entidad externa. Podrá acceder al sistema si se le asigna un usuario posteriormente.</small>
-                </div>
-              <% end %>
+              </form>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
               <button type="button" class="btn btn-primary" id="saveClientBtn">
-                <i class="bi bi-check me-2"></i>Crear Cliente
+                <i class="bi bi-check"></i> Crear Cliente
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- JAVASCRIPT PARA LOS MODALES -->
+      <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ Script de modales cargado - FORM HTML PURO');
 
+        // GUARDAR NUEVA PROPIEDAD
+        document.getElementById('savePropertyBtn')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.append('property[title]', document.getElementById('prop_title').value);
+          formData.append('property[property_type_id]', document.getElementById('prop_type').value);
+          formData.append('property[description]', document.getElementById('prop_description').value);
+          formData.append('property[price]', document.getElementById('prop_price').value);
+          formData.append('property[built_area_m2]', document.getElementById('prop_built').value);
+          formData.append('property[lot_area_m2]', document.getElementById('prop_lot').value);
+          formData.append('property[bedrooms]', document.getElementById('prop_beds').value);
+          formData.append('property[bathrooms]', document.getElementById('prop_baths').value);
+          formData.append('property[street]', document.getElementById('prop_street').value);
+          formData.append('property[exterior_number]', document.getElementById('prop_ext').value);
+          formData.append('property[interior_number]', document.getElementById('prop_int').value);
+          formData.append('property[postal_code]', document.getElementById('prop_cp').value);
+          formData.append('property[neighborhood]', document.getElementById('prop_neighborhood').value);
+          formData.append('property[municipality]', document.getElementById('prop_municipality').value);
+          formData.append('property[state]', document.getElementById('prop_state').value);
+          formData.append('property[city]', document.getElementById('prop_city').value);
+          formData.append('property[country]', document.getElementById('prop_country').value);
 
-<!-- ============================================ -->
-<!-- JAVASCRIPT: Manejo de Modales COMPLETO -->
-<!-- ============================================ -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('✅ Script de modales cargado');
-  
-  // ========== VALIDAR CAMPOS REQUIRED OCULTOS ==========
-  const existingRadio = document.getElementById('existing_property');
-  const newRadio = document.getElementById('new_property');
-  const newPropertySection = document.getElementById('new-property-section');
-  const requiredFields = newPropertySection.querySelectorAll('[required]');
+          fetch('<%= properties_path %>', {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json'
+            },
+            body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.id) {
+              const select = document.getElementById('property_id');
+              const option = new Option(data.title || data.address, data.id, true, true);
+              select.add(option);
+              bootstrap.Modal.getInstance(document.getElementById('newPropertyModal')).hide();
+              document.getElementById('newPropertyForm').reset();
+              alert('✅ Propiedad creada');
+            } else {
+              alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
+            }
+          })
+          .catch(e => alert('❌ Error de conexión'));
+        });
 
-  function updateRequiredFields() {
-    requiredFields.forEach(field => {
-      if (newPropertySection.style.display === 'none') {
-        field.removeAttribute('required');
-      } else {
-        field.setAttribute('required', 'required');
-      }
-    });
-  }
+        // GUARDAR NUEVO CLIENTE
+        document.getElementById('saveClientBtn')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.append('client[name]', document.getElementById('client_name').value);
+          formData.append('client[email]', document.getElementById('client_email').value);
+          formData.append('client[phone]', document.getElementById('client_phone').value);
+          formData.append('client[address]', document.getElementById('client_address').value);
+          formData.append('client[active]', document.getElementById('client_active').checked);
 
-  existingRadio.addEventListener('change', updateRequiredFields);
-  newRadio.addEventListener('change', updateRequiredFields);
-  updateRequiredFields(); // Inicial
-
-  // ========== GUARDAR NUEVA PROPIEDAD ==========
-  const savePropertyBtn = document.getElementById('savePropertyBtn');
-  if (savePropertyBtn) {
-    savePropertyBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      const form = document.getElementById('newPropertyForm');
-      if (!form) {
-        console.error('❌ Form newPropertyForm no encontrado');
-        return;
-      }
-      
-      const formData = new FormData(form);
-      console.log('📤 Enviando propiedad...');
-      
-      fetch('<%= properties_path %>', {
-        method: 'POST',
-        headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
-          'Accept': 'application/json'
-        },
-        body: formData
-      })
-      .then(response => {
-        console.log('📥 Response status:', response.status);
-        return response.json();
-      })
-      .then(data => {
-        console.log('✅ Data recibida:', data);
-        
-        if (data.id) {
-          // Agregar a select de propiedad
-          const select = document.querySelector('select[name="business_transaction[property_id]"]');
-          if (select) {
-            const option = new Option(data.title || data.address, data.id, true, true);
-            select.add(option);
-            select.value = data.id;
-            console.log('✅ Propiedad agregada al select');
-          }
-          
-          // Cerrar modal
-          try {
-            const modalElement = document.getElementById('newPropertyModal');
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) modal.hide();
-            console.log('✅ Modal cerrado');
-          } catch (e) {
-            console.warn('⚠️ Error cerrando modal:', e);
-          }
-          
-          // Limpiar form
-          form.reset();
-          
-          // Mensaje de éxito
-          alert('✅ Propiedad creada exitosamente');
-        } else {
-          const errorMsg = data.errors ? data.errors.join(', ') : 'Error desconocido';
-          console.error('❌ Error:', errorMsg);
-          alert('❌ Error al crear propiedad: ' + errorMsg);
-        }
-      })
-      .catch(error => {
-        console.error('❌ Error de red:', error);
-        alert('❌ Error de conexión al crear propiedad');
+          fetch('<%= clients_path %>', {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json'
+            },
+            body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.id) {
+              const name = data.display_name || data.name;
+              document.getElementById('offering_client_id').add(new Option(name, data.id, true, true));
+              document.getElementById('acquiring_client_id').add(new Option(name, data.id));
+              bootstrap.Modal.getInstance(document.getElementById('newClientModal')).hide();
+              document.getElementById('newClientForm').reset();
+              alert('✅ Cliente creado');
+            } else {
+              alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
+            }
+          })
+          .catch(e => alert('❌ Error de conexión'));
+        });
       });
-    });
-  } else {
-    console.warn('⚠️ Botón savePropertyBtn no encontrado');
-  }
-
-  // ========== GUARDAR NUEVO CLIENTE ==========
-  const saveClientBtn = document.getElementById('saveClientBtn');
-  if (saveClientBtn) {
-    saveClientBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      const form = document.getElementById('newClientForm');
-      if (!form) {
-        console.error('❌ Form newClientForm no encontrado');
-        return;
-      }
-      
-      const formData = new FormData(form);
-      console.log('📤 Enviando cliente...');
-      
-      fetch('<%= clients_path %>', {
-        method: 'POST',
-        headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
-          'Accept': 'application/json'
-        },
-        body: formData
-      })
-      .then(response => {
-        console.log('📥 Response status:', response.status);
-        return response.json();
-      })
-      .then(data => {
-        console.log('✅ Data recibida:', data);
-        
-        if (data.id) {
-          // Obtener ambos selects de cliente
-          const offeringSelect = document.querySelector('select[name="business_transaction[offering_client_id]"]');
-          const acquiringSelect = document.querySelector('select[name="business_transaction[acquiring_client_id]"]');
-          
-          // Agregar a Ofertante
-          if (offeringSelect) {
-            const option1 = new Option(data.display_name || data.name, data.id, true, true);
-            offeringSelect.add(option1);
-            offeringSelect.value = data.id;
-            console.log('✅ Cliente agregado a Ofertante');
-          }
-          
-          // Agregar a Adquiriente
-          if (acquiringSelect) {
-            const option2 = new Option(data.display_name || data.name, data.id);
-            acquiringSelect.add(option2);
-            console.log('✅ Cliente agregado a Adquiriente');
-          }
-
-          // Agregar a TODOS los selects de copropietarios
-          const coOwnerSelects = document.querySelectorAll('select[name*="[co_owners_attributes]"][name*="[client_id]"]');
-          coOwnerSelects.forEach((select, index) => {
-            const option = new Option(data.display_name || data.name, data.id);
-            select.add(option);
-            console.log(`✅ Cliente agregado a co-propietario ${index + 1}`);
-          });
-          
-          // Cerrar modal
-          try {
-            const modalElement = document.getElementById('newClientModal');
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) modal.hide();
-            console.log('✅ Modal cerrado');
-          } catch (e) {
-            console.warn('⚠️ Error cerrando modal:', e);
-          }
-          
-          // Limpiar form
-          form.reset();
-          
-          // Mensaje de éxito
-          alert('✅ Cliente creado exitosamente');
-        } else {
-          const errorMsg = data.errors ? data.errors.join(', ') : 'Error desconocido';
-          console.error('❌ Error:', errorMsg);
-          alert('❌ Error al crear cliente: ' + errorMsg);
-        }
-      })
-      .catch(error => {
-        console.error('❌ Error de red:', error);
-        alert('❌ Error de conexión al crear cliente');
-      });
-    });
-  } else {
-    console.warn('⚠️ Botón saveClientBtn no encontrado');
-  }
-});
-</script>
-
-
-    
-
-
+      </script>
 
     </div>
   </div>
