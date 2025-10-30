@@ -22,7 +22,7 @@ class Admin::BusinessStatusesController < Admin::BaseController
     if @business_status.save
       redirect_to admin_business_statuses_path, notice: "Estado de negocio creado exitosamente"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -36,7 +36,7 @@ class Admin::BusinessStatusesController < Admin::BaseController
     if @business_status.update(business_status_params)
       redirect_to admin_business_statuses_path, notice: "Estado actualizado exitosamente"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

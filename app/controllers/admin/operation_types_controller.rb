@@ -22,7 +22,7 @@ class Admin::OperationTypesController < Admin::BaseController
     if @operation_type.save
       redirect_to admin_operation_types_path, notice: "Tipo de operación creado exitosamente"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -36,7 +36,7 @@ class Admin::OperationTypesController < Admin::BaseController
     if @operation_type.update(operation_type_params)
       redirect_to admin_operation_types_path, notice: "Tipo actualizado exitosamente"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

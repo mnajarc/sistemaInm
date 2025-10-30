@@ -45,7 +45,7 @@ class BusinessTransactionsController < ApplicationController
     else
       puts "❌ ERRORES: #{@transaction.errors.full_messages.inspect}"
       load_form_data
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -68,7 +68,7 @@ class BusinessTransactionsController < ApplicationController
       redirect_to @transaction, notice: "Transacción actualizada exitosamente"
     else
       load_form_data
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

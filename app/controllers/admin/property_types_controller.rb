@@ -22,7 +22,7 @@ class Admin::PropertyTypesController < Admin::BaseController
     if @property_type.save
       redirect_to admin_property_types_path, notice: "Tipo de propiedad creado exitosamente"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -36,7 +36,7 @@ class Admin::PropertyTypesController < Admin::BaseController
     if @property_type.update(property_type_params)
       redirect_to admin_property_types_path, notice: "Tipo actualizado exitosamente"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

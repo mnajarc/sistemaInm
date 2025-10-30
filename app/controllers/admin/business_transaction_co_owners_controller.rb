@@ -30,7 +30,7 @@ class Admin::BusinessTransactionCoOwnersController < Admin::BaseController
                   notice: 'Copropietario agregado exitosamente'
     else
       load_form_data
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -47,7 +47,7 @@ class Admin::BusinessTransactionCoOwnersController < Admin::BaseController
                   notice: 'Copropietario actualizado exitosamente'
     else
       load_form_data
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

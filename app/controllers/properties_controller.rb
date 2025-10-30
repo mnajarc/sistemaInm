@@ -36,10 +36,10 @@ class PropertiesController < ApplicationController
       end
     else
       if request.xhr? || request.format.json?
-        render json: { errors: @property.errors.full_messages }, status: :unprocessable_entity
+        render json: { errors: @property.errors.full_messages }, status: :unprocessable_content
       else
         load_form_data
-        render :new, status: :unprocessable_entity
+        render :new, status: :unprocessable_content
       end
     end
   end

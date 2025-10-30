@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_22_171421) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_29_160824) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -428,6 +428,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_171421) do
     t.index ["active"], name: "index_identification_types_on_active"
     t.index ["name"], name: "index_identification_types_on_name", unique: true
     t.index ["sort_order"], name: "index_identification_types_on_sort_order"
+  end
+
+  create_table "instance_config", force: :cascade do |t|
+    t.string "app_name", default: "inmobInteligeria"
+    t.string "app_logo"
+    t.string "app_primary_color", default: "#007bff"
+    t.string "app_favicon"
+    t.string "app_tagline"
+    t.string "instance_name"
+    t.string "organization_name"
+    t.boolean "allow_external_access", default: false
+    t.string "admin_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["instance_name"], name: "index_instance_config_on_instance_name", unique: true
   end
 
   create_table "legal_acts", force: :cascade do |t|

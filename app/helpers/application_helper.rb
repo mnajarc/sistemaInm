@@ -1,4 +1,23 @@
 module ApplicationHelper
+  def system_name
+    InstanceConfig.current.app_name.presence || "Sistema Inmobiliario"
+  end
+
+  def app_name
+    InstanceConfig.current.app_name
+  end
+
+  def app_logo
+    InstanceConfig.current.app_logo
+  end
+
+  def organization_name
+    InstanceConfig.current.organization_name
+  end
+  
+  def instance_private?
+    !InstanceConfig.current.allow_external_access
+  end
   # ============================================================================
   # HELPERS PARA ÁREAS ADMINISTRATIVAS
   # ============================================================================

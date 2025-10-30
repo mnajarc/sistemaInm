@@ -29,7 +29,7 @@ class Superadmin::MenuItemsController < Superadmin::BaseController
       redirect_to superadmin_menu_items_path,
                  notice: "Menú '#{@menu_item.display_name}' creado exitosamente"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -46,7 +46,7 @@ class Superadmin::MenuItemsController < Superadmin::BaseController
       redirect_to superadmin_menu_items_path,
                  notice: "Menú '#{@menu_item.display_name}' actualizado exitosamente"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

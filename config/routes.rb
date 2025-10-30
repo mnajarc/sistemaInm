@@ -28,6 +28,8 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    get 'instance-settings/edit', to: 'instance_settings#edit'
+    patch 'instance-settings', to: 'instance_settings#update'
     resources :co_ownership_types
     resources :co_ownership_roles
     resources :property_types

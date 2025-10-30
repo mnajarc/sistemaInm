@@ -23,9 +23,9 @@ class ClientsController < ApplicationController
       end
     else
       if request.xhr? || request.format.json?
-        render json: { errors: @client.errors.full_messages }, status: :unprocessable_entity
+        render json: { errors: @client.errors.full_messages }, status: :unprocessable_content
       else
-        render :new, status: :unprocessable_entity
+        render :new, status: :unprocessable_content
       end
     end
   end
