@@ -1,5 +1,6 @@
 # app/models/business_status.rb
 class BusinessStatus < ApplicationRecord
+     include AutoSluggable
   has_many :business_transactions
   
   validates :name, presence: true, uniqueness: true

@@ -140,7 +140,7 @@ class BusinessTransactionsController < ApplicationController
     params.require(:business_transaction).permit(
       :operation_type_id, :business_status_id, :start_date, :property_id,
       :offering_client_id, :acquiring_client_id, :co_ownership_type_id,
-      :price, :commission_percentage, :notes,
+      :price, :commission_percentage, :notes, :transaction_scenario_id,
       property_attributes: [
         :address, :property_type_id, :built_area_m2, :lot_area_m2,
         :bedrooms, :bathrooms, :street, :exterior_number, :interior_number,

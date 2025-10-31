@@ -1,4 +1,5 @@
 class PropertyStatus < ApplicationRecord
+     include AutoSluggable
   has_many :properties
 
   validates :name, presence: true, uniqueness: true

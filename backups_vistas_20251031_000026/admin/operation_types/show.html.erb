@@ -1,0 +1,78 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-briefcase"></i>
+    <%= @operation_type.display_name %>
+  </h2>
+  <div>
+    <% if policy(@operation_type).edit? %>
+      <%= link_to edit_admin_operation_type_path(@operation_type), class: "btn btn-primary" do %>
+        <i class="bi bi-pencil"></i> Editar
+      <% end %>
+    <% end %>
+    <%= link_to admin_operation_types_path, class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Información del Tipo</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Clave:</dt>
+          <dd class="col-sm-9"><code><%= @operation_type.name %></code></dd>
+          
+          <dt class="col-sm-3">Nombre Visible:</dt>
+          <dd class="col-sm-9"><%= @operation_type.display_name %></dd>
+          
+          <dt class="col-sm-3">Descripción:</dt>
+          <dd class="col-sm-9">
+            <%= @operation_type.description.present? ? @operation_type.description : content_tag(:em, "Sin descripción", class: "text-muted") %>
+          </dd>
+          
+          <dt class="col-sm-3">Estado:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-<%= @operation_type.active? ? 'success' : 'danger' %>">
+              <i class="bi bi-<%= @operation_type.active? ? 'check-circle' : 'x-circle' %>"></i>
+              <%= @operation_type.active? ? 'Activo' : 'Inactivo' %>
+            </span>
+          </dd>
+          
+          <dt class="col-sm-3">Orden:</dt>
+          <dd class="col-sm-9"><%= @operation_type.sort_order %></dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+ 
+  
+  <div class="col-md-4">
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Estadísticas</h5>
+    </div>
+    <div class="card-body">
+      <div class="text-center">
+        <h3 class="text-primary mb-1">
+          <%= @operation_type.active_transactions_count %>
+        </h3>
+        <p class="text-muted mb-3">Transacciones activas</p>
+        
+        <h4 class="text-info mb-1">
+          <%= @operation_type.active_properties_count %>
+        </h4>
+        <p class="text-muted mb-3">Propiedades con esta operación</p>
+        
+        <% if @operation_type.business_transactions.any? %>
+          <%= link_to "#", class: "btn btn-outline-primary btn-sm" do %>
+            <i class="bi bi-list"></i> Ver Transacciones
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

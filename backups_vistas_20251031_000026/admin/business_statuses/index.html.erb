@@ -1,0 +1,130 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-flag"></i>
+    Estados de Negocio
+  </h2>
+  <% if policy(BusinessStatus).create? %>
+    <%= link_to new_admin_business_status_path, class: "btn btn-primary" do %>
+      <i class="bi bi-plus-circle"></i>
+      Nuevo Estado
+    <% end %>
+  <% end %>
+</div>
+
+<div class="card shadow">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <i class="bi bi-list"></i>
+      Listado de Estados de Negocio
+    </h5>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th width="80">Orden</th>
+          <th width="150">Clave</th>
+          <th>Nombre Visible</th>
+          <th width="100" class="text-center">Color</th>
+          <th width="100" class="text-center">Estado</th>
+          <th width="120" class="text-center">Transacciones</th>
+          <th width="200" class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if @business_statuses.any? %>
+          <% @business_statuses.each do |business_status| %>
+            <tr>
+              <td class="text-center">
+                <span class="badge bg-secondary">
+                  <%= business_status.sort_order %>
+                </span>
+              </td>
+              <td>
+                <code class="text-primary"><%= business_status.name %></code>
+              </td>
+              <td>
+                <%= link_to admin_business_status_path(business_status), class: "text-decoration-none" do %>
+                  <strong><%= business_status.display_name %></strong>
+                <% end %>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-<%= business_status.color %>">
+                  <%= business_status.color.capitalize %>
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-<%= business_status.active? ? 'success' : 'danger' %>">
+                  <i class="bi bi-<%= business_status.active? ? 'check-circle' : 'x-circle' %>"></i>
+                  <%= business_status.active? ? 'Activo' : 'Inactivo' %>
+                </span>
+              </td>
+              <td class="text-center">
+                <% transactions_count = business_status.business_transactions.count %>
+                <% if transactions_count > 0 %>
+                  <span class="badge bg-info">
+                    <i class="bi bi-graph-up"></i>
+                    <%= transactions_count %>
+                  </span>
+                <% else %>
+                  <span class="text-muted">0</span>
+                <% end %>
+              </td>
+              <td class="text-center">
+                <div class="btn-group" role="group">
+                  <%= link_to admin_business_status_path(business_status), 
+                      class: "btn btn-sm btn-outline-info",
+                      title: "Ver detalles" do %>
+                    <i class="bi bi-eye"></i>
+                  <% end %>
+                  
+                  <% if policy(business_status).edit? %>
+                    <%= link_to edit_admin_business_status_path(business_status), 
+                        class: "btn btn-sm btn-outline-primary",
+                        title: "Editar" do %>
+                      <i class="bi bi-pencil"></i>
+                    <% end %>
+                  <% end %>
+                  
+                  <% if policy(business_status).destroy? %>
+                    <% if transactions_count == 0 %>
+                      <%= link_to admin_business_status_path(business_status), 
+                          method: :delete,
+                          data: { 
+                            confirm: "¿Estás seguro de eliminar '#{business_status.display_name}'?" 
+                          },
+                          class: "btn btn-sm btn-outline-danger",
+                          title: "Eliminar" do %>
+                        <i class="bi bi-trash"></i>
+                      <% end %>
+                    <% else %>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              disabled 
+                              title="No se puede eliminar: tiene transacciones asociadas">
+                        <i class="bi bi-lock"></i>
+                      </button>
+                    <% end %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="7" class="text-center py-4">
+              <div class="text-muted">
+                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                <h5 class="mt-2">No hay estados registrados</h5>
+                <% if policy(BusinessStatus).create? %>
+                  <%= link_to "Crear Primer Estado", new_admin_business_status_path, 
+                      class: "btn btn-primary" %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

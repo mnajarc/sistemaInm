@@ -1,0 +1,12 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Editar Estado de Negocio</h2>
+  <%= link_to admin_business_statuses_path, class: "btn btn-outline-secondary" do %>
+    <i class="bi bi-arrow-left"></i> Volver
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <%= render 'form', business_status: @business_status %>
+  </div>
+</div>

@@ -10,6 +10,10 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :transaction_scenario, optional: true
   belongs_to :co_ownership_type, optional: true
 
+  after_create :assign_transaction_scenario_by_category
+  after_create :setup_required_documents
+
+
   has_many :document_submissions, dependent: :destroy
   has_many :agent_transfers, dependent: :destroy
   has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
@@ -27,7 +31,21 @@ class BusinessTransaction < ApplicationRecord
 
   scope :active, -> { joins(:business_status).where(business_statuses: { name: ["available", "reserved"] }) }
   scope :completed, -> { joins(:business_status).where(business_statuses: { name: ["sold", "rented"] }) }
+  
+  # Método unificado para obtener el agente responsable
+  def assigned_agent
+    current_agent || selling_agent || listing_agent
+  end
 
+  # Helper para email con fallback
+  def assigned_agent_email
+    assigned_agent&.email || 'sin-agente@sistemainm.local'
+  end
+
+  # Helper para nombre completo
+  def assigned_agent_name
+    assigned_agent&.full_name || assigned_agent&.email || 'Sin agente asignado'
+  end
 def audit_trail
   []  # Retorna array vacío por ahora
 end
@@ -70,6 +88,66 @@ end
   end
 
   private
+
+# ============================================================
+# CALLBACK 1: Asignar TransactionScenario automáticamente
+# ============================================================
+def assign_transaction_scenario_by_category
+  return if transaction_scenario.present?  # Si ya tiene scenario, no hacer nada
+  
+  # Determinar category basado en operation_type.name
+  category = determine_scenario_category
+  return unless category
+  
+  # Buscar scenario por categoría
+  scenario = TransactionScenario.find_by(category: category, active: true)
+  
+  if scenario
+    update_column(:transaction_scenario_id, scenario.id)
+    Rails.logger.info "✅ Scenario asignado automáticamente: #{scenario.name}"
+  else
+    Rails.logger.warn "⚠️  No se encontró scenario para categoría: #{category}"
+  end
+rescue StandardError => e
+  Rails.logger.error "❌ Error asignando scenario: #{e.message}"
+end
+
+
+# Determinar categoría del scenario basado en operation_type
+def determine_scenario_category
+  return nil unless operation_type.present?
+  
+  case operation_type.name
+  when 'sale'
+    'compraventa'
+  when 'rent'
+    # Detectar si es habitacional o comercial
+    if property&.property_type&.name.to_s.include?('apartment') || 
+       property&.property_type&.name.to_s.include?('house')
+      'renta_habitacional'
+    else
+      'renta_comercial'
+    end
+  else
+    nil
+  end
+end
+
+
+# ============================================================
+# CALLBACK 2: Crear DocumentSubmissions requeridos
+# ============================================================
+def setup_required_documents
+  return unless transaction_scenario.present?
+  
+  begin
+    service = DocumentSetupService.new(self)
+    service.setup_required_documents
+    Rails.logger.info "✅ Documentos requeridos creados automáticamente"
+  rescue StandardError => e
+    Rails.logger.error "❌ Error creando documentos: #{e.message}"
+  end
+end
 
   def must_have_co_owners
     active_co_owners = if new_record?

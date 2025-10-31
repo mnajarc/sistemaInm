@@ -1,5 +1,6 @@
 # app/models/property_type.rb
 class PropertyType < ApplicationRecord
+     include AutoSluggable
   has_many :properties
   
   validates :name, presence: true, uniqueness: true

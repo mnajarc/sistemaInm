@@ -141,7 +141,7 @@ class TransactionExportService
     extension = File.extname(submission.document_file.filename.to_s)
     
     # Usar ID como orden (corregido)
-    order = submission.document_type.id
+    order = submission.document_type.position
     
     "#{order.to_s.rjust(2, '0')}_#{doc_type}_#{date}#{extension}"
   end

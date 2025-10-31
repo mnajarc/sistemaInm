@@ -1,0 +1,35 @@
+<% if @config.errors.any? %>
+  <div class="alert alert-danger">
+    <ul>
+      <% @config.errors.full_messages.each do |msg| %>
+        <li><%= msg %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+<div class="container mt-4">
+  <h2>Configuración de la Instancia</h2>
+  <%= form_with model: @config, url: admin_instance_settings_path, method: :patch, local: true do |f| %>
+    <div class="mb-3">
+      <%= f.label :app_name, "Nombre de la Aplicación" %>
+      <%= f.text_field :app_name, class: "form-control" %>
+    </div>
+    <div class="mb-3">
+      <%= f.label :organization_name, "Nombre de la Compañía" %>
+      <%= f.text_field :organization_name, class: "form-control" %>
+    </div>
+    <div class="mb-3">
+      <%= f.label :app_logo, "Logo (URL o ruta relativa)" %>
+      <%= f.text_field :app_logo, class: "form-control" %>
+    </div>
+    <div class="mb-3">
+      <%= f.label :app_primary_color, "Color Primario" %>
+      <%= f.text_field :app_primary_color, class: "form-control" %>
+    </div>
+    <div class="mb-3">
+      <%= f.label :app_tagline, "Frase/Tagline" %>
+      <%= f.text_area :app_tagline, class: "form-control" %>
+    </div>
+    <%= f.submit "Guardar cambios", class: "btn btn-primary" %>
+  <% end %>
+</div>

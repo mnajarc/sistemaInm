@@ -1,0 +1,12 @@
+<h1>Regla de Vigencia para: <%= @rule.document_type.name %></h1>
+
+<ul class="list-group mb-3">
+  <li class="list-group-item"><strong>Meses Válidos:</strong> <%= @rule.validity_period_months %></li>
+  <li class="list-group-item"><strong>Vigencia:</strong>
+    <%= @rule.valid_from %> – <%= @rule.valid_until.presence || '∞' %>
+  </li>
+  <li class="list-group-item"><strong>Activo:</strong> <%= @rule.is_active ? 'Sí' : 'No' %></li>
+</ul>
+
+<%= link_to 'Editar', edit_admin_document_validity_rule_path(@rule), class: 'btn btn-primary me-2' %>
+<%= link_to 'Volver', admin_document_validity_rules_path, class: 'btn btn-secondary' %>

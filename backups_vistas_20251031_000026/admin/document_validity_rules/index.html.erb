@@ -1,0 +1,32 @@
+<h1>Reglas de Vigencia de Documentos</h1>
+<%= link_to 'Nueva Regla', new_admin_document_validity_rule_path, class: 'btn btn-primary mb-3' %>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Documento</th>
+      <th>Meses Válidos</th>
+      <th>Vigencia</th>
+      <th>Activo</th>
+      <th class="text-end">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @rules.each do |rule| %>
+      <tr>
+        <td><%= rule.document_type.name %></td>
+        <td><%= rule.validity_period_months %></td>
+        <td><%= rule.valid_from %> – <%= rule.valid_until.presence || '∞' %></td>
+        <td><%= rule.is_active ? 'Sí' : 'No' %></td>
+        <td class="text-end">
+          <%= link_to 'Ver', admin_document_validity_rule_path(rule), class: 'btn btn-sm btn-outline-primary' %>
+          <%= link_to 'Editar', edit_admin_document_validity_rule_path(rule), class: 'btn btn-sm btn-outline-secondary' %>
+          <%= link_to 'Eliminar', admin_document_validity_rule_path(rule),
+                      method: :delete,
+                      data: { confirm: '¿Eliminar esta regla?' },
+                      class: 'btn btn-sm btn-outline-danger' %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

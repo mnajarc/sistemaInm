@@ -1,0 +1,16 @@
+<h1>Tipo de Documento: <%= @document_type.name %></h1>
+
+<ul class="list-group mb-3">
+  <li class="list-group-item"><strong>Categoría:</strong> <%= @document_type.category %></li>
+  <li class="list-group-item"><strong>Descripción:</strong> <%= @document_type.description %></li>
+  <li class="list-group-item"><strong>Vigencia:</strong>
+    <%= @document_type.valid_from %> – <%= @document_type.valid_until.presence || '∞' %>
+  </li>
+  <li class="list-group-item"><strong>Activo:</strong> <%= @document_type.is_active ? 'Sí' : 'No' %></li>
+  <li class="list-group-item"><strong>Reemplaza a:</strong>
+    <%= @document_type.replacement_document&.name.presence || 'Ninguno' %>
+  </li>
+</ul>
+
+<%= link_to 'Editar', edit_admin_document_type_path(@document_type), class: 'btn btn-primary me-2' %>
+<%= link_to 'Volver', admin_document_types_path, class: 'btn btn-secondary' %>

@@ -1,4 +1,5 @@
 class CoOwnershipRole < ApplicationRecord
+     include AutoSluggable
   has_many :business_transaction_co_owners, 
            foreign_key: 'role_name', 
            primary_key: 'name'

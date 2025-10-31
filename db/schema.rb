@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_29_160824) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -378,12 +378,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_29_160824) do
     t.boolean "mandatory", default: false
     t.boolean "blocks_transaction", default: false
     t.string "display_name", null: false
+    t.integer "position", default: 0, null: false
     t.index ["applies_to_person_type"], name: "index_document_types_on_applies_to_person_type"
     t.index ["blocks_transaction"], name: "index_document_types_on_blocks_transaction"
     t.index ["display_name"], name: "index_document_types_on_display_name"
     t.index ["mandatory"], name: "index_document_types_on_mandatory"
     t.index ["metadata"], name: "index_document_types_on_metadata", using: :gin
     t.index ["name"], name: "index_document_types_on_name", unique: true
+    t.index ["position"], name: "index_document_types_on_position"
     t.index ["requirement_context"], name: "index_document_types_on_requirement_context"
     t.check_constraint "valid_until IS NULL OR valid_until > valid_from", name: "valid_until_after_valid_from"
   end
@@ -751,7 +753,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_29_160824) do
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "display_name"
     t.index ["category"], name: "index_transaction_scenarios_on_category"
+    t.index ["display_name"], name: "index_transaction_scenarios_on_display_name"
     t.index ["name"], name: "index_transaction_scenarios_on_name", unique: true
   end
 

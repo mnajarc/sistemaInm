@@ -1,4 +1,5 @@
 class CoOwnershipType < ApplicationRecord
+     include AutoSluggable
   # Relación con propiedades (si aplica)
   has_many :properties, dependent: :nullify
   has_many :business_transaction_co_owners, dependent: :destroy

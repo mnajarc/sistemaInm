@@ -1,0 +1,38 @@
+<h1>Requisitos de Documento</h1>
+<%= link_to 'Nuevo Requisito', new_admin_document_requirement_path, class: 'btn btn-primary mb-3' %>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Documento</th>
+      <th>Propiedad</th>
+      <th>Transacción</th>
+      <th>Cliente</th>
+      <th>Persona</th>
+      <th>Vigencia</th>
+      <th>Requerido</th>
+      <th class="text-end">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @requirements.each do |req| %>
+      <tr>
+        <td><%= req.document_type.name %></td>
+        <td><%= req.property_type %></td>
+        <td><%= req.transaction_type %></td>
+        <td><%= req.client_type %></td>
+        <td><%= req.person_type %></td>
+        <td><%= req.valid_from %> – <%= req.valid_until.presence || '∞' %></td>
+        <td><%= req.is_required ? 'Sí' : 'No' %></td>
+        <td class="text-end">
+          <%= link_to 'Ver', admin_document_requirement_path(req), class: 'btn btn-sm btn-outline-primary' %>
+          <%= link_to 'Editar', edit_admin_document_requirement_path(req), class: 'btn btn-sm btn-outline-secondary' %>
+          <%= link_to 'Eliminar', admin_document_requirement_path(req),
+                      method: :delete,
+                      data: { confirm: '¿Eliminar este requisito?' },
+                      class: 'btn btn-sm btn-outline-danger' %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

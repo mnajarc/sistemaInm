@@ -1,0 +1,74 @@
+<%= form_with model: [:admin, business_status], local: true, class: "needs-validation", novalidate: true do |form| %>
+    <% if business_status.errors.any? %>
+      <div class="alert alert-danger">
+        <h6><%= pluralize(business_status.errors.count, "error") %> impidieron guardar:</h6>
+        <ul class="mb-0">
+          <% business_status.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :name, "Clave del Sistema", class: "form-label" %>
+          <%= form.text_field :name, class: "form-control", placeholder: "ej: available, sold" %>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="mb-3">
+          <%= form.label :display_name, "Nombre Visible", class: "form-label" %>
+          <%= form.text_field :display_name, class: "form-control", placeholder: "ej: Disponible, Vendido" %>
+        </div>
+      </div>
+    </div>
+  
+    <div class="mb-3">
+      <%= form.label :description, "Descripción", class: "form-label" %>
+      <%= form.text_area :description, class: "form-control", rows: 3 %>
+    </div>
+  
+    <div class="row">
+      <div class="col-md-4">
+        <div class="mb-3">
+          <%= form.label :color, "Color", class: "form-label" %>
+          <%= form.select :color, 
+              [
+                ['Verde (Éxito)', 'success'],
+                ['Azul (Info)', 'info'],
+                ['Amarillo (Advertencia)', 'warning'],
+                ['Rojo (Peligro)', 'danger'],
+                ['Gris (Secundario)', 'secondary']
+              ],
+              { prompt: 'Selecciona color' },
+              { class: "form-select" } %>
+        </div>
+      </div>
+      
+      <div class="col-md-4">
+        <div class="mb-3">
+          <%= form.label :sort_order, "Orden", class: "form-label" %>
+          <%= form.number_field :sort_order, class: "form-control", min: 0 %>
+        </div>
+      </div>
+      
+      <div class="col-md-4">
+        <div class="mb-3">
+          <div class="form-check form-switch mt-4">
+            <%= form.check_box :active, class: "form-check-input" %>
+            <%= form.label :active, "Activo", class: "form-check-label" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="d-flex gap-2">
+      <%= form.submit business_status.persisted? ? "Actualizar Estado" : "Crear Estado", 
+          class: "btn btn-primary" %>
+      <%= link_to "Cancelar", admin_business_statuses_path, class: "btn btn-secondary" %>
+    </div>
+  <% end %>
+  

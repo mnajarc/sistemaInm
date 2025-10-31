@@ -1,0 +1,106 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-house"></i>
+    <%= @property_type.display_name %>
+  </h2>
+  <div>
+    <% if policy(@property_type).edit? %>
+      <%= link_to edit_admin_property_type_path(@property_type), class: "btn btn-primary" do %>
+        <i class="bi bi-pencil"></i> Editar
+      <% end %>
+    <% end %>
+    <%= link_to admin_property_types_path, class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Información del Tipo</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row">
+          <dt class="col-sm-3">Clave:</dt>
+          <dd class="col-sm-9"><code><%= @property_type.name %></code></dd>
+          
+          <dt class="col-sm-3">Nombre Visible:</dt>
+          <dd class="col-sm-9"><%= @property_type.display_name %></dd>
+          
+          <dt class="col-sm-3">Descripción:</dt>
+          <dd class="col-sm-9">
+            <%= @property_type.description.present? ? @property_type.description : content_tag(:em, "Sin descripción", class: "text-muted") %>
+          </dd>
+          
+          <dt class="col-sm-3">Estado:</dt>
+          <dd class="col-sm-9">
+            <span class="badge bg-<%= @property_type.active? ? 'success' : 'danger' %>">
+              <i class="bi bi-<%= @property_type.active? ? 'check-circle' : 'x-circle' %>"></i>
+              <%= @property_type.active? ? 'Activo' : 'Inactivo' %>
+            </span>
+          </dd>
+          
+          <dt class="col-sm-3">Orden:</dt>
+          <dd class="col-sm-9"><%= @property_type.sort_order %></dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Estadísticas</h5>
+      </div>
+      <div class="card-body">
+        <div class="text-center">
+          <h3 class="text-primary mb-1">
+            <%= @property_type.properties.count %>
+          </h3>
+          <p class="text-muted mb-3">Propiedades asociadas</p>
+          
+          <% if @property_type.properties.any? %>
+            <%= link_to properties_path(property_type: @property_type.name), 
+                class: "btn btn-outline-primary btn-sm" do %>
+              <i class="bi bi-list"></i> Ver Propiedades
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5 class="mb-0">Acciones</h5>
+      </div>
+      <div class="card-body">
+        <% if policy(@property_type).edit? %>
+          <%= link_to edit_admin_property_type_path(@property_type), 
+              class: "btn btn-primary w-100 mb-2" do %>
+            <i class="bi bi-pencil"></i> Editar Tipo
+          <% end %>
+        <% end %>
+        
+        <% if policy(@property_type).destroy? %>
+          <% if @property_type.properties.count == 0 %>
+            <%= link_to admin_property_type_path(@property_type), 
+                method: :delete,
+                data: { 
+                  confirm: "¿Estás seguro de eliminar '#{@property_type.display_name}'?\n\nEsta acción no se puede deshacer." 
+                },
+                class: "btn btn-outline-danger w-100" do %>
+              <i class="bi bi-trash"></i> Eliminar Tipo
+            <% end %>
+          <% else %>
+            <button class="btn btn-outline-secondary w-100" disabled>
+              <i class="bi bi-lock"></i> No se puede eliminar
+            </button>
+            <small class="text-muted">Tiene propiedades asociadas</small>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

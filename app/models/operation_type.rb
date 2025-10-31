@@ -1,5 +1,6 @@
  # app/models/operation_type.rb
 class OperationType < ApplicationRecord
+     include AutoSluggable
   has_many :business_transactions
   
   validates :name, presence: true, uniqueness: true

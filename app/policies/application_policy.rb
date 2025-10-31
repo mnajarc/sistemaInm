@@ -34,6 +34,15 @@ class ApplicationPolicy
     false
   end
 
+  def export_documents?
+    # Permite exportar a: admin, agentes, y al agente asignado
+    user.admin? || 
+    user.agent? || 
+    record.listing_agent == user || 
+    record.current_agent == user || 
+    record.selling_agent == user
+  end
+
   class Scope
     attr_reader :user, :relation
 

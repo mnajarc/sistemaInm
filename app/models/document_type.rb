@@ -1,5 +1,6 @@
 # app/models/document_type.rb
 class DocumentType < ApplicationRecord
+     include AutoSluggable
   belongs_to :replacement_document,
              class_name: 'DocumentType',
              optional: true,
@@ -36,6 +37,11 @@ class DocumentType < ApplicationRecord
   scope :blocking, -> { where(blocks_transaction: true) }
   scope :by_context, ->(context) { where(requirement_context: context) }
   scope :by_person_type, ->(type) { where(applies_to_person_type: type) }
+
+  scope :ordered, -> { order(:position, :name) }
+
+  # Validaciones
+  validates :position, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   # Métodos personalizados
   def display_name

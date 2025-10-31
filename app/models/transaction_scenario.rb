@@ -1,4 +1,5 @@
 class TransactionScenario < ApplicationRecord
+     include AutoSluggable
   has_many :scenario_documents
   has_many :document_types, through: :scenario_documents
   has_many :business_transactions

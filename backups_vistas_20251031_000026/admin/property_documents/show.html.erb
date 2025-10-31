@@ -1,0 +1,15 @@
+<h1>Documento Subido</h1>
+
+<ul class="list-group mb-3">
+  <li class="list-group-item"><strong>Propiedad:</strong>
+    <%= link_to @doc.property.title, property_path(@doc.property) %>
+  </li>
+  <li class="list-group-item"><strong>Documento:</strong> <%= @doc.document_type.name %></li>
+  <li class="list-group-item"><strong>Usuario:</strong> <%= @doc.user.email %></li>
+  <li class="list-group-item"><strong>Fecha emisión:</strong> <%= @doc.issued_at %></li>
+  <li class="list-group-item"><strong>Fecha expiración:</strong> <%= @doc.expires_at %></li>
+  <li class="list-group-item"><strong>Estado:</strong> <%= @doc.status %></li>
+  <li class="list-group-item"><strong>Notas:</strong> <%= simple_format(@doc.notes) %></li>
+</ul>
+
+<%= link_to 'Volver', admin_property_documents_path, class: 'btn btn-secondary' %>
