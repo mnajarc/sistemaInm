@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_19_043900) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_19_130410) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -490,6 +490,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_19_043900) do
     t.jsonb "acquisition_details", default: {}
     t.bigint "operation_type_id"
     t.bigint "contract_signer_type_id"
+    t.index "((acquisition_details ->> 'state'::text))", name: "idx_icf_state"
+    t.index "((general_conditions ->> 'owner_or_representative_name'::text))", name: "idx_icf_owner_name"
     t.index ["acquisition_details"], name: "index_initial_contact_forms_on_acquisition_details", using: :gin
     t.index ["agent_id", "created_at"], name: "index_initial_contact_forms_on_agent_id_and_created_at"
     t.index ["agent_id"], name: "index_initial_contact_forms_on_agent_id"
@@ -498,6 +500,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_19_043900) do
     t.index ["completed_at"], name: "index_initial_contact_forms_on_completed_at"
     t.index ["contract_signer_type_id"], name: "index_initial_contact_forms_on_contract_signer_type_id"
     t.index ["converted_at"], name: "index_initial_contact_forms_on_converted_at"
+    t.index ["current_status"], name: "index_initial_contact_forms_on_current_status", using: :gin
+    t.index ["general_conditions"], name: "index_initial_contact_forms_on_general_conditions", using: :gin
     t.index ["initial_contact_folio"], name: "index_initial_contact_forms_on_initial_contact_folio", unique: true
     t.index ["operation_type_id"], name: "index_initial_contact_forms_on_operation_type_id"
     t.index ["property_acquisition_method_id"], name: "index_initial_contact_forms_on_property_acquisition_method_id"

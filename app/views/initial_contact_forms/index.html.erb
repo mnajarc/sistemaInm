@@ -10,41 +10,154 @@
     <% end %>
   </div>
 
-  <!-- Filtros -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SECCIÓN DE FILTROS MEJORADA - REEMPLAZA TU CARD ACTUAL DE FILTROS -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  
   <div class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <i class="bi bi-funnel"></i> Filtros de Búsqueda
+      </h5>
+    </div>
     <div class="card-body">
-      <form method="get" class="row g-3">
-        <div class="col-md-3">
-          <label class="form-label">Estado</label>
-          <select name="status" class="form-select">
-            <option value="">Todos</option>
-            <option value="draft" <%= 'selected' if params[:status] == 'draft' %>>Borradores</option>
-            <option value="completed" <%= 'selected' if params[:status] == 'completed' %>>Completados</option>
-            <option value="converted" <%= 'selected' if params[:status] == 'converted' %>>Convertidos</option>
-          </select>
+      <%= form_with url: initial_contact_forms_path, method: :get, local: true do |f| %>
+        <div class="row g-3">
+          
+          <!-- ══════════════════════════════════════════════════════════ -->
+          <!-- FILA 1: Filtros principales -->
+          <!-- ══════════════════════════════════════════════════════════ -->
+          
+          <!-- Filtro por Agente (solo para admin/superadmin) -->
+          <% if current_user.superadmin? || current_user.admin? %>
+            <div class="col-md-3">
+              <%= label_tag :agent_id, "👤 Agente", class: "form-label" %>
+              <%= select_tag :agent_id, 
+                  options_from_collection_for_select(
+                    @agents || [], 
+                    :id, 
+                    ->(a) { a.user.name }, 
+                    params[:agent_id]
+                  ),
+                  include_blank: "Todos los agentes",
+                  class: "form-select" %>
+            </div>
+          <% end %>
+          
+          <!-- Filtro por Estado -->
+          <div class="col-md-3">
+            <%= label_tag :status, "📊 Estado", class: "form-label" %>
+            <%= select_tag :status, 
+                options_for_select([
+                  ["Borrador", "draft"],
+                  ["Completado", "completed"],
+                  ["Convertido", "converted"],
+                  ["Archivado", "archived"]
+                ], params[:status]),
+                include_blank: "Todos los estados",
+                class: "form-select" %>
+          </div>
+          
+          <!-- Filtro por Método de Adquisición -->
+          <div class="col-md-3">
+            <%= label_tag :acquisition_method_id, "📋 Método de Adquisición", class: "form-label" %>
+            <%= select_tag :acquisition_method_id,
+                options_from_collection_for_select(
+                  @acquisition_methods || [], 
+                  :id, 
+                  :name, 
+                  params[:acquisition_method_id]
+                ),
+                include_blank: "Todos los métodos",
+                class: "form-select" %>
+          </div>
+          
+          <!-- Filtro por Tipo de Operación -->
+          <div class="col-md-3">
+            <%= label_tag :operation_type_id, "🏠 Tipo de Operación", class: "form-label" %>
+            <%= select_tag :operation_type_id,
+                options_from_collection_for_select(
+                  @operation_types || [], 
+                  :id, 
+                  :name, 
+                  params[:operation_type_id]
+                ),
+                include_blank: "Todos los tipos",
+                class: "form-select" %>
+          </div>
+          
         </div>
         
-        <div class="col-md-3">
-          <label class="form-label">Periodo</label>
-          <select name="period" class="form-select">
-            <option value="">Todo</option>
-            <option value="today">Hoy</option>
-            <option value="week">Esta semana</option>
-            <option value="month">Este mes</option>
-          </select>
+        <div class="row g-3 mt-2">
+          
+          <!-- ══════════════════════════════════════════════════════════ -->
+          <!-- FILA 2: Búsquedas de texto -->
+          <!-- ══════════════════════════════════════════════════════════ -->
+          
+          <!-- Búsqueda por Nombre de Propietario -->
+          <div class="col-md-4">
+            <%= label_tag :owner_name, "🔍 Nombre del Propietario", class: "form-label" %>
+            <%= text_field_tag :owner_name, 
+                params[:owner_name], 
+                placeholder: "Buscar por nombre...",
+                class: "form-control" %>
+          </div>
+          
+          <!-- Búsqueda por Identificador -->
+          <div class="col-md-4">
+            <%= label_tag :property_identifier, "🏷️ Identificador de Propiedad", class: "form-label" %>
+            <%= text_field_tag :property_identifier, 
+                params[:property_identifier],
+                placeholder: "Ej: Venta-Casa-Garcia",
+                class: "form-control" %>
+          </div>
+          
+          <!-- Rango de Fechas (opcional) -->
+          <div class="col-md-4">
+            <%= label_tag :period, "📅 Periodo", class: "form-label" %>
+            <%= select_tag :period, 
+                options_for_select([
+                  ["Hoy", "today"],
+                  ["Esta semana", "week"],
+                  ["Este mes", "month"],
+                  ["Últimos 3 meses", "quarter"],
+                  ["Este año", "year"]
+                ], params[:period]),
+                include_blank: "Todo el tiempo",
+                class: "form-select" %>
+          </div>
+          
         </div>
         
-        <div class="col-md-4">
-          <label class="form-label">Buscar</label>
-          <input type="text" name="search" class="form-control" placeholder="Nombre, teléfono...">
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- BOTONES DE ACCIÓN -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        
+        <div class="row mt-3">
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <%= link_to initial_contact_forms_path, class: "btn btn-outline-secondary" do %>
+              <i class="bi bi-arrow-clockwise"></i> Limpiar Filtros
+            <% end %>
+            <%= submit_tag "🔍 Buscar", class: "btn btn-primary" %>
+          </div>
         </div>
         
-        <div class="col-md-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
-        </div>
-      </form>
+      <% end %>
     </div>
   </div>
+  
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FIN DE SECCIÓN DE FILTROS MEJORADA -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- Contador de resultados -->
+  <% if params.slice(:status, :agent_id, :acquisition_method_id, :operation_type_id, :owner_name, :property_identifier, :period).values.any?(&:present?) %>
+    <div class="alert alert-info mb-3">
+      <i class="bi bi-info-circle"></i>
+      Mostrando <strong><%= @forms.total_count %></strong> resultados con los filtros aplicados
+      <%= link_to "Ver todos", initial_contact_forms_path, class: "ms-2 text-decoration-none" %>
+    </div>
+  <% end %>
 
   <!-- Estadísticas rápidas -->
   <div class="row mb-4">
@@ -89,11 +202,12 @@
         <table class="table table-hover">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>Folio</th>
+              <th>Identificador</th>
               <th>Fecha</th>
               <th>Propietario</th>
               <th>Teléfono</th>
-              <th>Tipo</th>
+              <th>Método</th>
               <th>Estado</th>
               <th>Progreso</th>
               <th>Agente</th>
@@ -103,7 +217,14 @@
           <tbody>
             <% @forms.each do |form| %>
               <tr>
-                <td><strong>#<%= form.id %></strong></td>
+                <td>
+                  <strong><%= form.initial_contact_folio || "##{form.id}" %></strong>
+                </td>
+                <td>
+                  <small class="text-primary">
+                    <%= form.property_human_identifier || content_tag(:em, 'Sin identificador', class: 'text-muted') %>
+                  </small>
+                </td>
                 <td><%= l(form.created_at, format: :short) %></td>
                 <td>
                   <%= form.general_conditions['owner_or_representative_name'] || 
@@ -114,9 +235,13 @@
                       content_tag(:em, 'Sin teléfono', class: 'text-muted') %>
                 </td>
                 <td>
-                  <span class="badge bg-secondary">
-                    <%= form.general_conditions['domicile_type']&.humanize || 'N/A' %>
-                  </span>
+                  <% if form.property_acquisition_method.present? %>
+                    <span class="badge bg-info">
+                      <%= form.property_acquisition_method.name %>
+                    </span>
+                  <% else %>
+                    <span class="badge bg-secondary">N/A</span>
+                  <% end %>
                 </td>
                 <td>
                   <% 
@@ -141,7 +266,9 @@
                   </div>
                 </td>
                 <td>
-                  <small class="text-muted"><%= form.agent.email %></small>
+                  <small class="text-muted">
+                    <%= form.agent.user.name rescue form.agent.email %>
+                  </small>
                 </td>
                 <td>
                   <div class="btn-group btn-group-sm">
@@ -182,16 +309,22 @@
         <% if @forms.empty? %>
           <div class="text-center py-5">
             <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-            <p class="text-muted mt-3">No hay formularios de contacto</p>
-            <%= link_to 'Crear el primero', new_initial_contact_form_path, class: 'btn btn-primary' %>
+            <p class="text-muted mt-3">No hay formularios que coincidan con los filtros</p>
+            <%= link_to 'Limpiar filtros', initial_contact_forms_path, class: 'btn btn-secondary me-2' %>
+            <%= link_to 'Crear nuevo formulario', new_initial_contact_form_path, class: 'btn btn-primary' %>
           </div>
         <% end %>
       </div>
       
       <!-- Paginación -->
-      <div class="mt-3">
+      <div class="mt-3 d-flex justify-content-between align-items-center">
+        <div class="text-muted">
+          Página <%= @forms.current_page %> de <%= @forms.total_pages %> 
+          (<%= @forms.total_count %> total)
+        </div>
         <%= paginate @forms %>
       </div>
     </div>
   </div>
 </div>
+

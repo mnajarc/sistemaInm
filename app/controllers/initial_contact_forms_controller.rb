@@ -6,22 +6,94 @@ class InitialContactFormsController < ApplicationController
  
 
   def index
+    # Base query con eager loading
+    base_scope = InitialContactForm
+      .includes(
+        :agent,
+        :client,
+        :property,
+        :business_transaction,
+        :property_acquisition_method,
+        :operation_type,
+        :contract_signer_type
+      )
+    
+    # Filtro por rol
     if current_user.superadmin? || current_user.admin?
-      @forms = InitialContactForm.all  # ← VEN TODO
+      @forms = base_scope.all
     elsif current_user.agent.present?
-      @forms = current_user.agent.initial_contact_forms  # ← VEN SOLO LOS SUYOS
+      @forms = base_scope.where(agent_id: current_user.agent.id)
     else
       redirect_to root_path, alert: '⚠️ No tienes permisos para ver formularios.'
       return
     end
     
-    # Filtros comunes para todos
-    @forms = @forms.recent.page(params[:page]).per(20)
-    
-    # Filtro adicional por agente (útil para superadmin)
-    if params[:agent_id].present?
+    # Filtro por agente (admin/superadmin)
+    if params[:agent_id].present? && (current_user.superadmin? || current_user.admin?)
       @forms = @forms.where(agent_id: params[:agent_id])
     end
+    
+    # Filtro por estado
+    if params[:status].present?
+      @forms = @forms.where(status: params[:status])
+    end
+    
+    # Filtro por método de adquisición
+    if params[:acquisition_method_id].present?
+      @forms = @forms.where(property_acquisition_method_id: params[:acquisition_method_id])
+    end
+    
+    # Filtro por tipo de operación
+    if params[:operation_type_id].present?
+      @forms = @forms.where(operation_type_id: params[:operation_type_id])
+    end
+    
+    # ═══════════════════════════════════════════════════════════════
+    # NUEVO: Filtro por periodo
+    # ═══════════════════════════════════════════════════════════════
+    if params[:period].present?
+      @forms = case params[:period]
+      when 'today'
+        @forms.where('created_at >= ?', Time.current.beginning_of_day)
+      when 'week'
+        @forms.where('created_at >= ?', Time.current.beginning_of_week)
+      when 'month'
+        @forms.where('created_at >= ?', Time.current.beginning_of_month)
+      when 'quarter'
+        @forms.where('created_at >= ?', 3.months.ago)
+      when 'year'
+        @forms.where('created_at >= ?', Time.current.beginning_of_year)
+      else
+        @forms
+      end
+    end
+    
+    # Búsqueda por nombre de propietario
+    if params[:owner_name].present?
+      @forms = @forms.where(
+        "general_conditions->>'owner_or_representative_name' ILIKE ?", 
+        "%#{params[:owner_name]}%"
+      )
+    end
+    
+    # Búsqueda por identificador
+    if params[:property_identifier].present?
+      @forms = @forms.where(
+        "property_human_identifier ILIKE ?", 
+        "%#{params[:property_identifier]}%"
+      )
+    end
+    
+    # Ordenamiento y paginación
+    @forms = @forms.order(created_at: :desc).page(params[:page]).per(20)
+    
+    # Datos para dropdowns (solo si es admin/superadmin)
+    if current_user.superadmin? || current_user.admin?
+      @agents = Agent.includes(:user).order('users.name')
+    end
+    
+    @acquisition_methods = PropertyAcquisitionMethod.order(:name)
+    @operation_types = OperationType.order(:name)
   end
 
 

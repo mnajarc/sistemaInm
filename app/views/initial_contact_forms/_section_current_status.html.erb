@@ -110,32 +110,6 @@
     </div>
 
 
-    <div class="form-check mb-3">
-      <%= check_box_tag 'initial_contact_form[current_status][has_additions]',
-                        'true',
-                        form.current_status['has_additions'] == 'true',
-                        id: 'has_additions_check',
-                        class: 'form-check-input' %>
-      <%= label_tag 'has_additions_check', '¿Tiene ampliaciones?', class: 'form-check-label' %>
-    </div>
-
-    <div class="additions-section" style="display: none;">
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <%= f.label 'current_status[additions_registered]', '¿Están reportadas?', class: 'form-label' %>
-          <%= select_tag 'initial_contact_form[current_status][additions_registered]',
-                        options_for_select([['No', 'false'], ['Sí', 'true']], form.current_status['additions_registered']),
-                        class: 'form-select' %>
-        </div>
-        <div class="col-md-6 mb-3">
-          <%= f.label 'current_status[additions_notes]', 'Notas', class: 'form-label' %>
-          <%= text_area_tag 'initial_contact_form[current_status][additions_notes]',
-                            form.current_status['additions_notes'],
-                            class: 'form-control',
-                            rows: 2 %>
-        </div>
-      </div>
-    </div>
 <!-- ========================================================================== -->
 <!-- REEMPLAZAR EN SECCIÓN 2: ESTATUS ACTUAL                                   -->
 <!-- El checkbox simple de remodelaciones por esta sección completa            -->
