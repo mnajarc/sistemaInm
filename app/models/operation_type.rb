@@ -1,7 +1,9 @@
- # app/models/operation_type.rb
+# app/models/operation_type.rb
 class OperationType < ApplicationRecord
-     include AutoSluggable
+  include AutoSluggable
+  
   has_many :business_transactions
+  has_many :properties, through: :business_transactions
   
   validates :name, presence: true, uniqueness: true
   validates :display_name, presence: true
@@ -31,16 +33,19 @@ class OperationType < ApplicationRecord
     where(name: ['rent', 'short_rent'])
   end
 
-
-    # Método para contar transacciones activas
   def active_transactions_count
     business_transactions.active.count
   end
 
-  # Método para contar propiedades únicas con transacciones activas
+  # CORREGIDO
+
   def active_properties_count
-    properties.joins(:business_transactions)
-              .merge(business_transactions.active)
-              .distinct.count
+    Property.joins(business_transactions: :business_status)
+            .where(
+              business_transactions: { operation_type_id: id },
+              business_statuses: { active: true }
+            )
+            .distinct
+            .count
   end
 end

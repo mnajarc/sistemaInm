@@ -1,0 +1,129 @@
+<div class="card">
+  <div class="card-header bg-secondary text-white">
+    <h5 class="mb-0"><i class="bi bi-4-circle"></i> Preferencias de Promoción</h5>
+  </div>
+  <div class="card-body">
+    
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>Autorización para promoción.</strong> Indica cómo deseas promocionar la propiedad.
+    </div>
+    
+    <h6 class="mb-3">Señalización</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_signage]',
+                         '1',
+                         form.promotion_preferences['allows_signage'],
+                         class: 'form-check-input',
+                         id: 'allows_signage_check' %>
+        <%= label_tag 'allows_signage_check', '¿Autoriza colocar lonas o carteles \"SE VENDE\"?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <div class="signage-details" style="<%= 'display:none;' unless form.promotion_preferences['allows_signage'] %>">
+      <div class="mb-3">
+        <label class="form-label">Tipo de señalización autorizada</label>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'lona',
+                           form.promotion_preferences['signage_types']&.include?('lona'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_lona', 'Lona grande', class: 'form-check-label' %>
+        </div>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'se_vende',
+                           form.promotion_preferences['signage_types']&.include?('se_vende'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_se_vende', 'Cartel \"SE VENDE\"', class: 'form-check-label' %>
+        </div>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'numero_inmueble',
+                           form.promotion_preferences['signage_types']&.include?('numero_inmueble'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_numero', 'Número de inmueble', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Volantes y Dirección</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_flyers_with_address]',
+                         '1',
+                         form.promotion_preferences['allows_flyers_with_address'],
+                         class: 'form-check-input' %>
+        <%= label_tag 'allows_flyers_address', '¿Autoriza volantes con la dirección exacta?', class: 'form-check-label' %>
+      </div>
+      <small class="text-muted">Si no, se usará descripción general sin dirección exacta</small>
+    </div>
+    
+    <h6 class="mb-3">Casa Abierta</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_open_house]',
+                         '1',
+                         form.promotion_preferences['allows_open_house'],
+                         class: 'form-check-input' %>
+        <%= label_tag 'allows_open_house', '¿Autoriza organizar casa abierta?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Contacto Preferido</h6>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <%= label_tag 'promotion_preferences_preferred_contact_method', 'Método de contacto preferido', class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[promotion_preferences][preferred_contact_method]',
+                       options_for_select([
+                         ['Teléfono', 'telefono'],
+                         ['Email', 'email'],
+                         ['WhatsApp', 'whatsapp'],
+                         ['Indistinto', 'indistinto']
+                       ], form.promotion_preferences['preferred_contact_method']),
+                       class: 'form-select' %>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <%= label_tag 'promotion_preferences_contact_hours', 'Horarios de contacto', class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[promotion_preferences][contact_hours]',
+                       options_for_select([
+                         ['Cualquier hora', 'cualquier'],
+                         ['Mañana (07:00-13:00)', 'manana'],
+                         ['Tarde (13:00-19:00)', 'tarde'],
+                         ['Noche (19:00-23:00)', 'noche'],
+                         ['Fines de semana', 'fines_semana']
+                       ], form.promotion_preferences['contact_hours']),
+                       class: 'form-select' %>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Observaciones</h6>
+    
+    <div class="mb-3">
+      <%= label_tag 'promotion_preferences_special_instructions', 'Instrucciones especiales', class: 'form-label' %>
+      <%= text_area_tag 'initial_contact_form[promotion_preferences][special_instructions]',
+                       form.promotion_preferences['special_instructions'],
+                       class: 'form-control',
+                       rows: 3,
+                       placeholder: 'Ej: No contactar después de las 22:00, avisar antes de visitaciones...' %>
+    </div>
+    
+    <h6 class="mb-3">Observaciones Generales del Agente</h6>
+    
+    <div class="mb-3">
+      <%= label_tag 'agent_notes', 'Notas internas', class: 'form-label' %>
+      <%= text_area_tag 'initial_contact_form[agent_notes]',
+                       form.agent_notes,
+                       class: 'form-control',
+                       rows: 4,
+                       placeholder: 'Información adicional relevante, puntos importantes a considerar, etc...' %>
+    </div>
+  </div>
+</div>
+

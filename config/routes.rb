@@ -11,6 +11,13 @@ Rails.application.routes.draw do
   root "properties#index"
   resources :properties
   
+resources :initial_contact_forms do
+  member do
+    post :convert_to_transaction
+  end
+end
+
+
 
   resources :business_transactions do
     patch :transfer_agent, on: :member

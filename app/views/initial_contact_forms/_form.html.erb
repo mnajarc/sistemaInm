@@ -1,0 +1,373 @@
+<!-- app/views/initial_contact_forms/_form.html.erb -->
+<!-- FORMULARIO REFACTORIZADO - 4 SECCIONES -->
+
+<%= form_with(model: form, local: true, html: { class: 'initial-contact-form', id: 'contactForm' }) do |f| %> <% if form.errors.any? %>
+    <div class="alert alert-danger">
+      <h5>Errores en el formulario:</h5>
+      <ul>
+        <% form.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>
+        <i class="bi bi-person-badge"></i>
+        Formulario de Contacto Inicial
+      </h2>
+      <p class="mb-0 text-muted">
+        <strong>Agente:</strong>
+        <%= form.agent && form.agent.user ? form.agent.user.name : "No asignado" %>
+      </p>
+      <p class="mb-0 text-muted">
+        <strong>Folio:</strong>
+        <%= form.initial_contact_folio || "Sin folio" %>
+      </p>
+      <p class="mb-0 text-muted">
+        <strong>Identificador:</strong>
+        <%= form.property_human_identifier || "Sin identificador" %>
+      </p>
+    </div>
+  </div>
+
+
+
+  <!-- IDENTIFICADOR DE LA OPORTUNIDAD -->
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <i class="bi bi-tag"></i> Identificador de la Oportunidad
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <%= f.label :property_human_identifier, 'Nombre de la oportunidad *', class: 'form-label fw-bold' %>
+          <%= f.text_field :property_human_identifier, 
+                           class: 'form-control form-control-lg', 
+                           required: true,
+                           placeholder: 'Ej: Casa Lomas de Chapultepec - Familia García' %>
+          <small class="text-muted mt-2 d-block">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Importante:</strong> Este nombre te ayudará a identificar rápidamente esta oportunidad.
+            <br>
+            <strong>Se recomienda usar:</strong> [Tipo de propiedad] [Ubicación] - [Propietario]
+          </small>
+        </div>
+      </div>
+      
+      <div class="alert alert-success mt-3">
+        <i class="bi bi-lightbulb"></i> 
+        <strong>Sugerencia:</strong> Un buen identificador facilita el seguimiento de la operación.
+        <br><br>
+        <strong>Ejemplos:</strong>
+        <ul class="mb-0">
+          <li>Casa Lomas de Chapultepec - Familia Gómez</li>
+          <li>Departamento Reforma - Roberto Martínez</li>
+          <li>Terreno Industrial Vallejo - Constructora ABC</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  
+  <!-- INDICADOR DE PROGRESO -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between mb-2">
+        <span>Progreso de completitud</span>
+        <strong><%= form.completion_percentage %>%</strong>
+      </div>
+      <div class="progress" style="height: 25px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" 
+             style="width: <%= form.completion_percentage %>%">
+          <%= form.completion_percentage %>% completado
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <!-- TABS DE NAVEGACIÓN (4 SECCIONES) -->
+  <ul class="nav nav-tabs mb-4" id="formTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="section1-tab" data-bs-toggle="tab" data-bs-target="#section1" type="button">
+        1. Condiciones Generales
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section2-tab" data-bs-toggle="tab" data-bs-target="#section2" type="button">
+        2. Estatus Actual
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section3-tab" data-bs-toggle="tab" data-bs-target="#section3" type="button">
+        3. Exención ISR
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section4-tab" data-bs-toggle="tab" data-bs-target="#section4" type="button">
+        4. Promoción
+      </button>
+    </li>
+  </ul>
+
+  <!-- CONTENIDO DE TABS -->
+  <div class="tab-content" id="formTabContent">
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 1: CONDICIONES GENERALES                           -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade show active" id="section1" role="tabpanel">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-1-circle"></i> Condiciones Generales</h5>
+        </div>
+        <div class="card-body">
+          
+          <!-- Tipo de Operación y Método de Adquisición -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :operation_type_id, '¿Qué tipo de operación es? *', class: 'form-label' %>
+              <%= f.collection_select :operation_type_id,
+                                     OperationType.active.by_sort_order,
+                                     :id,
+                                     :display_name,
+                                     { prompt: 'Seleccione tipo de operación...' },
+                                     { class: 'form-select', required: true } %>
+              <small class="text-muted">Indica si es venta, renta, o ambas</small>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= f.label :property_acquisition_method_id, '¿Cómo adquirió la propiedad? *', class: 'form-label' %>
+              <%= f.collection_select :property_acquisition_method_id,
+                                     PropertyAcquisitionMethod.active.ordered,
+                                     :id,
+                                     :name,
+                                     { prompt: 'Seleccione un método...' },
+                                     { class: 'form-select',
+                                       id: 'acquisition_method_select',
+                                       required: true } %>
+              
+              <% if form.property_acquisition_method.present? %>
+                <small class="text-muted mt-1 d-block">
+                  <strong>Ref. legal:</strong> <%= form.property_acquisition_method.legal_reference %>
+                </small>
+              <% end %>
+            </div>
+          </div>
+          
+          <!-- Campo oculto con mapping ID -> Code para JavaScript -->
+          <%= hidden_field_tag 'property_acquisition_method_codes',
+                              @acquisition_method_codes,
+                              id: 'acquisition_method_codes_data' %>
+          
+          <!-- Datos del propietario/representante -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :contract_signer_type_id, '¿Quién firmará el contrato? *', class: 'form-label' %>
+              <%= f.collection_select :contract_signer_type_id,
+                                     ContractSignerType.active.ordered,
+                                     :id,
+                                     :display_name,
+                                     { prompt: 'Seleccione...' },
+                                     { class: 'form-select', required: true } %>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_or_representative_name', 'Nombre completo del propietario/representante *', class: 'form-label' %>
+              <%= text_field_tag 'initial_contact_form[general_conditions][owner_or_representative_name]',
+                                form.general_conditions['owner_or_representative_name'],
+                                class: 'form-control',
+                                placeholder: 'Ej: Juan Pérez García',
+                                required: true %>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_phone', 'Teléfono de contacto', class: 'form-label' %>
+              <%= text_field_tag 'initial_contact_form[general_conditions][owner_phone]',
+                                form.general_conditions['owner_phone'],
+                                class: 'form-control',
+                                placeholder: '(55) 1234-5678' %>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_email', 'Email de contacto', class: 'form-label' %>
+              <%= email_field_tag 'initial_contact_form[general_conditions][owner_email]',
+                                 form.general_conditions['owner_email'],
+                                 class: 'form-control',
+                                 placeholder: 'ejemplo@email.com' %>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_civil_status', 'Estado civil *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[general_conditions][civil_status]',
+                             options_for_select([
+                               ['Seleccione...', ''],
+                               ['Soltero(a)', 'soltero'],
+                               ['Casado(a)', 'casado'],
+                               ['Divorciado(a)', 'divorciado'],
+                               ['Viudo(a)', 'viudo'],
+                               ['Unión libre', 'union_libre']
+                             ], form.general_conditions['civil_status']),
+                             class: 'form-select',
+                             id: 'civil_status_field',
+                             required: true %>
+            </div>
+            
+            <div class="col-md-6 mb-3 marriage-regime-field" style="<%= 'display:none;' unless form.general_conditions['civil_status'] == 'casado' %>">
+              <%= label_tag 'general_conditions_marriage_regime_id', 'Régimen matrimonial', class: 'form-label' %>
+              <%= collection_select 'initial_contact_form[general_conditions]', :marriage_regime_id,
+                                   MarriageRegime.active.ordered,
+                                   :id, :display_name,
+                                   { prompt: 'Seleccione...' },
+                                   { class: 'form-select' } %>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <%= label_tag 'general_conditions_notes', 'Observaciones adicionales', class: 'form-label' %>
+            <%= text_area_tag 'initial_contact_form[general_conditions][notes]',
+                             form.general_conditions['notes'],
+                             class: 'form-control',
+                             rows: 3,
+                             placeholder: 'Cualquier información adicional relevante...' %>
+          </div>
+
+
+          <!-- CAMPOS GLOBALES (SIEMPRE VISIBLES) -->
+          <div class="row mt-4 mb-4">
+            <div class="col-12 mb-3">
+              <h6 class="text-primary">
+                <i class="bi bi-geo-alt"></i> Ubicación y Uso
+              </h6>
+              <hr>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= f.label 'acquisition_details[state]', 'Entidad federativa *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[acquisition_details][state]',
+                            options_for_select([
+                              ['Selecciona un estado...', ''],
+                              ['Aguascalientes', 'Aguascalientes'],
+                              ['Baja California', 'Baja California'],
+                              ['Baja California Sur', 'Baja California Sur'],
+                              ['Campeche', 'Campeche'],
+                              ['Chiapas', 'Chiapas'],
+                              ['Chihuahua', 'Chihuahua'],
+                              ['Ciudad de México', 'CDMX'],
+                              ['Coahuila', 'Coahuila'],
+                              ['Colima', 'Colima'],
+                              ['Durango', 'Durango'],
+                              ['Estado de México', 'Estado de México'],
+                              ['Guanajuato', 'Guanajuato'],
+                              ['Guerrero', 'Guerrero'],
+                              ['Hidalgo', 'Hidalgo'],
+                              ['Jalisco', 'Jalisco'],
+                              ['Michoacán', 'Michoacán'],
+                              ['Morelos', 'Morelos'],
+                              ['Nayarit', 'Nayarit'],
+                              ['Nuevo León', 'Nuevo León'],
+                              ['Oaxaca', 'Oaxaca'],
+                              ['Puebla', 'Puebla'],
+                              ['Querétaro', 'Querétaro'],
+                              ['Quintana Roo', 'Quintana Roo'],
+                              ['San Luis Potosí', 'San Luis Potosí'],
+                              ['Sinaloa', 'Sinaloa'],
+                              ['Sonora', 'Sonora'],
+                              ['Tabasco', 'Tabasco'],
+                              ['Tamaulipas', 'Tamaulipas'],
+                              ['Tlaxcala', 'Tlaxcala'],
+                              ['Veracruz', 'Veracruz'],
+                              ['Yucatán', 'Yucatán'],
+                              ['Zacatecas', 'Zacatecas']
+                            ], form.acquisition_details['state']),
+                            id: 'state_select',
+                            class: 'form-select',
+                            required: true %>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <%= f.label 'acquisition_details[land_use]', 'Uso de suelo *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[acquisition_details][land_use]',
+                            options_for_select([
+                              ['Selecciona uso de suelo...', ''],
+                              ['Habitacional', 'habitacional'],
+                              ['Comercial', 'comercial'],
+                              ['Industrial', 'industrial'],
+                              ['Mixto', 'mixto'],
+                              ['Rústico/Agrícola', 'rustico']
+                            ], form.acquisition_details['land_use']),
+                            id: 'land_use_select',
+                            class: 'form-select',
+                            required: true %>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      
+      <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN (INLINE) -->
+      <%= render 'conditional_fields', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 2: ESTATUS ACTUAL                                  -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section2" role="tabpanel">
+      <%= render 'section_current_status', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 3: EXENCIÓN ISR                                    -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section3" role="tabpanel">
+      <%= render 'section_tax_exemption', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 4: PROMOCIÓN                                       -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section4" role="tabpanel">
+      <%= render 'section_promotion', form: form, f: f %>
+    </div>
+    
+  </div>
+
+  <!-- BOTONES DE NAVEGACIÓN -->
+  <div class="d-flex justify-content-between mt-4">
+    <button type="button" class="btn btn-secondary" id="prevBtn" disabled>
+      <i class="bi bi-arrow-left"></i> Anterior
+    </button>
+    
+    <div>
+      <%= f.submit 'Guardar Borrador', 
+                   name: 'save_draft', 
+                   class: 'btn btn-outline-primary me-2',
+                   formnovalidate: true %>
+      <%= f.submit form.persisted? ? 'Actualizar' : 'Guardar y Completar', 
+                   class: 'btn btn-primary' %>
+    </div>
+    
+    <button type="button" class="btn btn-secondary" id="nextBtn">
+      Siguiente <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+
+<% end %>
+
+<!-- JAVASCRIPT -->
+<%= render 'form_javascript' %>
+

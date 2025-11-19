@@ -598,3 +598,10 @@ puts "\n🔗 Asociando documentos a escenarios..."
 load Rails.root.join('db', 'seeds', 'scenario_documents.rb')
 
 puts "\n✅ Seeds completados exitosamente"
+
+# Catálogos para sistema de adquisiciones
+load Rails.root.join('db', 'seeds', '01_property_acquisition_methods.rb')
+load Rails.root.join('db', 'seeds', '02_marriage_regimes.rb')
+load Rails.root.join('db', 'seeds', '03_land_use_types.rb')
+
+puts "\n✅ Seeds completados exitosamente"

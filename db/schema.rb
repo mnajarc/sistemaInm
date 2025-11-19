@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_19_043900) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -19,6 +19,26 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
   enable_extension "pgcrypto"
   enable_extension "unaccent"
   enable_extension "uuid-ossp"
+
+  create_table "acquisition_method_suggestions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "initial_contact_form_id"
+    t.string "suggested_name", null: false
+    t.text "legal_basis", null: false
+    t.string "status", default: "pending"
+    t.bigint "merged_with_id"
+    t.text "admin_notes"
+    t.datetime "reviewed_at"
+    t.bigint "reviewed_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["initial_contact_form_id"], name: "idx_on_initial_contact_form_id_eb34cbc0fb"
+    t.index ["merged_with_id"], name: "index_acquisition_method_suggestions_on_merged_with_id"
+    t.index ["reviewed_by_id"], name: "index_acquisition_method_suggestions_on_reviewed_by_id"
+    t.index ["status"], name: "index_acquisition_method_suggestions_on_status"
+    t.index ["user_id", "created_at"], name: "index_acquisition_method_suggestions_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_acquisition_method_suggestions_on_user_id"
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -153,6 +173,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.boolean "is_mortgaged_at_transaction", default: false
     t.boolean "has_liens_at_transaction", default: false
     t.bigint "transaction_scenario_id"
+    t.bigint "property_acquisition_method_id"
+    t.text "acquisition_clarification"
+    t.string "initial_contact_folio"
+    t.jsonb "inheritance_details", default: {}
+    t.jsonb "property_status", default: {}
+    t.jsonb "tax_information", default: {}
+    t.jsonb "legal_representation", default: {}
     t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
     t.index ["acquisition_legal_act"], name: "index_business_transactions_on_acquisition_legal_act"
     t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
@@ -161,15 +188,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.index ["current_agent_id"], name: "index_business_transactions_on_current_agent_id"
     t.index ["deed_number"], name: "index_business_transactions_on_deed_number"
     t.index ["external_operation_number"], name: "index_business_transactions_on_external_operation_number", unique: true
+    t.index ["inheritance_details"], name: "index_business_transactions_on_inheritance_details", using: :gin
+    t.index ["initial_contact_folio"], name: "index_business_transactions_on_initial_contact_folio", unique: true
     t.index ["is_mortgaged_at_transaction"], name: "index_business_transactions_on_is_mortgaged_at_transaction"
+    t.index ["legal_representation"], name: "index_business_transactions_on_legal_representation", using: :gin
     t.index ["listing_agent_id"], name: "index_business_transactions_on_listing_agent_id"
     t.index ["offering_client_id"], name: "index_business_transactions_on_offering_client_id"
     t.index ["operation_type_id"], name: "index_business_transactions_on_operation_type_id"
+    t.index ["property_acquisition_method_id"], name: "index_business_transactions_on_property_acquisition_method_id"
     t.index ["property_id", "is_primary"], name: "index_business_transactions_on_property_id_and_is_primary"
     t.index ["property_id"], name: "index_business_transactions_on_property_id"
+    t.index ["property_status"], name: "index_business_transactions_on_property_status", using: :gin
     t.index ["real_folio"], name: "index_business_transactions_on_real_folio"
     t.index ["selling_agent_id"], name: "index_business_transactions_on_selling_agent_id"
     t.index ["start_date"], name: "index_business_transactions_on_start_date"
+    t.index ["tax_information"], name: "index_business_transactions_on_tax_information", using: :gin
     t.index ["transaction_scenario_id"], name: "index_business_transactions_on_transaction_scenario_id"
   end
 
@@ -432,6 +465,46 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.index ["sort_order"], name: "index_identification_types_on_sort_order"
   end
 
+  create_table "initial_contact_forms", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "client_id"
+    t.bigint "property_id"
+    t.bigint "business_transaction_id"
+    t.integer "status", default: 0, null: false
+    t.datetime "completed_at"
+    t.datetime "converted_at"
+    t.jsonb "general_conditions", default: {}
+    t.jsonb "property_info", default: {}
+    t.jsonb "inheritance_info", default: {}
+    t.jsonb "current_status", default: {}
+    t.jsonb "tax_exemption", default: {}
+    t.jsonb "promotion_preferences", default: {}
+    t.text "agent_notes"
+    t.integer "version", default: 1
+    t.string "form_source", default: "web"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "initial_contact_folio"
+    t.bigint "property_acquisition_method_id"
+    t.string "property_human_identifier"
+    t.jsonb "acquisition_details", default: {}
+    t.bigint "operation_type_id"
+    t.bigint "contract_signer_type_id"
+    t.index ["acquisition_details"], name: "index_initial_contact_forms_on_acquisition_details", using: :gin
+    t.index ["agent_id", "created_at"], name: "index_initial_contact_forms_on_agent_id_and_created_at"
+    t.index ["agent_id"], name: "index_initial_contact_forms_on_agent_id"
+    t.index ["business_transaction_id"], name: "index_initial_contact_forms_on_business_transaction_id"
+    t.index ["client_id"], name: "index_initial_contact_forms_on_client_id"
+    t.index ["completed_at"], name: "index_initial_contact_forms_on_completed_at"
+    t.index ["contract_signer_type_id"], name: "index_initial_contact_forms_on_contract_signer_type_id"
+    t.index ["converted_at"], name: "index_initial_contact_forms_on_converted_at"
+    t.index ["initial_contact_folio"], name: "index_initial_contact_forms_on_initial_contact_folio", unique: true
+    t.index ["operation_type_id"], name: "index_initial_contact_forms_on_operation_type_id"
+    t.index ["property_acquisition_method_id"], name: "index_initial_contact_forms_on_property_acquisition_method_id"
+    t.index ["property_id"], name: "index_initial_contact_forms_on_property_id"
+    t.index ["status"], name: "index_initial_contact_forms_on_status"
+  end
+
   create_table "instance_config", force: :cascade do |t|
     t.string "app_name", default: "inmobInteligeria"
     t.string "app_logo"
@@ -445,6 +518,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["instance_name"], name: "index_instance_config_on_instance_name", unique: true
+  end
+
+  create_table "land_use_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "code", null: false
+    t.text "description"
+    t.bigint "parent_id"
+    t.string "category"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_land_use_types_on_category"
+    t.index ["code"], name: "index_land_use_types_on_code", unique: true
+    t.index ["parent_id", "active"], name: "index_land_use_types_on_parent_id_and_active"
+    t.index ["parent_id"], name: "index_land_use_types_on_parent_id"
   end
 
   create_table "legal_acts", force: :cascade do |t|
@@ -461,6 +550,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.index ["category"], name: "index_legal_acts_on_category"
     t.index ["name"], name: "index_legal_acts_on_name", unique: true
     t.index ["sort_order"], name: "index_legal_acts_on_sort_order"
+  end
+
+  create_table "marriage_regimes", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_marriage_regimes_on_active"
+    t.index ["name"], name: "index_marriage_regimes_on_name", unique: true
   end
 
   create_table "menu_items", force: :cascade do |t|
@@ -598,10 +699,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.string "country", default: "México"
     t.boolean "has_extensions", default: false
     t.string "land_use"
+    t.string "human_readable_identifier"
+    t.bigint "land_use_type_id"
     t.index ["available_from"], name: "index_properties_on_available_from"
     t.index ["city", "state", "municipality"], name: "index_properties_location"
     t.index ["co_ownership_type_id"], name: "index_properties_on_co_ownership_type_id"
+    t.index ["human_readable_identifier"], name: "index_properties_on_human_readable_identifier", unique: true
     t.index ["land_use"], name: "index_properties_on_land_use"
+    t.index ["land_use_type_id"], name: "index_properties_on_land_use_type_id"
     t.index ["latitude", "longitude"], name: "index_properties_on_coordinates"
     t.index ["municipality"], name: "index_properties_on_municipality"
     t.index ["neighborhood"], name: "index_properties_on_neighborhood"
@@ -611,6 +716,26 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.index ["published_at"], name: "index_properties_on_published_at"
     t.index ["street"], name: "index_properties_on_street"
     t.index ["user_id"], name: "index_properties_on_user_id"
+  end
+
+  create_table "property_acquisition_methods", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "code", null: false
+    t.text "description"
+    t.text "legal_reference"
+    t.string "legal_act_type"
+    t.boolean "requires_heirs", default: false
+    t.boolean "requires_coowners", default: false
+    t.boolean "requires_judicial_sentence", default: false
+    t.boolean "requires_notary", default: false
+    t.boolean "requires_power_of_attorney", default: false
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_property_acquisition_methods_on_active"
+    t.index ["code"], name: "index_property_acquisition_methods_on_code", unique: true
+    t.index ["sort_order"], name: "index_property_acquisition_methods_on_sort_order"
   end
 
   create_table "property_documents", force: :cascade do |t|
@@ -774,11 +899,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
     t.string "current_sign_in_ip"
     t.string "last_sign_in_ip"
     t.bigint "role_id"
+    t.string "name"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role_id"], name: "index_users_on_role_id"
   end
 
+  add_foreign_key "acquisition_method_suggestions", "initial_contact_forms"
+  add_foreign_key "acquisition_method_suggestions", "property_acquisition_methods", column: "merged_with_id"
+  add_foreign_key "acquisition_method_suggestions", "users"
+  add_foreign_key "acquisition_method_suggestions", "users", column: "reviewed_by_id"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_transfers", "business_transactions"
@@ -794,6 +924,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
   add_foreign_key "business_transactions", "co_ownership_types"
   add_foreign_key "business_transactions", "operation_types"
   add_foreign_key "business_transactions", "properties"
+  add_foreign_key "business_transactions", "property_acquisition_methods"
   add_foreign_key "business_transactions", "transaction_scenarios"
   add_foreign_key "business_transactions", "users", column: "current_agent_id"
   add_foreign_key "business_transactions", "users", column: "listing_agent_id"
@@ -813,11 +944,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_31_060622) do
   add_foreign_key "document_submissions", "users", column: "uploaded_by_id"
   add_foreign_key "document_submissions", "users", column: "validated_by_id"
   add_foreign_key "document_validity_rules", "document_types"
+  add_foreign_key "initial_contact_forms", "business_transactions"
+  add_foreign_key "initial_contact_forms", "clients"
+  add_foreign_key "initial_contact_forms", "contract_signer_types"
+  add_foreign_key "initial_contact_forms", "operation_types"
+  add_foreign_key "initial_contact_forms", "properties"
+  add_foreign_key "initial_contact_forms", "property_acquisition_methods"
+  add_foreign_key "initial_contact_forms", "users", column: "agent_id"
+  add_foreign_key "land_use_types", "land_use_types", column: "parent_id"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
   add_foreign_key "offers", "business_transactions"
   add_foreign_key "offers", "clients", column: "offerer_id"
   add_foreign_key "offers", "offer_statuses"
   add_foreign_key "properties", "co_ownership_types"
+  add_foreign_key "properties", "land_use_types"
   add_foreign_key "properties", "property_types"
   add_foreign_key "properties", "users"
   add_foreign_key "property_documents", "document_types"

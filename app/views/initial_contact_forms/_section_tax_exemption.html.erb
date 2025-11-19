@@ -1,0 +1,87 @@
+
+<div class="card">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0"><i class="bi bi-3-circle"></i> Exención de Impuesto sobre la Renta (ISR)</h5>
+  </div>
+  <div class="card-body">
+    
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>Información fiscal importante.</strong> Completa estos campos para determinar si la venta puede calificar para exención de ISR.
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][first_home_sale]',
+                           '1',
+                           form.tax_exemption['first_home_sale'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'first_home_sale', '¿Es la primera venta de inmueble del vendedor?', class: 'form-check-label' %>
+        </div>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][lived_last_5_years]',
+                           '1',
+                           form.tax_exemption['lived_last_5_years'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'lived_last_5_years', '¿Ha vivido en la propiedad los últimos 5 años?', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][ine_matches_deed]',
+                           '1',
+                           form.tax_exemption['ine_matches_deed'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'ine_matches_deed', '¿El domicilio en INE coincide con la escritura?', class: 'form-check-label' %>
+        </div>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][previous_sales_last_3_years]',
+                           '1',
+                           form.tax_exemption['previous_sales_last_3_years'],
+                           class: 'form-check-input',
+                           id: 'previous_sales_check' %>
+          <%= label_tag 'previous_sales_check', '¿Ha vendido otro inmueble en los últimos 3 años?', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="previous-sale-details" style="<%= 'display:none;' unless form.tax_exemption['previous_sales_last_3_years'] %>">
+      <div class="mb-3">
+        <%= label_tag 'tax_exemption_previous_sale_date', 'Fecha de venta anterior', class: 'form-label' %>
+        <%= date_field_tag 'initial_contact_form[tax_exemption][previous_sale_date]',
+                          form.tax_exemption['previous_sale_date'],
+                          class: 'form-control' %>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <%= label_tag 'tax_exemption_estimated_capital_gain', 'Ganancia de capital estimada (MXN)', class: 'form-label' %>
+      <%= number_field_tag 'initial_contact_form[tax_exemption][estimated_capital_gain]',
+                          form.tax_exemption['estimated_capital_gain'],
+                          class: 'form-control',
+                          step: '0.01',
+                          min: '0' %>
+      <small class="text-muted">(Precio de venta - Precio de compra)</small>
+    </div>
+    
+    <div class="alert alert-success mt-3">
+      <strong>Resultado:</strong>
+      <% if form.qualifies_for_tax_exemption? %>
+        ✅ <strong>Podría calificar para exención ISR</strong>
+      <% else %>
+        ⚠️ <strong>Probablemente NO califica para exención</strong> - Requiere asesoría fiscal
+      <% end %>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,20 @@
+<!-- app/views/initial_contact_forms/new.html.erb -->
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="bi bi-clipboard-plus"></i>
+      Nuevo Formulario de Contacto Inicial
+    </h2>
+    <%= link_to initial_contact_forms_path, class: 'btn btn-secondary' do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Información:</strong> Llena este formulario con los datos del contacto inicial con el vendedor.
+    Puedes guardar como borrador y completarlo después. Una vez completado, podrás convertirlo en una transacción.
+  </div>
+
+  <%= render 'form', form: @form %>
+</div>

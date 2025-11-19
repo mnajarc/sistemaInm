@@ -1,0 +1,163 @@
+ <!-- app/views/initial_contact_forms/show.html.erb -->
+
+<% if flash[:notice] %>
+  <div class="alert alert-<%= flash[:notice].include?('⚠️') ? 'warning' : 'success' %> alert-dismissible fade show" role="alert">
+    <%= flash[:notice].html_safe %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>
+        <i class="bi bi-clipboard-check"></i>
+        <%= @form.property_human_identifier || "Formulario de Contacto Inicial ##{@form.id}" %>
+      </h2>
+      <p class="text-muted mb-0">
+        <strong>Folio:</strong> <%= @form.initial_contact_folio || "Sin folio" %> |
+        <strong>Agente:</strong> <%= @form.agent && @form.agent.user ? @form.agent.user.name : "No asignado" %> |
+        <strong>Estado:</strong> <span class="badge bg-<%= status_badge_class(@form.status) %>"><%= @form.status.humanize %></span>
+        <% if @form.completed_at %>
+          | <strong>Completado:</strong> <%= l(@form.completed_at, format: :short) %>
+        <% end %>
+      </p>
+    </div>
+
+
+    
+    <!-- Botones de acción (mantén los que ya tenías) -->
+    <div class="btn-group">
+      <%= link_to 'Editar', edit_initial_contact_form_path(@form), class: 'btn btn-primary' unless @form.converted? %>
+      <%= link_to 'Volver', initial_contact_forms_path, class: 'btn btn-secondary' %>
+      
+      <% if @form.completed? && !@form.business_transaction.present? %>
+        <%= button_to 'Convertir a Transacción',
+                      convert_to_transaction_initial_contact_form_path(@form),
+                      method: :post,
+                      class: 'btn btn-success',
+                      data: { confirm: '¿Convertir este formulario a una transacción de negocio?' } %>
+      <% end %>
+    </div>
+  </div>
+   
+    <div>
+      <% unless @form.converted? %>
+        <%= link_to 'Editar', edit_initial_contact_form_path(@form), 
+                    class: 'btn btn-primary' %>
+        
+        <% if @form.completed? %>
+          <%= button_to 'Convertir a Transacción', 
+                        convert_to_transaction_initial_contact_form_path(@form),
+                        method: :post,
+                        class: 'btn btn-success',
+                        data: { confirm: '¿Convertir este formulario a una transacción?' } %>
+        <% end %>
+      <% end %>
+      
+      <%= link_to 'Volver', initial_contact_forms_path, class: 'btn btn-secondary' %>
+    </div>
+  </div>
+  
+  <!-- Progreso -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5>Progreso: <%= @form.completion_percentage %>%</h5>
+      <div class="progress">
+        <div class="progress-bar" style="width: <%= @form.completion_percentage %>%"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Datos generales -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Información General</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Agente:</dt>
+            <dd class="col-sm-6"><%= @form.agent.email %></dd>
+            
+            <dt class="col-sm-6">Creado:</dt>
+            <dd class="col-sm-6"><%= l(@form.created_at, format: :short) %></dd>
+            
+            <dt class="col-sm-6">Completado:</dt>
+            <dd class="col-sm-6">
+              <%= @form.completed_at ? l(@form.completed_at, format: :short) : 'Pendiente' %>
+            </dd>
+            
+            <% if @form.converted? %>
+              <dt class="col-sm-6">Transacción:</dt>
+              <dd class="col-sm-6">
+                <%= link_to "##{@form.business_transaction_id}", 
+                            business_transaction_path(@form.business_transaction) %>
+              </dd>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Resumen del Contacto</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Propietario:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['owner_or_representative_name'] || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Teléfono:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['owner_phone'] || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Tipo inmueble:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['domicile_type']&.humanize || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Método adquisición:</dt>
+            <dd class="col-sm-6">
+              <%= @form.acquisition_method_display %>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Alertas especiales -->
+  <% if @form.is_inheritance? %>
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle"></i>
+      <strong>HERENCIA</strong> - Requiere atención especial.
+      Herederos: <%= @form.inheritance_info['heirs_count'] %>
+    </div>
+  <% end %>
+  
+  <% if @form.current_status['has_active_mortgage'] %>
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>HIPOTECA ACTIVA</strong> - 
+      Saldo: $<%= number_with_delimiter(@form.current_status['mortgage_balance']) %>
+    </div>
+  <% end %>
+  
+  <!-- Detalles de cada sección -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Detalles Completos</h5>
+    </div>
+    <div class="card-body">
+      <!-- Aquí mostrar todas las secciones del formulario -->
+      <!-- Similar a como las mostraste en el form, pero en modo lectura -->
+    </div>
+  </div>
+  
+</div>

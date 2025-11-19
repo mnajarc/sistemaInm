@@ -1,0 +1,421 @@
+<div class="card">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="bi bi-2-circle"></i> Estatus Actual de la Propiedad</h5>
+  </div>
+  <div class="card-body">
+    
+    <h6 class="mb-3">Hipoteca y Financiamiento</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][has_active_mortgage]',
+                         '1',
+                         form.current_status['has_active_mortgage'],
+                         class: 'form-check-input',
+                         id: 'current_has_mortgage_check' %>
+        <%= label_tag 'current_has_mortgage_check', '¿Tiene hipoteca activa que liquidar?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+
+    <div class="mortgage-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= f.label 'current_status[mortgage_balance]', 'Saldo hipotecario aproximado', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][mortgage_balance]',
+                              form.current_status['mortgage_balance'],
+                              class: 'form-control',
+                              placeholder: '$',
+                              step: '0.01' %>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+          <%= label_tag 'current_status[mortgage_payments_current]', '¿Está al corriente en los pagos? *', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][mortgage_payments_current]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['No sabe', 'unknown']
+                        ], form.current_status['mortgage_payments_current']),
+                        id: 'mortgage_payments_current_select',
+                        class: 'form-select',
+                        data: { originally_required: 'true' } %>
+        </div>
+        
+        <div class="col-md-4 mb-3 mortgage-collection-field" style="display: none;">
+          <%= label_tag 'current_status[in_collection_agency]', '¿Está en despacho de cobranza?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][in_collection_agency]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['No sabe', 'unknown']
+                        ], form.current_status['in_collection_agency']),
+                        class: 'form-select' %>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[mortgage_notes]', 'Notas sobre hipoteca', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][mortgage_notes]',
+                            form.current_status['mortgage_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Información adicional sobre la hipoteca...' %>
+        </div>
+      </div>
+    </div>
+   
+
+
+
+    
+    <h6 class="mt-4 mb-3">Remodelaciones y Mejoras</h6>
+
+    <!-- Ampliaciones -->
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_extensions]',
+                        'true',
+                        form.current_status['has_extensions'] == 'true',
+                        id: 'has_extensions_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_extensions_check', '¿La propiedad tiene ampliaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="extensions-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[extensions_reported]', '¿Están reportadas?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][extensions_reported]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['extensions_reported']),
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[extensions_notes]', 'Notas sobre ampliaciones', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][extensions_notes]',
+                            form.current_status['extensions_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Detalles de las ampliaciones...' %>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_additions]',
+                        'true',
+                        form.current_status['has_additions'] == 'true',
+                        id: 'has_additions_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_additions_check', '¿Tiene ampliaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="additions-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[additions_registered]', '¿Están reportadas?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][additions_registered]',
+                        options_for_select([['No', 'false'], ['Sí', 'true']], form.current_status['additions_registered']),
+                        class: 'form-select' %>
+        </div>
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[additions_notes]', 'Notas', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][additions_notes]',
+                            form.current_status['additions_notes'],
+                            class: 'form-control',
+                            rows: 2 %>
+        </div>
+      </div>
+    </div>
+<!-- ========================================================================== -->
+<!-- REEMPLAZAR EN SECCIÓN 2: ESTATUS ACTUAL                                   -->
+<!-- El checkbox simple de remodelaciones por esta sección completa            -->
+<!-- ========================================================================== -->
+
+    <!-- Remodelaciones -->
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_renovations]',
+                        'true',
+                        form.current_status['has_renovations'] == 'true',
+                        id: 'has_renovations_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_renovations_check', '¿Se realizaron remodelaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="renovations-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[knows_renovation_cost]', '¿Conoce el monto aproximado de inversión?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][knows_renovation_cost]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false']
+                         ], form.current_status['knows_renovation_cost']),
+                         id: 'knows_renovation_cost_select',
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3 renovation-cost-field" style="display: none;">
+          <%= f.label 'current_status[renovation_cost]', 'Monto aproximado de inversión', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][renovation_cost]',
+                               form.current_status['renovation_cost'],
+                               class: 'form-control',
+                               min: 0,
+                               step: 0.01,
+                               placeholder: '$0.00' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[renovation_notes]', 'Notas sobre remodelaciones', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][renovation_notes]',
+                            form.current_status['renovation_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Detalles de las remodelaciones realizadas...' %>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    
+    <h6 class="mt-4 mb-3">Condominio</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][is_in_condominium]',
+                         '1',
+                         form.current_status['is_in_condominium'],
+                         class: 'form-check-input',
+                         id: 'is_in_condominium_check' %>
+        <%= label_tag 'is_in_condominium_check', '¿El inmueble está dentro de un condominio/fraccionamiento?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <div class="condominium-details" style="display: none;">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= f.label 'current_status[condominium_regime]', 'Tipo de régimen', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][condominium_regime]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Vertical', 'vertical'],
+                          ['Horizontal', 'horizontal'],
+                          ['Mixto', 'mixto'],
+                          ['En proceso', 'en_proceso'],
+                          ['Otro', 'otro']
+                        ], form.current_status['condominium_regime']),
+                        id: 'initial_contact_form_current_status_condominium_regime',
+                        class: 'form-select' %>
+        </div>
+
+<!-- ========================================================================== -->
+<!-- AGREGAR EN .condominium-details                                            -->
+<!-- UBICACIÓN: Después del campo condominium_regime                            -->
+<!-- ========================================================================== -->
+
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[has_condominium_rules]', '¿Cuenta con reglamento de condominio?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][has_condominium_rules]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['has_condominium_rules']),
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[has_maintenance_clearance]', '¿Tiene constancia de no adeudo de mantenimiento?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][has_maintenance_clearance]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['has_maintenance_clearance']),
+                         class: 'form-select' %>
+        </div>
+
+
+
+      </div>
+    </div>
+
+    
+    <h6 class="mt-4 mb-3">Unidades Rentables</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][has_rental_units]',
+                         '1',
+                         form.current_status['has_rental_units'],
+                         class: 'form-check-input',
+                         id: 'has_rental_units_check' %>
+        <%= label_tag 'has_rental_units_check', '¿Tiene unidades rentadas o rentables?', class: 'form-check-label' %>
+      </div>
+      <small class="text-muted">Por ejemplo: departamentos, locales, cuartos independientes</small>
+    </div>
+
+
+    <div class="rental-details" style="display: none;">
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <div class="alert alert-info">
+            <strong><i class="bi bi-building"></i> Unidades rentables:</strong> Proporciona detalles de departamentos y/o locales comerciales
+          </div>
+        </div>
+
+        <!-- DEPARTAMENTOS -->
+        <div class="col-md-12 mb-3">
+          <h6 class="text-primary mb-3">
+            <i class="bi bi-door-closed"></i> Departamentos
+          </h6>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[apartment_units_count]', 'Cantidad de departamentos', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][apartment_units_count]',
+                              form.current_status['apartment_units_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_natural_light]', '¿Tienen luz natural?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_natural_light]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Algunos', 'partial']
+                        ], form.current_status['apartments_natural_light']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_access]', 'Tipo de acceso', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_access]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Interno', 'interno'],
+                          ['Externo', 'externo'],
+                          ['Ambos', 'ambos']
+                        ], form.current_status['apartments_access']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_have_kitchen]', '¿Tienen cocina?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_have_kitchen]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Algunos', 'partial']
+                        ], form.current_status['apartments_have_kitchen']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <%= label_tag 'current_status[apartments_finish_type]', 'Tipo de obra', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_finish_type]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Obra Negra', 'negra'],
+                          ['Obra Gris', 'gris'],
+                          ['Obra Blanca', 'blanca']
+                        ], form.current_status['apartments_finish_type']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <hr class="my-4">
+        </div>
+
+        <!-- LOCALES COMERCIALES -->
+        <div class="col-md-12 mb-3">
+          <h6 class="text-primary mb-3">
+            <i class="bi bi-shop"></i> Locales Comerciales
+          </h6>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[commercial_units_count]', 'Cantidad de locales', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][commercial_units_count]',
+                              form.current_status['commercial_units_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[commercial_access]', 'Tipo de acceso', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][commercial_access]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Interno', 'interno'],
+                          ['Externo', 'externo'],
+                          ['Ambos', 'ambos']
+                        ], form.current_status['commercial_access']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[commercial_shutters_count]', 'Número de cortinas', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][commercial_shutters_count]',
+                              form.current_status['commercial_shutters_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[commercial_modifiable]', '¿Es modificable?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][commercial_modifiable]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Con restricciones', 'restricted']
+                        ], form.current_status['commercial_modifiable']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <hr class="my-4">
+        </div>
+
+        <!-- NOTAS GENERALES -->
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[rental_units_notes]', 'Notas sobre unidades rentables', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][rental_units_notes]',
+                            form.current_status['rental_units_notes'],
+                            class: 'form-control',
+                            rows: 3,
+                            placeholder: 'Información adicional sobre las unidades rentables (distribución, estado, inquilinos actuales, contratos, etc.)' %>
+        </div>
+      </div>
+    </div>
+
+
+    
+  
+
+
+  </div>
+</div>

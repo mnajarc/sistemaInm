@@ -1,0 +1,3240 @@
+++++++ Archivo:  _conditional_fields.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/_conditional_fields.html.erb -->
+<!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN -->
+<!-- CORRECCIÓN: Usar data-originally-required en lugar de required -->
+<!-- ========================================================================== -->
+<!-- CAMPOS GLOBALES - SIEMPRE VISIBLES                                         -->
+<!-- ========================================================================== -->
+
+<!-- COMPRAVENTA -->
+<div id="compraventa-fields" class="conditional-section" style="display: none;">
+  <div class="card">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">📋 Detalles de Compraventa</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <strong>Compraventa:</strong> Información básica del contrato de compraventa
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_co_owners_count', 'Número de copropietarios *', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[acquisition_details][co_owners_count]',
+                              form.acquisition_details['co_owners_count'] || 1,
+                              class: 'form-control', min: 1,
+                              data: { originally_required: 'true' } %>
+        </div>
+        
+      </div>
+      
+      <div class="mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[acquisition_details][has_relationship]', '1',
+                           form.acquisition_details['has_relationship'],
+                           class: 'form-check-input', id: 'has_relationship_check' %>
+          <%= label_tag 'has_relationship_check', '¿Los copropietarios tienen parentesco?',
+                        class: 'form-check-label' %>
+        </div>
+      </div>
+      
+      <div id="relationship-field" style="<%= 'display:none;' unless form.acquisition_details['has_relationship'] %>">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_relationship_type', 'Especifique el parentesco',
+                        class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][relationship_type]',
+                         options_for_select([
+                           ['Esposos', 'esposos'],
+                           ['Hermanos', 'hermanos'],
+                           ['Padres e hijos', 'padres_hijos'],
+                           ['Primos', 'primos'],
+                           ['Tíos y sobrinos', 'tios_sobrinos'],
+                           ['Otro', 'otro']
+                         ], form.acquisition_details['relationship_type']),
+                         class: 'form-select' %>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[acquisition_details][acquired_pre_2014]', '1',
+                           form.acquisition_details['acquired_pre_2014'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'acquired_pre_2014', '¿Se adquirió antes de 2014?',
+                        class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HERENCIA -->
+<div id="herencia-fields" class="conditional-section" style="display: none;">
+  <div class="card">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">👨‍👩‍👧‍👦 Detalles de Herencia</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning">
+        <strong>Herencia:</strong> Información sobre los herederos y la sucesión
+      </div>
+      
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= label_tag 'acquisition_details_heirs_count', 'Número de herederos directos *',
+                        class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[acquisition_details][heirs_count]',
+                              form.acquisition_details['heirs_count'],
+                              class: 'form-control', min: 1,
+                              data: { originally_required: 'true' } %>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+          <%= label_tag 'acquisition_details_all_living', '¿Todos viven?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][all_living]',
+                         options_for_select([['Sí', 'true'], ['No', 'false']],
+                                           form.acquisition_details['all_living']),
+                         class: 'form-select', id: 'all_living_select' %>
+        </div>
+        
+        <div class="col-md-4 mb-3" id="deceased-count-field"
+             style="<%= 'display:none;' unless form.acquisition_details['all_living'] == 'false' %>">
+          <%= label_tag 'acquisition_details_deceased_count', '¿Cuántos han fallecido?',
+                        class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[acquisition_details][deceased_count]',
+                              form.acquisition_details['deceased_count'],
+                              class: 'form-control', min: 0 %>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_all_married', '¿Todos están casados?',
+                        class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][all_married]',
+                         options_for_select([['Sí', 'true'], ['No', 'false']],
+                                           form.acquisition_details['all_married']),
+                         class: 'form-select', id: 'all_married_select' %>
+        </div>
+        
+        <div class="col-md-6 mb-3" id="single-count-field"
+             style="<%= 'display:none;' unless form.acquisition_details['all_married'] == 'false' %>">
+          <%= label_tag 'acquisition_details_single_heirs_count', '¿Cuántos solteros?',
+                        class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[acquisition_details][single_heirs_count]',
+                              form.acquisition_details['single_heirs_count'],
+                              class: 'form-control', min: 0 %>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <%= label_tag 'acquisition_details_deceased_civil_status', 'Estado civil del finado/a *',
+                      class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[acquisition_details][deceased_civil_status]',
+                       options_for_select([
+                         ['Soltero(a)', 'soltero'],
+                         ['Casado(a)', 'casado'],
+                         ['Divorciado(a)', 'divorciado'],
+                         ['Viudo(a)', 'viudo'],
+                         ['Unión libre', 'union_libre']
+                       ], form.acquisition_details['deceased_civil_status']),
+                       class: 'form-select',
+                       data: { originally_required: 'true' } %>
+      </div>
+      
+      <div class="mb-3">
+        <%= label_tag 'acquisition_details_inheritance_from', '¿De quién es la herencia? *',
+                      class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[acquisition_details][inheritance_from]',
+                       options_for_select([
+                         ['Ambos padres', 'ambos_padres'],
+                         ['Padre', 'padre'],
+                         ['Madre', 'madre'],
+                         ['Cónyuge', 'conyuge'],
+                         ['Otro', 'otro']
+                       ], form.acquisition_details['inheritance_from']),
+                       class: 'form-select', id: 'inheritance_from_select',
+                       data: { originally_required: 'true' } %>
+      </div>
+      
+      <div id="inheritance-other-field"
+           style="<%= 'display:none;' unless form.acquisition_details['inheritance_from'] == 'otro' %>">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_inheritance_from_other', 'Especifique',
+                        class: 'form-label' %>
+          <%= text_field_tag 'initial_contact_form[acquisition_details][inheritance_from_other]',
+                            form.acquisition_details['inheritance_from_other'],
+                            class: 'form-control', maxlength: 100,
+                            placeholder: 'Ej: Hermano, tío, abuelo...' %>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <%= label_tag 'acquisition_details_parents_were_married', '¿Los padres estaban casados?',
+                      class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[acquisition_details][parents_were_married]',
+                       options_for_select([['Sí', 'true'], ['No', 'false']],
+                                         form.acquisition_details['parents_were_married']),
+                       class: 'form-select', id: 'parents_married_select' %>
+      </div>
+      
+      <div id="parents-regime-field" style="display: none;">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_parents_marriage_regime',
+                        'Régimen matrimonial de los padres', class: 'form-label' %>
+          <%= collection_select 'initial_contact_form[acquisition_details]', :parents_marriage_regime,
+                                MarriageRegime.active.ordered,
+                                :name, :display_name,
+                                { prompt: 'Seleccione...' },
+                                { class: 'form-select' } %>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <%= label_tag 'acquisition_details_has_testamentary', '¿Tiene sucesión testamentaria? *',
+                      class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[acquisition_details][has_testamentary_succession]',
+                       options_for_select([['Sí', 'true'], ['No', 'false']],
+                                         form.acquisition_details['has_testamentary_succession']),
+                       class: 'form-select', id: 'has_testamentary_select',
+                       data: { originally_required: 'true' } %>
+      </div>
+      
+      <div id="no-testamentary-field" style="display: none;">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_succession_planned_date', '¿Cuándo planea hacerla?',
+                        class: 'form-label' %>
+          <%= date_field_tag 'initial_contact_form[acquisition_details][succession_planned_date]',
+                            form.acquisition_details['succession_planned_date'],
+                            class: 'form-control' %>
+        </div>
+      </div>
+      
+      <div id="yes-testamentary-field" style="display: none;">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_succession_authority', '¿Por juzgado o notaría?',
+                        class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][succession_authority]',
+                         options_for_select([
+                           ['Juzgado', 'juzgado'],
+                           ['Notaría', 'notaria']
+                         ], form.acquisition_details['succession_authority']),
+                         class: 'form-select' %>
+
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'succession_type', '¿Cómo se llevó a cabo la sucesión? *', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][succession_type]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Juzgado', 'juzgado'],
+                          ['Notaría', 'notaria'],
+                          ['En proceso', 'en_proceso']
+                        ], form.acquisition_details['succession_type']),
+                        id: 'succession_type_select',
+                        class: 'form-select',
+                        data: { originally_required: 'true' } %>
+        </div>
+      </div>
+
+
+
+
+
+    </div>
+  </div>
+</div>
+
+<!-- USUCAPIÓN Y PRESCRIPCIÓN NEGATIVA -->
+<div id="usucapion-fields" class="conditional-section" style="display: none;">
+  <div class="card">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">⚖️ Detalles de Usucapión/Prescripción</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <strong>Usucapión / Prescripción:</strong> Documentos judiciales y notariales
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <%= check_box_tag 'initial_contact_form[acquisition_details][has_judicial_sentence]', '1',
+                             form.acquisition_details['has_judicial_sentence'],
+                             class: 'form-check-input' %>
+            <%= label_tag 'has_judicial_sentence', '¿Tiene sentencia del juez?',
+                          class: 'form-check-label' %>
+          </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            <%= check_box_tag 'initial_contact_form[acquisition_details][has_notarial_deed]', '1',
+                             form.acquisition_details['has_notarial_deed'],
+                             class: 'form-check-input' %>
+            <%= label_tag 'has_notarial_deed', '¿Tiene escritura ante notario?',
+                          class: 'form-check-label' %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DACIÓN EN PAGO -->
+<div id="dacion-pago-fields" class="conditional-section" style="display: none;">
+  <div class="card">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">💰 Detalles de Dación en Pago</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <strong>Dación en Pago:</strong> Documentación de la dación
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_document_type',
+                        '¿Con qué documento avala la propiedad? *', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][document_type]',
+                         options_for_select([
+                           ['Escritura Pública', 'escritura_publica'],
+                           ['Sentencia Judicial', 'sentencia_judicial'],
+                           ['Ambos', 'ambos']
+                         ], form.acquisition_details['document_type']),
+                         class: 'form-select',
+                         data: { originally_required: 'true' } %>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_co_owners_count', 'Número de copropietarios',
+                        class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[acquisition_details][co_owners_count]',
+                              form.acquisition_details['co_owners_count'] || 1,
+                              class: 'form-control', min: 1 %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DONACIÓN -->
+<div id="donacion-fields" class="conditional-section" style="display: none;">
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">🎁 Detalles de Donación</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <strong>Donación:</strong> Información del donante y beneficiarios
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_donor_name', 'Nombre completo del donante *',
+                        class: 'form-label' %>
+          <%= text_field_tag 'initial_contact_form[acquisition_details][donor_name]',
+                            form.acquisition_details['donor_name'],
+                            class: 'form-control',
+                            placeholder: 'Ej: Juan Pérez García',
+                            data: { originally_required: 'true' } %>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details_donor_relationship', 'Relación con el donante *',
+                        class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[acquisition_details][donor_relationship]',
+                         options_for_select([
+                           ['Padre', 'padre'],
+                           ['Madre', 'madre'],
+                           ['Hermano', 'hermano'],
+                           ['Tío', 'tio'],
+                           ['Abuelo', 'abuelo'],
+                           ['Cónyuge', 'conyuge'],
+                           ['Otro', 'otro']
+                         ], form.acquisition_details['donor_relationship']),
+                         class: 'form-select', id: 'donor_relationship_select',
+                         data: { originally_required: 'true' } %>
+        </div>
+      </div>
+      
+      <div id="donor-other-field"
+           style="<%= 'display:none;' unless form.acquisition_details['donor_relationship'] == 'otro' %>">
+        <div class="mb-3">
+          <%= label_tag 'acquisition_details_donor_relationship_other', 'Especifique relación',
+                        class: 'form-label' %>
+          <%= text_field_tag 'initial_contact_form[acquisition_details][donor_relationship_other]',
+                            form.acquisition_details['donor_relationship_other'],
+                            class: 'form-control', maxlength: 100 %>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <%= label_tag 'acquisition_details_beneficiaries_count',
+                      'Número de beneficiarios de la donación *', class: 'form-label' %>
+        <%= number_field_tag 'initial_contact_form[acquisition_details][beneficiaries_count]',
+                            form.acquisition_details['beneficiaries_count'] || 1,
+                            class: 'form-control', min: 1,
+                            data: { originally_required: 'true' } %>
+        <small class="text-muted">Los nombres completos se capturarán en la Business Transaction</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JAVASCRIPT INTERNO PARA CAMPOS CONDICIONALES -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // HERENCIA: Campos condicionales
+  const allLivingSelect = document.getElementById('all_living_select');
+  const deceasedCountField = document.getElementById('deceased-count-field');
+  
+  if (allLivingSelect) {
+    allLivingSelect.addEventListener('change', function() {
+      deceasedCountField.style.display = this.value === 'false' ? 'block' : 'none';
+    });
+  }
+  
+  const allMarriedSelect = document.getElementById('all_married_select');
+  const singleCountField = document.getElementById('single-count-field');
+  
+  if (allMarriedSelect) {
+    allMarriedSelect.addEventListener('change', function() {
+      singleCountField.style.display = this.value === 'false' ? 'block' : 'none';
+    });
+  }
+  
+  const inheritanceFromSelect = document.getElementById('inheritance_from_select');
+  const inheritanceOtherField = document.getElementById('inheritance-other-field');
+  
+  if (inheritanceFromSelect) {
+    inheritanceFromSelect.addEventListener('change', function() {
+      inheritanceOtherField.style.display = this.value === 'otro' ? 'block' : 'none';
+    });
+  }
+  
+  const parentsMarriedSelect = document.getElementById('parents_married_select');
+  const parentsRegimeField = document.getElementById('parents-regime-field');
+  
+  if (parentsMarriedSelect) {
+    parentsMarriedSelect.addEventListener('change', function() {
+      parentsRegimeField.style.display = this.value === 'true' ? 'block' : 'none';
+    });
+  }
+  
+  const hasTestamentarySelect = document.getElementById('has_testamentary_select');
+  const noTestamentaryField = document.getElementById('no-testamentary-field');
+  const yesTestamentaryField = document.getElementById('yes-testamentary-field');
+  
+  if (hasTestamentarySelect) {
+    hasTestamentarySelect.addEventListener('change', function() {
+      noTestamentaryField.style.display = this.value === 'false' ? 'block' : 'none';
+      yesTestamentaryField.style.display = this.value === 'true' ? 'block' : 'none';
+    });
+  }
+  
+  // COMPRAVENTA: Parentesco
+  const hasRelationshipCheck = document.getElementById('has_relationship_check');
+  const relationshipField = document.getElementById('relationship-field');
+  
+  if (hasRelationshipCheck) {
+    hasRelationshipCheck.addEventListener('change', function() {
+      relationshipField.style.display = this.checked ? 'block' : 'none';
+    });
+  }
+  
+  // DONACIÓN: Relación otro
+  const donorRelationshipSelect = document.getElementById('donor_relationship_select');
+  const donorOtherField = document.getElementById('donor-other-field');
+  
+  if (donorRelationshipSelect) {
+    donorRelationshipSelect.addEventListener('change', function() {
+      donorOtherField.style.display = this.value === 'otro' ? 'block' : 'none';
+    });
+  }
+});
+</script>
+++++++ Archivo:  _form.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/_form.html.erb -->
+<!-- FORMULARIO REFACTORIZADO - 4 SECCIONES -->
+
+<%= form_with(model: form, local: true, html: { class: 'initial-contact-form', id: 'contactForm' }) do |f| %> <% if form.errors.any? %>
+    <div class="alert alert-danger">
+      <h5>Errores en el formulario:</h5>
+      <ul>
+        <% form.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>
+        <i class="bi bi-person-badge"></i>
+        Formulario de Contacto Inicial
+      </h2>
+      <p class="mb-0 text-muted">
+        <strong>Agente:</strong>
+        <%= form.agent && form.agent.user ? form.agent.user.name : "No asignado" %>
+      </p>
+      <p class="mb-0 text-muted">
+        <strong>Folio:</strong>
+        <%= form.initial_contact_folio || "Sin folio" %>
+      </p>
+      <p class="mb-0 text-muted">
+        <strong>Identificador:</strong>
+        <%= form.property_human_identifier || "Sin identificador" %>
+      </p>
+    </div>
+  </div>
+
+
+
+  <!-- IDENTIFICADOR DE LA OPORTUNIDAD -->
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <i class="bi bi-tag"></i> Identificador de la Oportunidad
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <%= f.label :property_human_identifier, 'Nombre de la oportunidad *', class: 'form-label fw-bold' %>
+          <%= f.text_field :property_human_identifier, 
+                           class: 'form-control form-control-lg', 
+                           required: true,
+                           placeholder: 'Ej: Casa Lomas de Chapultepec - Familia García' %>
+          <small class="text-muted mt-2 d-block">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Importante:</strong> Este nombre te ayudará a identificar rápidamente esta oportunidad.
+            <br>
+            <strong>Se recomienda usar:</strong> [Tipo de propiedad] [Ubicación] - [Propietario]
+          </small>
+        </div>
+      </div>
+      
+      <div class="alert alert-success mt-3">
+        <i class="bi bi-lightbulb"></i> 
+        <strong>Sugerencia:</strong> Un buen identificador facilita el seguimiento de la operación.
+        <br><br>
+        <strong>Ejemplos:</strong>
+        <ul class="mb-0">
+          <li>Casa Lomas de Chapultepec - Familia Gómez</li>
+          <li>Departamento Reforma - Roberto Martínez</li>
+          <li>Terreno Industrial Vallejo - Constructora ABC</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  
+  <!-- INDICADOR DE PROGRESO -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between mb-2">
+        <span>Progreso de completitud</span>
+        <strong><%= form.completion_percentage %>%</strong>
+      </div>
+      <div class="progress" style="height: 25px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" 
+             style="width: <%= form.completion_percentage %>%">
+          <%= form.completion_percentage %>% completado
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <!-- TABS DE NAVEGACIÓN (4 SECCIONES) -->
+  <ul class="nav nav-tabs mb-4" id="formTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="section1-tab" data-bs-toggle="tab" data-bs-target="#section1" type="button">
+        1. Condiciones Generales
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section2-tab" data-bs-toggle="tab" data-bs-target="#section2" type="button">
+        2. Estatus Actual
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section3-tab" data-bs-toggle="tab" data-bs-target="#section3" type="button">
+        3. Exención ISR
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="section4-tab" data-bs-toggle="tab" data-bs-target="#section4" type="button">
+        4. Promoción
+      </button>
+    </li>
+  </ul>
+
+  <!-- CONTENIDO DE TABS -->
+  <div class="tab-content" id="formTabContent">
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 1: CONDICIONES GENERALES                           -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade show active" id="section1" role="tabpanel">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-1-circle"></i> Condiciones Generales</h5>
+        </div>
+        <div class="card-body">
+          
+          <!-- Tipo de Operación y Método de Adquisición -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :operation_type_id, '¿Qué tipo de operación es? *', class: 'form-label' %>
+              <%= f.collection_select :operation_type_id,
+                                     OperationType.active.by_sort_order,
+                                     :id,
+                                     :display_name,
+                                     { prompt: 'Seleccione tipo de operación...' },
+                                     { class: 'form-select', required: true } %>
+              <small class="text-muted">Indica si es venta, renta, o ambas</small>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= f.label :property_acquisition_method_id, '¿Cómo adquirió la propiedad? *', class: 'form-label' %>
+              <%= f.collection_select :property_acquisition_method_id,
+                                     PropertyAcquisitionMethod.active.ordered,
+                                     :id,
+                                     :name,
+                                     { prompt: 'Seleccione un método...' },
+                                     { class: 'form-select',
+                                       id: 'acquisition_method_select',
+                                       required: true } %>
+              
+              <% if form.property_acquisition_method.present? %>
+                <small class="text-muted mt-1 d-block">
+                  <strong>Ref. legal:</strong> <%= form.property_acquisition_method.legal_reference %>
+                </small>
+              <% end %>
+            </div>
+          </div>
+          
+          <!-- Campo oculto con mapping ID -> Code para JavaScript -->
+          <%= hidden_field_tag 'property_acquisition_method_codes',
+                              @acquisition_method_codes,
+                              id: 'acquisition_method_codes_data' %>
+          
+          <!-- Datos del propietario/representante -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :contract_signer_type_id, '¿Quién firmará el contrato? *', class: 'form-label' %>
+              <%= f.collection_select :contract_signer_type_id,
+                                     ContractSignerType.active.ordered,
+                                     :id,
+                                     :display_name,
+                                     { prompt: 'Seleccione...' },
+                                     { class: 'form-select', required: true } %>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_or_representative_name', 'Nombre completo del propietario/representante *', class: 'form-label' %>
+              <%= text_field_tag 'initial_contact_form[general_conditions][owner_or_representative_name]',
+                                form.general_conditions['owner_or_representative_name'],
+                                class: 'form-control',
+                                placeholder: 'Ej: Juan Pérez García',
+                                required: true %>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_phone', 'Teléfono de contacto', class: 'form-label' %>
+              <%= text_field_tag 'initial_contact_form[general_conditions][owner_phone]',
+                                form.general_conditions['owner_phone'],
+                                class: 'form-control',
+                                placeholder: '(55) 1234-5678' %>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_owner_email', 'Email de contacto', class: 'form-label' %>
+              <%= email_field_tag 'initial_contact_form[general_conditions][owner_email]',
+                                 form.general_conditions['owner_email'],
+                                 class: 'form-control',
+                                 placeholder: 'ejemplo@email.com' %>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions_civil_status', 'Estado civil *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[general_conditions][civil_status]',
+                             options_for_select([
+                               ['Seleccione...', ''],
+                               ['Soltero(a)', 'soltero'],
+                               ['Casado(a)', 'casado'],
+                               ['Divorciado(a)', 'divorciado'],
+                               ['Viudo(a)', 'viudo'],
+                               ['Unión libre', 'union_libre']
+                             ], form.general_conditions['civil_status']),
+                             class: 'form-select',
+                             id: 'civil_status_field',
+                             required: true %>
+            </div>
+            
+            <div class="col-md-6 mb-3 marriage-regime-field" style="<%= 'display:none;' unless form.general_conditions['civil_status'] == 'casado' %>">
+              <%= label_tag 'general_conditions_marriage_regime_id', 'Régimen matrimonial', class: 'form-label' %>
+              <%= collection_select 'initial_contact_form[general_conditions]', :marriage_regime_id,
+                                   MarriageRegime.active.ordered,
+                                   :id, :display_name,
+                                   { prompt: 'Seleccione...' },
+                                   { class: 'form-select' } %>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <%= label_tag 'general_conditions_notes', 'Observaciones adicionales', class: 'form-label' %>
+            <%= text_area_tag 'initial_contact_form[general_conditions][notes]',
+                             form.general_conditions['notes'],
+                             class: 'form-control',
+                             rows: 3,
+                             placeholder: 'Cualquier información adicional relevante...' %>
+          </div>
+
+
+          <!-- CAMPOS GLOBALES (SIEMPRE VISIBLES) -->
+          <div class="row mt-4 mb-4">
+            <div class="col-12 mb-3">
+              <h6 class="text-primary">
+                <i class="bi bi-geo-alt"></i> Ubicación y Uso
+              </h6>
+              <hr>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <%= f.label 'acquisition_details[state]', 'Entidad federativa *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[acquisition_details][state]',
+                            options_for_select([
+                              ['Selecciona un estado...', ''],
+                              ['Aguascalientes', 'Aguascalientes'],
+                              ['Baja California', 'Baja California'],
+                              ['Baja California Sur', 'Baja California Sur'],
+                              ['Campeche', 'Campeche'],
+                              ['Chiapas', 'Chiapas'],
+                              ['Chihuahua', 'Chihuahua'],
+                              ['Ciudad de México', 'CDMX'],
+                              ['Coahuila', 'Coahuila'],
+                              ['Colima', 'Colima'],
+                              ['Durango', 'Durango'],
+                              ['Estado de México', 'Estado de México'],
+                              ['Guanajuato', 'Guanajuato'],
+                              ['Guerrero', 'Guerrero'],
+                              ['Hidalgo', 'Hidalgo'],
+                              ['Jalisco', 'Jalisco'],
+                              ['Michoacán', 'Michoacán'],
+                              ['Morelos', 'Morelos'],
+                              ['Nayarit', 'Nayarit'],
+                              ['Nuevo León', 'Nuevo León'],
+                              ['Oaxaca', 'Oaxaca'],
+                              ['Puebla', 'Puebla'],
+                              ['Querétaro', 'Querétaro'],
+                              ['Quintana Roo', 'Quintana Roo'],
+                              ['San Luis Potosí', 'San Luis Potosí'],
+                              ['Sinaloa', 'Sinaloa'],
+                              ['Sonora', 'Sonora'],
+                              ['Tabasco', 'Tabasco'],
+                              ['Tamaulipas', 'Tamaulipas'],
+                              ['Tlaxcala', 'Tlaxcala'],
+                              ['Veracruz', 'Veracruz'],
+                              ['Yucatán', 'Yucatán'],
+                              ['Zacatecas', 'Zacatecas']
+                            ], form.acquisition_details['state']),
+                            id: 'state_select',
+                            class: 'form-select',
+                            required: true %>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <%= f.label 'acquisition_details[land_use]', 'Uso de suelo *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[acquisition_details][land_use]',
+                            options_for_select([
+                              ['Selecciona uso de suelo...', ''],
+                              ['Habitacional', 'habitacional'],
+                              ['Comercial', 'comercial'],
+                              ['Industrial', 'industrial'],
+                              ['Mixto', 'mixto'],
+                              ['Rústico/Agrícola', 'rustico']
+                            ], form.acquisition_details['land_use']),
+                            id: 'land_use_select',
+                            class: 'form-select',
+                            required: true %>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      
+      <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN (INLINE) -->
+      <%= render 'conditional_fields', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 2: ESTATUS ACTUAL                                  -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section2" role="tabpanel">
+      <%= render 'section_current_status', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 3: EXENCIÓN ISR                                    -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section3" role="tabpanel">
+      <%= render 'section_tax_exemption', form: form, f: f %>
+    </div>
+    
+    <!-- ========================================================== -->
+    <!-- SECCIÓN 4: PROMOCIÓN                                       -->
+    <!-- ========================================================== -->
+    <div class="tab-pane fade" id="section4" role="tabpanel">
+      <%= render 'section_promotion', form: form, f: f %>
+    </div>
+    
+  </div>
+
+  <!-- BOTONES DE NAVEGACIÓN -->
+  <div class="d-flex justify-content-between mt-4">
+    <button type="button" class="btn btn-secondary" id="prevBtn" disabled>
+      <i class="bi bi-arrow-left"></i> Anterior
+    </button>
+    
+    <div>
+      <%= f.submit 'Guardar Borrador', 
+                   name: 'save_draft', 
+                   class: 'btn btn-outline-primary me-2',
+                   formnovalidate: true %>
+      <%= f.submit form.persisted? ? 'Actualizar' : 'Guardar y Completar', 
+                   class: 'btn btn-primary' %>
+    </div>
+    
+    <button type="button" class="btn btn-secondary" id="nextBtn">
+      Siguiente <i class="bi bi-arrow-right"></i>
+    </button>
+  </div>
+
+<% end %>
+
+<!-- JAVASCRIPT -->
+<%= render 'form_javascript' %>
+
+++++++ Archivo:  _form_javascript.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/_form_javascript.html.erb -->
+<!-- JAVASCRIPT FINAL - VERSIÓN VALIDADA Y CORREGIDA -->
+
+<script>
+function initializeInitialContactForm() {
+  console.log('🚀 InitialContactForm JavaScript initializing...');
+  
+  // ========================================================================
+  // NAVEGACIÓN ENTRE TABS
+  // ========================================================================
+  const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  let currentTab = 0;
+
+  function updateButtons() {
+    if (prevBtn && nextBtn) {
+      prevBtn.disabled = currentTab === 0;
+      nextBtn.disabled = currentTab === tabs.length - 1;
+    }
+  }
+
+  if (nextBtn && prevBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (currentTab < tabs.length - 1) {
+        currentTab++;
+        tabs[currentTab].click();
+        updateButtons();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentTab > 0) {
+        currentTab--;
+        tabs[currentTab].click();
+        updateButtons();
+      }
+    });
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('shown.bs.tab', () => {
+        currentTab = index;
+        updateButtons();
+      });
+    });
+
+    updateButtons();
+  }
+
+  // ========================================================================
+  // FUNCIÓN PARA LIMPIAR CAMPOS DE SECCIONES OCULTAS
+  // ========================================================================
+
+function clearHiddenSectionFields(exceptSectionId) {
+  const conditionalSections = document.querySelectorAll('.conditional-section');
+  
+  conditionalSections.forEach(section => {
+    // Si la sección NO es la que estamos mostrando
+    if (section.id !== exceptSectionId && section.style.display === 'none') {
+      // Limpiar SOLO los campos específicos del formulario condicional
+      // NO limpiar co_owners_count, state, etc que pueden estar en varias secciones
+      
+      const fieldsToPreserve = [
+        'co_owners_count', 'state', 'land_use', 'condominium_regime', 
+        'rental_units_count', 'mortgage_balance', 'monthly_payment'
+      ];
+      
+      const inputs = section.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="date"]');
+      inputs.forEach(input => {
+        // Obtener el nombre del campo (último elemento después de ][)
+        const fieldName = input.name.split('[').pop().replace(']', '');
+        
+        // NO limpiar si está en la lista de campos a preservar
+        if (!fieldsToPreserve.includes(fieldName) && !input.hasAttribute('data-keep-value')) {
+          input.value = '';
+        }
+      });
+      
+      // Desmarcar checkboxes
+      const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(checkbox => {
+        if (!checkbox.hasAttribute('data-keep-value')) {
+          checkbox.checked = false;
+        }
+      });
+      
+      // Resetear selects (EXCEPTO state que es requerido)
+      const selects = section.querySelectorAll('select');
+      selects.forEach(select => {
+        const fieldName = select.name.split('[').pop().replace(']', '');
+        if (fieldName !== 'state' && !select.hasAttribute('data-keep-value')) {
+          select.selectedIndex = 0;
+        }
+      });
+      
+      console.log('🧹 Cleared fields in hidden section:', section.id);
+    }
+  });
+}
+
+
+
+
+  // ========================================================================
+  // FUNCIÓN PARA MANEJAR REQUIRED EN CAMPOS CONDICIONALES
+  // ========================================================================
+  function updateRequiredFields() {
+    const conditionalSections = document.querySelectorAll('.conditional-section');
+    
+    conditionalSections.forEach(section => {
+      const isVisible = section.style.display === 'block';
+      const requiredInputs = section.querySelectorAll('input, select, textarea');
+      
+      requiredInputs.forEach(input => {
+        if (!input.hasAttribute('data-originally-required')) {
+          if (input.hasAttribute('required')) {
+            input.setAttribute('data-originally-required', 'true');
+          }
+        }
+        
+        const wasRequired = input.getAttribute('data-originally-required') === 'true';
+        
+        if (isVisible && wasRequired) {
+          input.setAttribute('required', 'required');
+        } else if (!isVisible) {
+          input.removeAttribute('required');
+        }
+      });
+    });
+  }
+
+  // ========================================================================
+  // CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN
+  // ========================================================================
+  const methodSelect = document.getElementById('acquisition_method_select');
+  const conditionalSections = document.querySelectorAll('.conditional-section');
+  
+  const methodCodesData = document.getElementById('acquisition_method_codes_data');
+  
+  if (!methodCodesData) {
+    console.error('❌ No se encontró el campo acquisition_method_codes_data');
+    return;
+  }
+  
+  // CORRECCIÓN: Validar que methodCodesData.value no esté vacío
+  let methodCodes = {};
+  try {
+    const codesValue = methodCodesData.value;
+    if (codesValue && codesValue.trim()) {
+      methodCodes = JSON.parse(codesValue);
+    }
+  } catch (e) {
+    console.error('❌ Error parsing method codes:', e);
+    methodCodes = {};
+  }
+  
+  const methodSectionMap = {
+    'compraventa': 'compraventa-fields',
+    'compraventa_derechos': 'compraventa-fields',
+    'herencia': 'herencia-fields',
+    'usucapion': 'usucapion-fields',
+    'prescripcion_negativa': 'usucapion-fields',
+    'dacion_pago': 'dacion-pago-fields',
+    'donacion': 'donacion-fields'
+  };
+  
+  // ========================================================================
+  // MOSTRAR/OCULTAR CAMPOS CONDICIONALES
+  // ========================================================================
+  function showConditionalFields(methodId, isInitialLoad = false) {
+    console.log('🔍 Showing fields for method ID:', methodId, 'isInitialLoad:', isInitialLoad);
+    
+    // Ocultar todas las secciones
+    conditionalSections.forEach(section => {
+      section.style.display = 'none';
+    });
+    
+    if (!methodId || methodId === '') {
+      console.log('⚠️ No method selected');
+      updateRequiredFields();
+      return;
+    }
+    
+    const selectedId = parseInt(methodId);
+    const methodCode = methodCodes[selectedId];
+    
+    console.log('Selected ID:', selectedId, 'Method Code:', methodCode);
+    
+    let sectionToShow = null;
+    
+    if (methodCode && methodSectionMap[methodCode]) {
+      const sectionId = methodSectionMap[methodCode];
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.style.display = 'block';
+        sectionToShow = sectionId;
+        console.log('✅ Showing section:', sectionId);
+      } else {
+        console.error('❌ Section not found:', sectionId);
+      }
+    } else if (methodCode) {
+      const section = document.getElementById('otros-fields');
+      if (section) {
+        section.style.display = 'block';
+        sectionToShow = 'otros-fields';
+        console.log('✅ Showing generic section for:', methodCode);
+      } else {
+        console.warn('⚠️ Generic section "otros-fields" not found');
+      }
+    } else {
+      console.warn('⚠️ No method code found for ID:', selectedId);
+    }
+    
+    // IMPORTANTE: SOLO limpiar si NO es la carga inicial
+    if (!isInitialLoad) {
+      clearHiddenSectionFields(sectionToShow);
+    }
+    
+    updateRequiredFields();
+  }
+
+  if (methodSelect) {
+    console.log('✅ Method select found');
+    
+    // Evento cuando cambia el select (el usuario lo cambia manualmente)
+    methodSelect.addEventListener('change', function() {
+      console.log('📌 Method changed:', this.value);
+      showConditionalFields(this.value, false); // NO es carga inicial
+    });
+    
+    // Trigger inicial (cuando carga la página)
+    setTimeout(() => {
+      if (methodSelect.value && methodSelect.value !== '') {
+        console.log('🔄 Triggering initial load for:', methodSelect.value);
+        showConditionalFields(methodSelect.value, true); // SÍ es carga inicial
+      } else {
+        console.log('⚠️ No method selected on initial load');
+        updateRequiredFields();
+      }
+    }, 50);
+  } else {
+    console.error('❌ Method select not found: acquisition_method_select');
+  }
+
+  // ========================================================================
+  // SECCIÓN 1: CONDICIONES GENERALES - Estado civil
+  // ========================================================================
+  
+  const civilStatusField = document.getElementById('civil_status_field');
+  const marriageField = document.querySelector('.marriage-regime-field');
+  
+  if (civilStatusField && marriageField) {
+    function updateMarriageRegimeVisibility() {
+      const isVisible = civilStatusField.value === 'casado';
+      marriageField.style.display = isVisible ? 'block' : 'none';
+      
+      const regimeSelect = marriageField.querySelector('select');
+      if (regimeSelect) {
+        if (isVisible) {
+          regimeSelect.setAttribute('required', 'required');
+        } else {
+          regimeSelect.removeAttribute('required');
+          regimeSelect.selectedIndex = 0;
+        }
+      }
+    }
+    
+    civilStatusField.addEventListener('change', updateMarriageRegimeVisibility);
+    updateMarriageRegimeVisibility();
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL
+  // ========================================================================
+  
+  const currentMortgageCheck = document.getElementById('current_has_mortgage_check');
+  const mortgageSection = document.querySelector('.mortgage-section');
+  
+  if (currentMortgageCheck && mortgageSection) {
+    currentMortgageCheck.addEventListener('change', function(e) {
+      mortgageSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (currentMortgageCheck.checked) {
+      mortgageSection.style.display = 'block';
+    }
+  }
+
+  const condominiumCheck = document.getElementById('is_in_condominium_check');
+  const condominiumDetails = document.querySelector('.condominium-details');
+  
+  if (condominiumCheck && condominiumDetails) {
+    condominiumCheck.addEventListener('change', function(e) {
+      condominiumDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (condominiumCheck.checked) {
+      condominiumDetails.style.display = 'block';
+    }
+  }
+
+  const rentalCheck = document.getElementById('has_rental_units_check');
+  const rentalDetails = document.querySelector('.rental-details');
+  
+  if (rentalCheck && rentalDetails) {
+    rentalCheck.addEventListener('change', function(e) {
+      rentalDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (rentalCheck.checked) {
+      rentalDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 3: EXENCIÓN ISR
+  // ========================================================================
+  
+  const previousSalesCheck = document.getElementById('previous_sales_check');
+  const previousSalesDetails = document.querySelector('.previous-sale-details');
+  
+  if (previousSalesCheck && previousSalesDetails) {
+    previousSalesCheck.addEventListener('change', function(e) {
+      previousSalesDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (previousSalesCheck.checked) {
+      previousSalesDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 4: PROMOCIÓN
+  // ========================================================================
+  
+  const signageCheck = document.getElementById('allows_signage_check');
+  const signageDetails = document.querySelector('.signage-details');
+  
+  if (signageCheck && signageDetails) {
+    signageCheck.addEventListener('change', function(e) {
+      signageDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (signageCheck.checked) {
+      signageDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // VALIDACIÓN ANTES DE SUBMIT
+  // ========================================================================
+  const form = document.getElementById('contactForm');
+  
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      updateRequiredFields();
+      console.log('📝 Form submitting...');
+    });
+  }
+  // ========================================================================
+  // AMPLIACIONES
+  // ========================================================================
+  const additionsCheck = document.getElementById('has_additions_check');
+  const additionsSection = document.querySelector('.additions-section');
+
+  if (additionsCheck && additionsSection) {
+    additionsCheck.addEventListener('change', function(e) {
+      additionsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (additionsCheck.checked) {
+      additionsSection.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // REMODELACIONES
+  // ========================================================================
+  const renovationsCheck = document.getElementById('has_renovations_check');
+  const renovationsSection = document.querySelector('.renovations-section');
+
+  if (renovationsCheck && renovationsSection) {
+    renovationsCheck.addEventListener('change', function(e) {
+      renovationsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (renovationsCheck.checked) {
+      renovationsSection.style.display = 'block';
+    }
+  }
+
+  const renovationKnownSelect = document.getElementById('renovation_known_select');
+  const renovationCostField = document.querySelector('.renovation-cost-field');
+
+  if (renovationKnownSelect && renovationCostField) {
+    renovationKnownSelect.addEventListener('change', function(e) {
+      renovationCostField.style.display = e.target.value === 'true' ? 'block' : 'none';
+    });
+    if (renovationKnownSelect.value === 'true') {
+      renovationCostField.style.display = 'block';
+    }
+  }
+
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Hipoteca - Despacho de cobranza
+  // ========================================================================
+  
+  const mortgagePaymentsSelect = document.getElementById('mortgage_payments_current_select');
+  const mortgageCollectionField = document.querySelector('.mortgage-collection-field');
+  
+  if (mortgagePaymentsSelect && mortgageCollectionField) {
+    mortgagePaymentsSelect.addEventListener('change', function(e) {
+      // Mostrar campo de cobranza SOLO si NO está al corriente
+      mortgageCollectionField.style.display = e.target.value === 'false' ? 'block' : 'none';
+    });
+    // Trigger inicial
+    if (mortgagePaymentsSelect.value === 'false') {
+      mortgageCollectionField.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Ampliaciones
+  // ========================================================================
+  
+  const extensionsCheck = document.getElementById('has_extensions_check');
+  const extensionsSection = document.querySelector('.extensions-section');
+  
+  if (extensionsCheck && extensionsSection) {
+    extensionsCheck.addEventListener('change', function(e) {
+      extensionsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (extensionsCheck.checked) {
+      extensionsSection.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Remodelaciones
+  // ========================================================================
+  
+ 
+
+
+
+
+  console.log('✅ JavaScript initialization complete');
+}
+
+// ========================================================================
+// EVENTOS TURBO
+// ========================================================================
+
+document.addEventListener('turbo:load', function() {
+  console.log('🎯 turbo:load event fired');
+  initializeInitialContactForm();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🎯 DOMContentLoaded event fired');
+  if (typeof Turbo === 'undefined') {
+    initializeInitialContactForm();
+  }
+});
+</script>
+
+<style>
+/* ========================================================================== */
+/* ESTILOS PARA CAMPOS CONDICIONALES                                         */
+/* ========================================================================== */
+
+.conditional-section {
+  margin-top: 1.5rem;
+  animation: fadeIn 0.3s ease-in;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-in, visibility 0.3s ease-in;
+}
+
+.conditional-section[style*="display: none"],
+.conditional-section[style*="display:none"] {
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Animación de aparición suave */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilo de tarjeta para secciones condicionales */
+.conditional-section .card {
+  border-left: 4px solid #0d6efd;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: box-shadow 0.3s ease;
+}
+
+.conditional-section .card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.conditional-section .card-header {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Estilos para campos dentro de secciones condicionales */
+.conditional-section .form-control,
+.conditional-section .form-select {
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.conditional-section .form-control:focus,
+.conditional-section .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Alertas dentro de secciones condicionales */
+.conditional-section .alert {
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+/* Campos con atributo data-originally-required */
+[data-originally-required="true"] {
+  background-color: rgba(13, 110, 253, 0.02);
+}
+
+[data-originally-required="true"]:invalid {
+  border-color: #dc3545;
+}
+</style>
+++++++ Archivo:  _section_current_status.html.erb ++++++
+
+<div class="card">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="bi bi-2-circle"></i> Estatus Actual de la Propiedad</h5>
+  </div>
+  <div class="card-body">
+    
+    <h6 class="mb-3">Hipoteca y Financiamiento</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][has_active_mortgage]',
+                         '1',
+                         form.current_status['has_active_mortgage'],
+                         class: 'form-check-input',
+                         id: 'current_has_mortgage_check' %>
+        <%= label_tag 'current_has_mortgage_check', '¿Tiene hipoteca activa que liquidar?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+
+    <div class="mortgage-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= f.label 'current_status[mortgage_balance]', 'Saldo hipotecario aproximado', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][mortgage_balance]',
+                              form.current_status['mortgage_balance'],
+                              class: 'form-control',
+                              placeholder: '$',
+                              step: '0.01' %>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+          <%= label_tag 'current_status[mortgage_payments_current]', '¿Está al corriente en los pagos? *', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][mortgage_payments_current]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['No sabe', 'unknown']
+                        ], form.current_status['mortgage_payments_current']),
+                        id: 'mortgage_payments_current_select',
+                        class: 'form-select',
+                        data: { originally_required: 'true' } %>
+        </div>
+        
+        <div class="col-md-4 mb-3 mortgage-collection-field" style="display: none;">
+          <%= label_tag 'current_status[in_collection_agency]', '¿Está en despacho de cobranza?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][in_collection_agency]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['No sabe', 'unknown']
+                        ], form.current_status['in_collection_agency']),
+                        class: 'form-select' %>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[mortgage_notes]', 'Notas sobre hipoteca', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][mortgage_notes]',
+                            form.current_status['mortgage_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Información adicional sobre la hipoteca...' %>
+        </div>
+      </div>
+    </div>
+   
+
+
+
+    
+    <h6 class="mt-4 mb-3">Remodelaciones y Mejoras</h6>
+
+    <!-- Ampliaciones -->
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_extensions]',
+                        'true',
+                        form.current_status['has_extensions'] == 'true',
+                        id: 'has_extensions_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_extensions_check', '¿La propiedad tiene ampliaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="extensions-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[extensions_reported]', '¿Están reportadas?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][extensions_reported]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['extensions_reported']),
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[extensions_notes]', 'Notas sobre ampliaciones', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][extensions_notes]',
+                            form.current_status['extensions_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Detalles de las ampliaciones...' %>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_additions]',
+                        'true',
+                        form.current_status['has_additions'] == 'true',
+                        id: 'has_additions_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_additions_check', '¿Tiene ampliaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="additions-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[additions_registered]', '¿Están reportadas?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][additions_registered]',
+                        options_for_select([['No', 'false'], ['Sí', 'true']], form.current_status['additions_registered']),
+                        class: 'form-select' %>
+        </div>
+        <div class="col-md-6 mb-3">
+          <%= f.label 'current_status[additions_notes]', 'Notas', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][additions_notes]',
+                            form.current_status['additions_notes'],
+                            class: 'form-control',
+                            rows: 2 %>
+        </div>
+      </div>
+    </div>
+<!-- ========================================================================== -->
+<!-- REEMPLAZAR EN SECCIÓN 2: ESTATUS ACTUAL                                   -->
+<!-- El checkbox simple de remodelaciones por esta sección completa            -->
+<!-- ========================================================================== -->
+
+    <!-- Remodelaciones -->
+    <div class="form-check mb-3">
+      <%= check_box_tag 'initial_contact_form[current_status][has_renovations]',
+                        'true',
+                        form.current_status['has_renovations'] == 'true',
+                        id: 'has_renovations_check',
+                        class: 'form-check-input' %>
+      <%= label_tag 'has_renovations_check', '¿Se realizaron remodelaciones?', class: 'form-check-label' %>
+    </div>
+
+    <div class="renovations-section" style="display: none;">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[knows_renovation_cost]', '¿Conoce el monto aproximado de inversión?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][knows_renovation_cost]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false']
+                         ], form.current_status['knows_renovation_cost']),
+                         id: 'knows_renovation_cost_select',
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3 renovation-cost-field" style="display: none;">
+          <%= f.label 'current_status[renovation_cost]', 'Monto aproximado de inversión', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][renovation_cost]',
+                               form.current_status['renovation_cost'],
+                               class: 'form-control',
+                               min: 0,
+                               step: 0.01,
+                               placeholder: '$0.00' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[renovation_notes]', 'Notas sobre remodelaciones', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][renovation_notes]',
+                            form.current_status['renovation_notes'],
+                            class: 'form-control',
+                            rows: 2,
+                            placeholder: 'Detalles de las remodelaciones realizadas...' %>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    
+    <h6 class="mt-4 mb-3">Condominio</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][is_in_condominium]',
+                         '1',
+                         form.current_status['is_in_condominium'],
+                         class: 'form-check-input',
+                         id: 'is_in_condominium_check' %>
+        <%= label_tag 'is_in_condominium_check', '¿El inmueble está dentro de un condominio/fraccionamiento?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <div class="condominium-details" style="display: none;">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= f.label 'current_status[condominium_regime]', 'Tipo de régimen', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][condominium_regime]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Vertical', 'vertical'],
+                          ['Horizontal', 'horizontal'],
+                          ['Mixto', 'mixto'],
+                          ['En proceso', 'en_proceso'],
+                          ['Otro', 'otro']
+                        ], form.current_status['condominium_regime']),
+                        id: 'initial_contact_form_current_status_condominium_regime',
+                        class: 'form-select' %>
+        </div>
+
+<!-- ========================================================================== -->
+<!-- AGREGAR EN .condominium-details                                            -->
+<!-- UBICACIÓN: Después del campo condominium_regime                            -->
+<!-- ========================================================================== -->
+
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[has_condominium_rules]', '¿Cuenta con reglamento de condominio?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][has_condominium_rules]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['has_condominium_rules']),
+                         class: 'form-select' %>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'current_status[has_maintenance_clearance]', '¿Tiene constancia de no adeudo de mantenimiento?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][has_maintenance_clearance]',
+                         options_for_select([
+                           ['Seleccione...', ''],
+                           ['Sí', 'true'],
+                           ['No', 'false'],
+                           ['No sabe', 'unknown']
+                         ], form.current_status['has_maintenance_clearance']),
+                         class: 'form-select' %>
+        </div>
+
+
+
+      </div>
+    </div>
+
+    
+    <h6 class="mt-4 mb-3">Unidades Rentables</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[current_status][has_rental_units]',
+                         '1',
+                         form.current_status['has_rental_units'],
+                         class: 'form-check-input',
+                         id: 'has_rental_units_check' %>
+        <%= label_tag 'has_rental_units_check', '¿Tiene unidades rentadas o rentables?', class: 'form-check-label' %>
+      </div>
+      <small class="text-muted">Por ejemplo: departamentos, locales, cuartos independientes</small>
+    </div>
+
+
+    <div class="rental-details" style="display: none;">
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <div class="alert alert-info">
+            <strong><i class="bi bi-building"></i> Unidades rentables:</strong> Proporciona detalles de departamentos y/o locales comerciales
+          </div>
+        </div>
+
+        <!-- DEPARTAMENTOS -->
+        <div class="col-md-12 mb-3">
+          <h6 class="text-primary mb-3">
+            <i class="bi bi-door-closed"></i> Departamentos
+          </h6>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[apartment_units_count]', 'Cantidad de departamentos', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][apartment_units_count]',
+                              form.current_status['apartment_units_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_natural_light]', '¿Tienen luz natural?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_natural_light]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Algunos', 'partial']
+                        ], form.current_status['apartments_natural_light']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_access]', 'Tipo de acceso', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_access]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Interno', 'interno'],
+                          ['Externo', 'externo'],
+                          ['Ambos', 'ambos']
+                        ], form.current_status['apartments_access']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[apartments_have_kitchen]', '¿Tienen cocina?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_have_kitchen]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Algunos', 'partial']
+                        ], form.current_status['apartments_have_kitchen']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <%= label_tag 'current_status[apartments_finish_type]', 'Tipo de obra', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][apartments_finish_type]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Obra Negra', 'negra'],
+                          ['Obra Gris', 'gris'],
+                          ['Obra Blanca', 'blanca']
+                        ], form.current_status['apartments_finish_type']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <hr class="my-4">
+        </div>
+
+        <!-- LOCALES COMERCIALES -->
+        <div class="col-md-12 mb-3">
+          <h6 class="text-primary mb-3">
+            <i class="bi bi-shop"></i> Locales Comerciales
+          </h6>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[commercial_units_count]', 'Cantidad de locales', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][commercial_units_count]',
+                              form.current_status['commercial_units_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[commercial_access]', 'Tipo de acceso', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][commercial_access]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Interno', 'interno'],
+                          ['Externo', 'externo'],
+                          ['Ambos', 'ambos']
+                        ], form.current_status['commercial_access']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= f.label 'current_status[commercial_shutters_count]', 'Número de cortinas', class: 'form-label' %>
+          <%= number_field_tag 'initial_contact_form[current_status][commercial_shutters_count]',
+                              form.current_status['commercial_shutters_count'],
+                              class: 'form-control',
+                              min: 0,
+                              placeholder: '0' %>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <%= label_tag 'current_status[commercial_modifiable]', '¿Es modificable?', class: 'form-label' %>
+          <%= select_tag 'initial_contact_form[current_status][commercial_modifiable]',
+                        options_for_select([
+                          ['Seleccione...', ''],
+                          ['Sí', 'true'],
+                          ['No', 'false'],
+                          ['Con restricciones', 'restricted']
+                        ], form.current_status['commercial_modifiable']),
+                        class: 'form-select' %>
+        </div>
+
+        <div class="col-md-12 mb-3">
+          <hr class="my-4">
+        </div>
+
+        <!-- NOTAS GENERALES -->
+        <div class="col-md-12 mb-3">
+          <%= f.label 'current_status[rental_units_notes]', 'Notas sobre unidades rentables', class: 'form-label' %>
+          <%= text_area_tag 'initial_contact_form[current_status][rental_units_notes]',
+                            form.current_status['rental_units_notes'],
+                            class: 'form-control',
+                            rows: 3,
+                            placeholder: 'Información adicional sobre las unidades rentables (distribución, estado, inquilinos actuales, contratos, etc.)' %>
+        </div>
+      </div>
+    </div>
+
+
+    
+  
+
+
+  </div>
+</div>
+++++++ Archivo:  _section_promotion.html.erb ++++++
+
+<div class="card">
+  <div class="card-header bg-secondary text-white">
+    <h5 class="mb-0"><i class="bi bi-4-circle"></i> Preferencias de Promoción</h5>
+  </div>
+  <div class="card-body">
+    
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>Autorización para promoción.</strong> Indica cómo deseas promocionar la propiedad.
+    </div>
+    
+    <h6 class="mb-3">Señalización</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_signage]',
+                         '1',
+                         form.promotion_preferences['allows_signage'],
+                         class: 'form-check-input',
+                         id: 'allows_signage_check' %>
+        <%= label_tag 'allows_signage_check', '¿Autoriza colocar lonas o carteles \"SE VENDE\"?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <div class="signage-details" style="<%= 'display:none;' unless form.promotion_preferences['allows_signage'] %>">
+      <div class="mb-3">
+        <label class="form-label">Tipo de señalización autorizada</label>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'lona',
+                           form.promotion_preferences['signage_types']&.include?('lona'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_lona', 'Lona grande', class: 'form-check-label' %>
+        </div>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'se_vende',
+                           form.promotion_preferences['signage_types']&.include?('se_vende'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_se_vende', 'Cartel \"SE VENDE\"', class: 'form-check-label' %>
+        </div>
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[promotion_preferences][signage_types][]',
+                           'numero_inmueble',
+                           form.promotion_preferences['signage_types']&.include?('numero_inmueble'),
+                           class: 'form-check-input' %>
+          <%= label_tag 'signage_numero', 'Número de inmueble', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Volantes y Dirección</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_flyers_with_address]',
+                         '1',
+                         form.promotion_preferences['allows_flyers_with_address'],
+                         class: 'form-check-input' %>
+        <%= label_tag 'allows_flyers_address', '¿Autoriza volantes con la dirección exacta?', class: 'form-check-label' %>
+      </div>
+      <small class="text-muted">Si no, se usará descripción general sin dirección exacta</small>
+    </div>
+    
+    <h6 class="mb-3">Casa Abierta</h6>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <%= check_box_tag 'initial_contact_form[promotion_preferences][allows_open_house]',
+                         '1',
+                         form.promotion_preferences['allows_open_house'],
+                         class: 'form-check-input' %>
+        <%= label_tag 'allows_open_house', '¿Autoriza organizar casa abierta?', class: 'form-check-label' %>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Contacto Preferido</h6>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <%= label_tag 'promotion_preferences_preferred_contact_method', 'Método de contacto preferido', class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[promotion_preferences][preferred_contact_method]',
+                       options_for_select([
+                         ['Teléfono', 'telefono'],
+                         ['Email', 'email'],
+                         ['WhatsApp', 'whatsapp'],
+                         ['Indistinto', 'indistinto']
+                       ], form.promotion_preferences['preferred_contact_method']),
+                       class: 'form-select' %>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <%= label_tag 'promotion_preferences_contact_hours', 'Horarios de contacto', class: 'form-label' %>
+        <%= select_tag 'initial_contact_form[promotion_preferences][contact_hours]',
+                       options_for_select([
+                         ['Cualquier hora', 'cualquier'],
+                         ['Mañana (07:00-13:00)', 'manana'],
+                         ['Tarde (13:00-19:00)', 'tarde'],
+                         ['Noche (19:00-23:00)', 'noche'],
+                         ['Fines de semana', 'fines_semana']
+                       ], form.promotion_preferences['contact_hours']),
+                       class: 'form-select' %>
+      </div>
+    </div>
+    
+    <h6 class="mb-3">Observaciones</h6>
+    
+    <div class="mb-3">
+      <%= label_tag 'promotion_preferences_special_instructions', 'Instrucciones especiales', class: 'form-label' %>
+      <%= text_area_tag 'initial_contact_form[promotion_preferences][special_instructions]',
+                       form.promotion_preferences['special_instructions'],
+                       class: 'form-control',
+                       rows: 3,
+                       placeholder: 'Ej: No contactar después de las 22:00, avisar antes de visitaciones...' %>
+    </div>
+    
+    <h6 class="mb-3">Observaciones Generales del Agente</h6>
+    
+    <div class="mb-3">
+      <%= label_tag 'agent_notes', 'Notas internas', class: 'form-label' %>
+      <%= text_area_tag 'initial_contact_form[agent_notes]',
+                       form.agent_notes,
+                       class: 'form-control',
+                       rows: 4,
+                       placeholder: 'Información adicional relevante, puntos importantes a considerar, etc...' %>
+    </div>
+  </div>
+</div>
+
+++++++ Archivo:  _section_tax_exemption.html.erb ++++++
+
+
+<div class="card">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0"><i class="bi bi-3-circle"></i> Exención de Impuesto sobre la Renta (ISR)</h5>
+  </div>
+  <div class="card-body">
+    
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>Información fiscal importante.</strong> Completa estos campos para determinar si la venta puede calificar para exención de ISR.
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][first_home_sale]',
+                           '1',
+                           form.tax_exemption['first_home_sale'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'first_home_sale', '¿Es la primera venta de inmueble del vendedor?', class: 'form-check-label' %>
+        </div>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][lived_last_5_years]',
+                           '1',
+                           form.tax_exemption['lived_last_5_years'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'lived_last_5_years', '¿Ha vivido en la propiedad los últimos 5 años?', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][ine_matches_deed]',
+                           '1',
+                           form.tax_exemption['ine_matches_deed'],
+                           class: 'form-check-input' %>
+          <%= label_tag 'ine_matches_deed', '¿El domicilio en INE coincide con la escritura?', class: 'form-check-label' %>
+        </div>
+      </div>
+      
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+          <%= check_box_tag 'initial_contact_form[tax_exemption][previous_sales_last_3_years]',
+                           '1',
+                           form.tax_exemption['previous_sales_last_3_years'],
+                           class: 'form-check-input',
+                           id: 'previous_sales_check' %>
+          <%= label_tag 'previous_sales_check', '¿Ha vendido otro inmueble en los últimos 3 años?', class: 'form-check-label' %>
+        </div>
+      </div>
+    </div>
+    
+    <div class="previous-sale-details" style="<%= 'display:none;' unless form.tax_exemption['previous_sales_last_3_years'] %>">
+      <div class="mb-3">
+        <%= label_tag 'tax_exemption_previous_sale_date', 'Fecha de venta anterior', class: 'form-label' %>
+        <%= date_field_tag 'initial_contact_form[tax_exemption][previous_sale_date]',
+                          form.tax_exemption['previous_sale_date'],
+                          class: 'form-control' %>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <%= label_tag 'tax_exemption_estimated_capital_gain', 'Ganancia de capital estimada (MXN)', class: 'form-label' %>
+      <%= number_field_tag 'initial_contact_form[tax_exemption][estimated_capital_gain]',
+                          form.tax_exemption['estimated_capital_gain'],
+                          class: 'form-control',
+                          step: '0.01',
+                          min: '0' %>
+      <small class="text-muted">(Precio de venta - Precio de compra)</small>
+    </div>
+    
+    <div class="alert alert-success mt-3">
+      <strong>Resultado:</strong>
+      <% if form.qualifies_for_tax_exemption? %>
+        ✅ <strong>Podría calificar para exención ISR</strong>
+      <% else %>
+        ⚠️ <strong>Probablemente NO califica para exención</strong> - Requiere asesoría fiscal
+      <% end %>
+    </div>
+  </div>
+</div>
+
+++++++ Archivo:  edit.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/new.html.erb -->
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="bi bi-clipboard-plus"></i>
+      Formulario de Contacto Inicial (Completar)
+    </h2>
+    <%= link_to initial_contact_forms_path, class: 'btn btn-secondary' do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Información:</strong> Completa este formulario con los datos del contacto inicial con el vendedor.
+    Puedes guardar como borrador y completarlo después. Una vez completado, podrás convertirlo en una transacción.
+  </div>
+
+  <%= render 'form', form: @form %>
+</div>
+++++++ Archivo:  index.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/index.html.erb -->
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="bi bi-clipboard-check"></i>
+      Formularios de Contacto Inicial
+    </h2>
+    <%= link_to new_initial_contact_form_path, class: 'btn btn-primary' do %>
+      <i class="bi bi-plus-circle"></i> Nuevo Formulario
+    <% end %>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="status" class="form-select">
+            <option value="">Todos</option>
+            <option value="draft" <%= 'selected' if params[:status] == 'draft' %>>Borradores</option>
+            <option value="completed" <%= 'selected' if params[:status] == 'completed' %>>Completados</option>
+            <option value="converted" <%= 'selected' if params[:status] == 'converted' %>>Convertidos</option>
+          </select>
+        </div>
+        
+        <div class="col-md-3">
+          <label class="form-label">Periodo</label>
+          <select name="period" class="form-select">
+            <option value="">Todo</option>
+            <option value="today">Hoy</option>
+            <option value="week">Esta semana</option>
+            <option value="month">Este mes</option>
+          </select>
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">Buscar</label>
+          <input type="text" name="search" class="form-control" placeholder="Nombre, teléfono...">
+        </div>
+        
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Estadísticas rápidas -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <h5 class="card-title">Borradores</h5>
+          <h2><%= @forms.where(status: :draft).count %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <h5 class="card-title">Pendientes</h5>
+          <h2><%= @forms.where(status: :completed, business_transaction_id: nil).count %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <h5 class="card-title">Convertidos</h5>
+          <h2><%= @forms.where(status: :converted).count %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <h5 class="card-title">Este mes</h5>
+          <h2><%= @forms.this_month.count %></h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de formularios -->
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fecha</th>
+              <th>Propietario</th>
+              <th>Teléfono</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Progreso</th>
+              <th>Agente</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @forms.each do |form| %>
+              <tr>
+                <td><strong>#<%= form.id %></strong></td>
+                <td><%= l(form.created_at, format: :short) %></td>
+                <td>
+                  <%= form.general_conditions['owner_or_representative_name'] || 
+                      content_tag(:em, 'Sin nombre', class: 'text-muted') %>
+                </td>
+                <td>
+                  <%= form.general_conditions['owner_phone'] || 
+                      content_tag(:em, 'Sin teléfono', class: 'text-muted') %>
+                </td>
+                <td>
+                  <span class="badge bg-secondary">
+                    <%= form.general_conditions['domicile_type']&.humanize || 'N/A' %>
+                  </span>
+                </td>
+                <td>
+                  <% 
+                    badge_class = case form.status
+                    when 'draft' then 'bg-secondary'
+                    when 'completed' then 'bg-warning'
+                    when 'converted' then 'bg-success'
+                    else 'bg-light'
+                    end
+                  %>
+                  <span class="badge <%= badge_class %>">
+                    <%= form.status.humanize %>
+                  </span>
+                </td>
+                <td>
+                  <div class="progress" style="height: 20px;">
+                    <div class="progress-bar" 
+                         role="progressbar" 
+                         style="width: <%= form.completion_percentage %>%">
+                      <%= form.completion_percentage %>%
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <small class="text-muted"><%= form.agent.email %></small>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <%= link_to form, class: 'btn btn-outline-primary', title: 'Ver' do %>
+                      <i class="bi bi-eye"></i>
+                    <% end %>
+                    
+                    <% unless form.converted? %>
+                      <%= link_to edit_initial_contact_form_path(form), 
+                                  class: 'btn btn-outline-secondary', 
+                                  title: 'Editar' do %>
+                        <i class="bi bi-pencil"></i>
+                      <% end %>
+                      
+                      <% if form.completed? && !form.business_transaction.present? %>
+                        <%= button_to convert_to_transaction_initial_contact_form_path(form),
+                                      method: :post,
+                                      class: 'btn btn-outline-success',
+                                      title: 'Convertir',
+                                      data: { confirm: '¿Convertir a transacción?' } do %>
+                          <i class="bi bi-arrow-right-circle"></i>
+                        <% end %>
+                      <% end %>
+                    <% else %>
+                      <%= link_to business_transaction_path(form.business_transaction),
+                                  class: 'btn btn-outline-success',
+                                  title: 'Ver transacción' do %>
+                        <i class="bi bi-check-circle"></i>
+                      <% end %>
+                    <% end %>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        
+        <% if @forms.empty? %>
+          <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No hay formularios de contacto</p>
+            <%= link_to 'Crear el primero', new_initial_contact_form_path, class: 'btn btn-primary' %>
+          </div>
+        <% end %>
+      </div>
+      
+      <!-- Paginación -->
+      <div class="mt-3">
+        <%= paginate @forms %>
+      </div>
+    </div>
+  </div>
+</div>
+++++++ Archivo:  new.html.erb ++++++
+
+<!-- app/views/initial_contact_forms/new.html.erb -->
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="bi bi-clipboard-plus"></i>
+      Nuevo Formulario de Contacto Inicial
+    </h2>
+    <%= link_to initial_contact_forms_path, class: 'btn btn-secondary' do %>
+      <i class="bi bi-arrow-left"></i> Volver
+    <% end %>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Información:</strong> Llena este formulario con los datos del contacto inicial con el vendedor.
+    Puedes guardar como borrador y completarlo después. Una vez completado, podrás convertirlo en una transacción.
+  </div>
+
+  <%= render 'form', form: @form %>
+</div>
+++++++ Archivo:  show.html.erb ++++++
+
+ <!-- app/views/initial_contact_forms/show.html.erb -->
+
+<% if flash[:notice] %>
+  <div class="alert alert-<%= flash[:notice].include?('⚠️') ? 'warning' : 'success' %> alert-dismissible fade show" role="alert">
+    <%= flash[:notice].html_safe %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>
+        <i class="bi bi-clipboard-check"></i>
+        <%= @form.property_human_identifier || "Formulario de Contacto Inicial ##{@form.id}" %>
+      </h2>
+      <p class="text-muted mb-0">
+        <strong>Folio:</strong> <%= @form.initial_contact_folio || "Sin folio" %> |
+        <strong>Agente:</strong> <%= @form.agent && @form.agent.user ? @form.agent.user.name : "No asignado" %> |
+        <strong>Estado:</strong> <span class="badge bg-<%= status_badge_class(@form.status) %>"><%= @form.status.humanize %></span>
+        <% if @form.completed_at %>
+          | <strong>Completado:</strong> <%= l(@form.completed_at, format: :short) %>
+        <% end %>
+      </p>
+    </div>
+
+
+    
+    <!-- Botones de acción (mantén los que ya tenías) -->
+    <div class="btn-group">
+      <%= link_to 'Editar', edit_initial_contact_form_path(@form), class: 'btn btn-primary' unless @form.converted? %>
+      <%= link_to 'Volver', initial_contact_forms_path, class: 'btn btn-secondary' %>
+      
+      <% if @form.completed? && !@form.business_transaction.present? %>
+        <%= button_to 'Convertir a Transacción',
+                      convert_to_transaction_initial_contact_form_path(@form),
+                      method: :post,
+                      class: 'btn btn-success',
+                      data: { confirm: '¿Convertir este formulario a una transacción de negocio?' } %>
+      <% end %>
+    </div>
+  </div>
+   
+    <div>
+      <% unless @form.converted? %>
+        <%= link_to 'Editar', edit_initial_contact_form_path(@form), 
+                    class: 'btn btn-primary' %>
+        
+        <% if @form.completed? %>
+          <%= button_to 'Convertir a Transacción', 
+                        convert_to_transaction_initial_contact_form_path(@form),
+                        method: :post,
+                        class: 'btn btn-success',
+                        data: { confirm: '¿Convertir este formulario a una transacción?' } %>
+        <% end %>
+      <% end %>
+      
+      <%= link_to 'Volver', initial_contact_forms_path, class: 'btn btn-secondary' %>
+    </div>
+  </div>
+  
+  <!-- Progreso -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5>Progreso: <%= @form.completion_percentage %>%</h5>
+      <div class="progress">
+        <div class="progress-bar" style="width: <%= @form.completion_percentage %>%"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Datos generales -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Información General</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Agente:</dt>
+            <dd class="col-sm-6"><%= @form.agent.email %></dd>
+            
+            <dt class="col-sm-6">Creado:</dt>
+            <dd class="col-sm-6"><%= l(@form.created_at, format: :short) %></dd>
+            
+            <dt class="col-sm-6">Completado:</dt>
+            <dd class="col-sm-6">
+              <%= @form.completed_at ? l(@form.completed_at, format: :short) : 'Pendiente' %>
+            </dd>
+            
+            <% if @form.converted? %>
+              <dt class="col-sm-6">Transacción:</dt>
+              <dd class="col-sm-6">
+                <%= link_to "##{@form.business_transaction_id}", 
+                            business_transaction_path(@form.business_transaction) %>
+              </dd>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Resumen del Contacto</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-6">Propietario:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['owner_or_representative_name'] || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Teléfono:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['owner_phone'] || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Tipo inmueble:</dt>
+            <dd class="col-sm-6">
+              <%= @form.general_conditions['domicile_type']&.humanize || 'No especificado' %>
+            </dd>
+            
+            <dt class="col-sm-6">Método adquisición:</dt>
+            <dd class="col-sm-6">
+              <%= @form.acquisition_method_display %>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Alertas especiales -->
+  <% if @form.is_inheritance? %>
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle"></i>
+      <strong>HERENCIA</strong> - Requiere atención especial.
+      Herederos: <%= @form.inheritance_info['heirs_count'] %>
+    </div>
+  <% end %>
+  
+  <% if @form.current_status['has_active_mortgage'] %>
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      <strong>HIPOTECA ACTIVA</strong> - 
+      Saldo: $<%= number_with_delimiter(@form.current_status['mortgage_balance']) %>
+    </div>
+  <% end %>
+  
+  <!-- Detalles de cada sección -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Detalles Completos</h5>
+    </div>
+    <div class="card-body">
+      <!-- Aquí mostrar todas las secciones del formulario -->
+      <!-- Similar a como las mostraste en el form, pero en modo lectura -->
+    </div>
+  </div>
+  
+</div>
+++++++ Archivo:  /home/mnajar/desarrollo/sistema_inmobiliario_v2/app/controllers/initial_contact_forms_controller.rb ++++++
+
+# app/controllers/initial_contact_forms_controller.rb
+class InitialContactFormsController < ApplicationController
+  before_action :authenticate_user!
+  before_action :set_form, only: [:show, :edit, :update, :destroy, :convert_to_transaction, :suggest_acquisition_method]
+  before_action :authorize_form, except: [:index, :new, :create]
+ 
+
+  def index
+    if current_user.superadmin? || current_user.admin?
+      @forms = InitialContactForm.all  # ← VEN TODO
+    elsif current_user.agent.present?
+      @forms = current_user.agent.initial_contact_forms  # ← VEN SOLO LOS SUYOS
+    else
+      redirect_to root_path, alert: '⚠️ No tienes permisos para ver formularios.'
+      return
+    end
+    
+    # Filtros comunes para todos
+    @forms = @forms.recent.page(params[:page]).per(20)
+    
+    # Filtro adicional por agente (útil para superadmin)
+    if params[:agent_id].present?
+      @forms = @forms.where(agent_id: params[:agent_id])
+    end
+  end
+
+
+  def new
+    @form = InitialContactForm.new(agent: current_user.agent)
+    @acquisition_methods = PropertyAcquisitionMethod.active.ordered
+    @contract_signers = ContractSignerType.active.ordered
+    @marriage_regimes = MarriageRegime.active.ordered
+    @operation_types = OperationType.active.order(:sort_order)
+    @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+  end
+  
+
+
+
+  def create
+    @form = InitialContactForm.new(form_params.merge(agent: current_user.agent))
+    
+    @form.status = params[:save_draft] ? :draft : :completed
+    
+    if @form.save
+      
+      
+      # Mensaje de éxito con aviso si fue auto-generado
+      notice_message = if @form.auto_generated_identifier
+                        '✅ Formulario creado exitosamente. ⚠️ Identificador de oportunidad generado automáticamente por falta de este.'
+                      else
+                        '✅ Formulario creado exitosamente'
+                      end
+      
+      redirect_to @form, notice: notice_message
+    else
+      @acquisition_methods = PropertyAcquisitionMethod.active.ordered
+      @contract_signers = ContractSignerType.active.ordered
+      @marriage_regimes = MarriageRegime.active.ordered
+      @operation_types = OperationType.active.by_sort_order
+      @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    if @form.update(form_params)
+      # Actualizar status si se cambió
+      if params[:save_draft]
+        @form.update(status: :draft)
+      elsif params[:complete]
+        @form.update(status: :completed)
+      end
+      
+      # Mensaje de éxito con aviso si fue auto-generado
+      notice_message = if @form.auto_generated_identifier
+                        '✅ Formulario actualizado exitosamente. ⚠️ Identificador de oportunidad generado automáticamente por falta de este.'
+                      else
+                        '✅ Formulario actualizado exitosamente'
+                      end
+      
+      redirect_to @form, notice: notice_message
+    else
+      @acquisition_methods = PropertyAcquisitionMethod.active.ordered
+      @contract_signers = ContractSignerType.active.ordered
+      @marriage_regimes = MarriageRegime.active.ordered
+      @operation_types = OperationType.active.by_sort_order
+      @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  
+  def edit
+    @acquisition_methods = PropertyAcquisitionMethod.active.ordered
+    @contract_signers = ContractSignerType.active.ordered
+    @marriage_regimes = MarriageRegime.active.ordered
+    @operation_types = OperationType.active.order(:sort_order)
+    @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+  end
+  
+
+  
+  def destroy
+    @form.destroy
+    redirect_to initial_contact_forms_url, notice: '✅ Formulario eliminado'
+  end
+  
+  def convert_to_transaction
+    if @form.convert_to_transaction!
+      redirect_to business_transaction_path(@form.business_transaction), 
+                  notice: '✅ Convertido a Transacción de Negocio'
+    else
+      redirect_to @form, alert: '❌ Error al convertir: ' + @form.errors.full_messages.join(', ')
+    end
+  end
+  
+  def suggest_acquisition_method
+    suggestion = AcquisitionMethodSuggestion.create!(
+      user: current_user,
+      initial_contact_form: @form,
+      suggested_name: params[:suggested_name],
+      legal_basis: params[:legal_basis]
+    )
+    
+    render json: { status: 'success', suggestion_id: suggestion.id }
+  rescue StandardError => e
+    render json: { status: 'error', message: e.message }, status: :unprocessable_entity
+  end
+  
+
+  private
+
+  
+  def set_form
+    @form = InitialContactForm.find(params[:id])
+  end
+  
+  def ensure_agent!
+    return if current_user.superadmin? || current_user.admin?  # ← EXENTOS
+    
+    if current_user.agent.nil?
+      redirect_to root_path, alert: '⚠️ No tienes un agente asignado.'
+    end
+  end
+
+  def authorize_form
+    return if current_user.superadmin? || current_user.admin?  # ← PUEDEN VER TODO
+    
+    # Agente normal solo ve sus formularios
+    unless @form.agent.user == current_user
+      redirect_to root_path, alert: '❌ No tienes permiso para acceder'
+    end
+  end
+
+  
+  def form_params
+    params.require(:initial_contact_form).permit(
+      :property_acquisition_method_id,
+      :contract_signer_type_id,
+      :operation_type_id,
+      :client_id,
+      :property_id,
+      :status,
+      :agent_notes,
+      :form_source,
+      :acquisition_clarification,
+      general_conditions: [
+        :owner_or_representative_name,
+        :owner_phone,
+        :owner_email,
+        :owner_address,
+        :domicile_type,
+        :civil_status,
+        :marriage_regime,
+        :notes
+      ],
+      acquisition_details: [
+        :co_owners_count,
+        :state,
+        :has_relationship,
+        :relationship_type,
+        :acquired_pre_2014,
+        :heirs_count,
+        :all_living,
+        :deceased_count,
+        :all_married,
+        :single_heirs_count,
+        :deceased_civil_status,
+        :inheritance_from,
+        :inheritance_from_other,
+        :parents_were_married,
+        :parents_marriage_regime,
+        :has_testamentary_succession,
+        :succession_planned_date,
+        :succession_authority,
+        :has_judicial_sentence,
+        :has_notarial_deed,
+        :document_type,
+        :donor_name,
+        :donor_relationship,
+        :donor_relationship_other,
+        :beneficiaries_count
+      ]
+    )
+  end
+  
+
+
+
+
+end
+++++++ Archivo:  /home/mnajar/desarrollo/sistema_inmobiliario_v2/app/models/initial_contact_form.rb ++++++
+
+# app/models/initial_contact_form.rb
+class InitialContactForm < ApplicationRecord
+  # ============================================================
+  # RELACIONES
+  # ============================================================
+  belongs_to :agent # , class_name: 'User'
+  belongs_to :client, optional: true
+  belongs_to :property, optional: true
+  belongs_to :business_transaction, optional: true
+  belongs_to :property_acquisition_method, optional: true
+  belongs_to :operation_type, optional: true
+  belongs_to :contract_signer_type, optional: true
+
+  has_one :acquisition_suggestion, class_name: 'AcquisitionMethodSuggestion', dependent: :nullify
+
+  # ============================================================
+  # ENUMS (Rails 8.0 syntax)
+  # ============================================================
+  enum :status, {
+    draft: 0,              # Borrador (guardado parcial)
+    completed: 1,          # Completado (listo para convertir)
+    converted: 2,          # Convertido a BusinessTransaction
+    archived: 3            # Archivado (no se convirtió)
+  }, default: :draft
+  
+  enum :form_source, {
+    web: 0,
+    mobile: 1,
+    paper: 2,
+    phone: 3
+  }, default: :web
+  
+  # ============================================================
+  # VALIDACIONES
+  # ============================================================
+  validates :agent_id, presence: true
+  validates :status, presence: true
+  
+  # Validaciones condicionales según el estado
+  with_options if: :completed? do
+    validate :general_conditions_complete
+    validate :property_info_complete
+  end
+  
+  # ============================================================
+  # SCOPES
+  # ============================================================
+  scope :pending_conversion, -> { where(status: :completed, business_transaction_id: nil) }
+  scope :by_agent, ->(agent_id) { where(agent_id: agent_id) }
+  scope :recent, -> { order(created_at: :desc) }
+  scope :this_month, -> { where('created_at >= ?', Time.current.beginning_of_month) }
+  
+  attr_accessor :auto_generated_identifier
+  
+  before_save :generate_folio_if_missing
+  before_save :generate_property_identifier_if_blank # ← NUEVO
+  
+  
+  validate :validate_acquisition_method_requirements, if: -> { completed? }
+   
+  # ============================================================
+  # CALLBACKS
+  # ============================================================
+  before_save :set_completed_at, if: -> { status_changed? && completed? }
+  before_save :set_converted_at, if: -> { status_changed? && converted? }
+  
+  # ============================================================
+  # MÉTODOS PÚBLICOS
+  # ============================================================
+   def acquisition_method_display
+    return unless property_acquisition_method
+    property_acquisition_method.name
+  end
+  
+  def requires_clarification?
+    property_acquisition_method&.requires_heirs? || 
+    property_acquisition_method&.requires_judicial_sentence?
+  end
+  
+  def suggest_new_acquisition_method!(name, legal_basis)
+    AcquisitionMethodSuggestion.create!(
+      user: agent.user,
+      initial_contact_form: self,
+      suggested_name: name,
+      legal_basis: legal_basis
+    )
+  end
+  
+  def generate_property_identifier(operation_type, property_name)
+    sanitized_name = property_name
+      .strip
+      .downcase
+      .gsub(/[áéíóú]/, 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u')
+      .gsub(/[^a-z0-9\s-]/, '')
+      .gsub(/\s+/, '_')
+      .gsub(/-+/, '_')
+      .gsub(/^_|_$/, '')
+    
+    "#{operation_type}_#{sanitized_name}"
+  end
+  
+  
+  # Convertir a BusinessTransaction
+  def convert_to_transaction!
+    return false if converted? || business_transaction.present?
+    return false unless valid_for_conversion?
+    
+    ActiveRecord::Base.transaction do
+      # 1. Crear o actualizar cliente
+      client = find_or_create_client!
+      
+      # 2. Crear o actualizar propiedad
+      property = find_or_create_property!(client)
+      
+      # 3. Crear BusinessTransaction
+      transaction = create_business_transaction!(client, property)
+      
+      # 4. Crear copropietarios si aplica
+      create_co_owners!(transaction)
+      
+      # 5. Actualizar estado
+      update!(
+        status: :converted,
+        converted_at: Time.current,
+        client: client,
+        property: property,
+        business_transaction: transaction
+      )
+      
+      transaction
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error converting form to transaction: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    errors.add(:base, "Error al convertir: #{e.message}")
+    false
+  end
+  
+  # Verificar si está listo para conversión
+  def valid_for_conversion?
+    completed? && general_conditions.present? && property_info.present?
+  end
+  
+  # Obtener método de adquisición legible
+  def acquisition_method_display
+    methods = {
+      'compra_directa' => 'Compra directa',
+      'herencia' => 'Herencia',
+      'donacion' => 'Donación',
+      'adjudicacion' => 'Adjudicación',
+      'prescripcion' => 'Prescripción adquisitiva',
+      'dacion_pago' => 'Dación en pago',
+      'permuta' => 'Permuta',
+      'otro' => 'Otro'
+    }
+    methods[general_conditions['property_acquisition_method']] || 'No especificado'
+  end
+  
+  # Verificar si es herencia
+  def is_inheritance?
+    general_conditions['property_acquisition_method'] == 'herencia' ||
+    inheritance_info['is_inheritance'] == true
+  end
+  
+  # Verificar si tiene copropietarios
+  def has_co_owners?
+    (property_info['co_owners_count'] || 1) > 1
+  end
+  
+  # Obtener número de copropietarios
+  def co_owners_count
+    property_info['co_owners_count'] || 1
+  end
+  
+  # Verificar si califica para exención ISR
+  def qualifies_for_tax_exemption?
+    tax_exemption['qualifies_for_exemption'] == true
+  end
+  
+  # Porcentaje de completitud
+  def completion_percentage
+    total_fields = 6 # 6 secciones principales
+    completed_sections = 0
+    
+    completed_sections += 1 if general_conditions.present? && general_conditions.any?
+    completed_sections += 1 if property_info.present? && property_info.any?
+    completed_sections += 1 if inheritance_info.present? && inheritance_info.any?
+    completed_sections += 1 if current_status.present? && current_status.any?
+    completed_sections += 1 if tax_exemption.present? && tax_exemption.any?
+    completed_sections += 1 if promotion_preferences.present? && promotion_preferences.any?
+    
+    ((completed_sections.to_f / total_fields) * 100).round(0)
+  end
+  
+def general_conditions_complete
+  if general_conditions['owner_or_representative_name'].blank?
+    errors.add(:general_conditions, "falta el nombre del propietario/representante")
+  end
+  
+  # NUEVAS VALIDACIONES
+  if acquisition_details['state'].blank?
+    errors.add(:acquisition_details, "debe especificar la entidad federativa")
+  end
+  
+  if acquisition_details['land_use'].blank?
+    errors.add(:acquisition_details, "debe especificar el uso de suelo")
+  end
+end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS
+  # ============================================================
+  
+  private
+
+    
+  # ============================================================
+  # GENERACIÓN AUTOMÁTICA DE IDENTIFICADOR
+  # ============================================================
+  
+  def generate_property_identifier_if_blank
+    return if property_human_identifier.present?
+    return unless new_record?
+    
+    self.auto_generated_identifier = true
+    
+    # USAR display_name en lugar de name (CRÍTICO)
+    operation = operation_type&.display_name || "Operación"
+    owner = general_conditions['owner_or_representative_name']&.strip
+    
+    if owner.present?
+      self.property_human_identifier = "#{operation} - #{owner}"
+    else
+      timestamp = Time.current.strftime('%d/%m/%Y %H:%M')
+      self.property_human_identifier = "#{operation} - Sin nombre (#{timestamp})"
+    end
+    
+    Rails.logger.info "🏷️  Auto-generando identificador: #{property_human_identifier}"
+  end
+
+    
+    
+  def generate_folio_if_missing
+    return if initial_contact_folio.present?
+    return unless agent.present? && agent.user.present?
+    initials = extract_initials_from_name(agent.user.name || agent.user.email)
+    date = (created_at || Time.current)
+    self.initial_contact_folio = generate_contact_folio(initials, date)
+  end
+
+
+  def generate_contact_folio(initials, date)
+    date_str = date.strftime('%d%m%y')
+    base_folio = "#{initials}#{date_str}"
+    
+    last_folio = InitialContactForm
+      .where("initial_contact_folio LIKE ?", "#{base_folio}%")
+      .maximum('initial_contact_folio')
+    
+    sequence = if last_folio.present?
+                (last_folio.split('_').last.to_i + 1).to_s.rjust(2, '0')
+              else
+                '01'
+              end
+    
+    "#{base_folio}_#{sequence}"
+  end
+
+
+  
+  
+  def validate_acquisition_method_requirements
+    return unless property_acquisition_method.present?
+    
+    if property_acquisition_method.requires_heirs? && 
+       acquisition_details['heirs_count'].blank?
+      errors.add(:base, "El método #{property_acquisition_method.name} requiere información de herederos")
+    end
+  end
+
+  def extract_initials_from_name(full_name)
+    # Si es email (contiene @), usar primera parte como fallback
+    if full_name.include?('@')
+      return full_name.split('@').first.upcase[0..2]
+    end
+    
+    # Separar por espacios y tomar primera letra de cada parte
+    parts = full_name.strip.split(/\s+/)
+    
+    case parts.length
+    when 1
+      # Solo un nombre: tomar primeras 3 letras
+      parts[0].upcase[0..2]
+    when 2
+      # Nombre + Apellido: primera letra de cada uno + primera del nombre
+      "#{parts[0][0]}#{parts[1][0]}#{parts[0][1]}".upcase
+    else
+      # Nombre + Apellido Paterno + Apellido Materno
+      "#{parts[0][0]}#{parts[1][0]}#{parts[2][0]}".upcase
+    end
+  end
+  
+  def set_completed_at
+    self.completed_at = Time.current
+  end
+  
+  def set_converted_at
+    self.converted_at = Time.current
+  end
+  
+  # Validar que condiciones generales estén completas
+  def general_conditions_complete
+    required_fields = ['property_acquisition_method', 'contract_signer_type', 'owner_or_representative_name']
+    
+    required_fields.each do |field|
+      if general_conditions[field].blank?
+        errors.add(:general_conditions, "falta el campo: #{field}")
+      end
+    end
+  end
+  
+  def general_conditions_complete
+    # Validar nombre de la oportunidad
+    # if property_human_identifier.blank?
+      # errors.add(:property_human_identifier, "debe especificarse el nombre de la oportunidad")
+    # end
+    
+    if general_conditions['owner_or_representative_name'].blank?
+      errors.add(:general_conditions, "falta el nombre del propietario/representante")
+    end
+    
+    # if property_acquisition_method_id.blank?
+      # errors.add(:base, "debe seleccionar un método de adquisición")
+    # end
+    
+    # if contract_signer_type_id.blank?
+      # errors.add(:base, "debe seleccionar quién firmará el contrato")
+    # end
+  end
+
+  
+  # Validar que info de propiedad esté completa
+
+
+  def property_info_complete
+    # Los datos están en acquisition_details, NO en property_info
+    if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
+      errors.add(:base, 'debe especificar número de copropietarios (mínimo 1)')
+    end
+  end
+  
+  # Buscar o crear cliente
+  def find_or_create_client!
+    return client if client.present?
+    
+    # Extraer datos del formulario
+    owner_name = general_conditions['owner_or_representative_name']
+    
+    # Buscar cliente existente o crear nuevo
+    Client.find_or_create_by!(name: owner_name) do |c|
+      c.email = general_conditions['owner_email'] || "temp_#{SecureRandom.hex(4)}@pending.com"
+      c.phone = general_conditions['owner_phone'] if general_conditions['owner_phone'].present?
+    end
+  end
+  
+  # Buscar o crear propiedad
+  def find_or_create_property!(client)
+    return property if property.present?
+    
+    # Parsear dirección completa para extraer componentes
+    address_full = property_info['address'] || 'Calle Por Definir 123, CDMX'
+    
+    # Crear propiedad con TODOS los campos obligatorios
+    Property.create!(
+      # Relaciones
+      user: agent,
+      property_type: determine_property_type,
+      
+      # Dirección completa (legacy)
+      address: address_full,
+      
+      # Dirección desagregada (nuevos campos obligatorios)
+      street: 'Calle Por Definir',           # Campo obligatorio
+      exterior_number: '123',                 # Campo obligatorio
+      interior_number: nil,
+      neighborhood: 'Colonia Centro',         # Campo obligatorio
+      city: 'Ciudad de México',
+      municipality: 'Benito Juárez',          # Campo obligatorio
+      state: 'CDMX',
+      postal_code: '01000',
+      country: 'México',                      # Campo obligatorio
+      
+      # Precio
+      price: property_info['asking_price'] || property_info['estimated_price'] || 0,
+      
+      # Características físicas
+      bedrooms: property_info['bedrooms'] || 0,
+      bathrooms: property_info['bathrooms'] || 0,
+      built_area_m2: property_info['built_area_m2']&.to_f || 50.0,
+      lot_area_m2: property_info['lot_area_m2']&.to_f || 50.0,
+      parking_spaces: 0,
+      year_built: property_info['acquisition_date']&.to_date&.year || Time.current.year,
+      
+      # Amenidades (todas false por defecto)
+      furnished: false,
+      pets_allowed: false,
+      elevator: false,
+      balcony: false,
+      terrace: false,
+      garden: false,
+      pool: false,
+      security: false,
+      gym: false,
+      
+      # Textos descriptivos
+      title: generate_property_title,
+      description: generate_property_description,
+      
+      # Información de contacto
+      contact_phone: general_conditions['owner_phone'],
+      contact_email: general_conditions['owner_email'],
+      
+      # Uso del suelo
+      has_extensions: property_info['has_improvements'] || false,
+      land_use: property_info['property_use'] || 'habitacional',
+      
+      # Notas internas
+      internal_notes: "Creado desde formulario de contacto inicial ##{id}\n#{agent_notes}",
+      
+      # Fechas
+      available_from: Date.current,
+      published_at: nil  # No publicar automáticamente
+    )
+  rescue ActiveRecord::RecordInvalid => e
+    # Log detallado para debugging
+    Rails.logger.error "❌ Error creando Property desde InitialContactForm:"
+    Rails.logger.error "   Mensaje: #{e.message}"
+    Rails.logger.error "   Formulario ID: #{id}"
+    Rails.logger.error "   property_info: #{property_info.inspect}"
+    raise
+  end
+  
+  # Generar título de propiedad automáticamente
+  def generate_property_title
+    type = general_conditions['domicile_type']&.humanize || 'Inmueble'
+    price = property_info['asking_price']&.to_f || 0
+    
+    if price > 0
+      price_formatted = "$#{(price / 1_000_000.0).round(1)}M"
+      "#{type} en venta #{price_formatted}"
+    else
+      "#{type} en venta"
+    end
+  end
+  
+  # Generar descripción de propiedad automáticamente
+  def generate_property_description
+    parts = []
+    
+    # Tipo y ubicación
+    type = general_conditions['domicile_type']&.humanize || 'Inmueble'
+    address = property_info['address'] || 'zona residencial'
+    parts << "#{type} ubicado en #{address}"
+    
+    # Características
+    bedrooms = property_info['bedrooms'].to_i
+    bathrooms = property_info['bathrooms'].to_f
+    built_area = property_info['built_area_m2'].to_f
+    
+    features = []
+    features << "#{bedrooms} recámaras" if bedrooms > 0
+    features << "#{bathrooms} baños" if bathrooms > 0
+    features << "#{built_area}m² de construcción" if built_area > 0
+    
+    parts << features.join(', ') if features.any?
+    
+    # Información de copropietarios
+    if has_co_owners?
+      parts << "Propiedad con #{co_owners_count} copropietarios"
+    end
+    
+    # Régimen matrimonial
+    if general_conditions['civil_status'] == 'casado'
+      regime = general_conditions['marriage_regime']&.humanize || 'matrimonial'
+      parts << "Régimen: #{regime}"
+    end
+    
+    # Información adicional relevante
+    if is_inheritance?
+      parts << "⚠️ Propiedad adquirida por herencia"
+    end
+    
+    if property_info['has_improvements']
+      parts << "Cuenta con ampliaciones/remodelaciones"
+    end
+    
+    # Descripción final
+    description = parts.join('. ') + '.'
+    description += "\n\n📋 Información capturada desde formulario de contacto inicial el #{Date.current.strftime('%d/%m/%Y')}."
+    description += "\n👤 Agente: #{agent.email}"
+    
+    description
+  end
+  
+  # Determinar tipo de propiedad
+  def determine_property_type
+    domicile_type = general_conditions['domicile_type']
+    
+    type_mapping = {
+      'casa_habitacion' => 'house',
+      'departamento' => 'apartment',
+      'terreno' => 'land',
+      'local_comercial' => 'commercial',
+      'bodega' => 'warehouse',
+      'oficina' => 'office'
+    }
+    
+    property_type_name = type_mapping[domicile_type] || 'house'
+    PropertyType.find_by(name: property_type_name) || PropertyType.first
+  end
+  
+  # Crear BusinessTransaction
+  def create_business_transaction!(client, property)
+    BusinessTransaction.create!(
+      listing_agent: agent,
+      current_agent: agent,
+      offering_client: client,
+      property: property,
+      operation_type: OperationType.find_by(name: 'sale') || OperationType.first,
+      business_status: BusinessStatus.find_by(name: 'available') || BusinessStatus.first,
+      price: property_info['asking_price'] || property.price || 0,
+      start_date: Date.current,
+      notes: compile_notes
+    )
+  end
+  
+  # Crear copropietarios
+  def create_co_owners!(transaction)
+    return unless has_co_owners?
+    
+    # Calcular porcentaje por copropietario
+    percentage_each = (100.0 / co_owners_count).round(2)
+    
+    # Crear copropietario principal (el del formulario)
+    transaction.business_transaction_co_owners.create!(
+      client: transaction.offering_client,
+      person_name: general_conditions['owner_or_representative_name'],
+      percentage: percentage_each,
+      role: 'propietario',
+      active: true
+    )
+    
+    # Si hay más copropietarios, crear placeholders
+    remaining_count = co_owners_count - 1
+    if remaining_count > 0
+      remaining_count.times do |i|
+        transaction.business_transaction_co_owners.create!(
+          person_name: "Copropietario #{i + 2} - Por definir",
+          percentage: percentage_each,
+          role: 'copropietario',
+          active: true
+        )
+      end
+    end
+  end
+  
+  # Compilar notas de todas las secciones
+  def compile_notes
+    notes = []
+    
+    notes << "=== FORMULARIO DE CONTACTO INICIAL ==="
+    notes << "Completado: #{completed_at&.strftime('%d/%m/%Y')}"
+    notes << "Agente: #{agent.email}"
+    notes << ""
+    
+    if is_inheritance?
+      notes << "⚠️ HERENCIA - Requiere atención especial"
+      notes << "Herederos: #{inheritance_info['heirs_count']}"
+      notes << "Tipo sucesión: #{inheritance_info['succession_type']}"
+      notes << ""
+    end
+    
+    if current_status['has_active_mortgage']
+      notes << "💰 HIPOTECA ACTIVA"
+      notes << "Saldo: $#{current_status['mortgage_balance']}"
+      notes << "Banco: #{property_info['mortgage_bank']}"
+      notes << ""
+    end
+    
+    if qualifies_for_tax_exemption?
+      notes << "✅ Califica para exención ISR"
+      notes << ""
+    end
+    
+    if agent_notes.present?
+      notes << "Observaciones del agente:"
+      notes << agent_notes
+    end
+    
+    notes.join("\n")
+  end
+end

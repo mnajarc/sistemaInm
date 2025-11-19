@@ -3,7 +3,7 @@ class Property < ApplicationRecord
   belongs_to :user
   belongs_to :property_type, optional: true
   belongs_to :co_ownership_type, optional: true
-
+  belongs_to :land_use_type, optional: true
 
   before_validation :generate_full_address
 
@@ -38,6 +38,10 @@ class Property < ApplicationRecord
           presence: true, if: -> { street.present? }
 
   validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
+  
+  validates :human_readable_identifier, uniqueness: true, allow_blank: true
+  
+
 
 
   before_save :sanitize_input
@@ -69,6 +73,7 @@ class Property < ApplicationRecord
   scope :with_extensions, -> { where(has_extensions: true) }
   scope :by_municipality, ->(mun) { where(municipality: mun) }
   scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
+  scope :by_identifier, ->(id) { where(human_readable_identifier: id) }
 
   # ✅ MÉTODOS NUEVOS
   def full_address

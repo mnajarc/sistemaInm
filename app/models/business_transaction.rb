@@ -9,10 +9,12 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :business_status
   belongs_to :transaction_scenario, optional: true
   belongs_to :co_ownership_type, optional: true
-
+  belongs_to :property_acquisition_method, optional: true
+ 
   after_create :assign_transaction_scenario_by_category
   after_create :setup_required_documents
 
+  has_one :initial_contact_form, dependent: :nullify
 
   has_many :document_submissions, dependent: :destroy
   has_many :agent_transfers, dependent: :destroy
@@ -26,12 +28,12 @@ class BusinessTransaction < ApplicationRecord
 
   validates :start_date, presence: true
   validates :price, presence: true, numericality: { greater_than: 0 }
-  # validate :must_have_co_owners
-  # validate :ownership_percentages_sum_to_100
-
+  validate :validate_acquisition_method_requirements
+ 
   scope :active, -> { joins(:business_status).where(business_statuses: { name: ["available", "reserved"] }) }
   scope :completed, -> { joins(:business_status).where(business_statuses: { name: ["sold", "rented"] }) }
   
+
   # Método unificado para obtener el agente responsable
   def assigned_agent
     current_agent || selling_agent || listing_agent
@@ -87,7 +89,49 @@ end
     business_transaction_co_owners.active.count == 1
   end
 
+  def generate_initial_contact_folio(agent_initials, date)
+    last_sequence = InitialContactForm
+      .where("initial_contact_folio LIKE ?", "#{agent_initials}#{date.strftime('%d%m%y')}%")
+      .maximum('initial_contact_folio')
+    
+    sequence_number = if last_sequence.present?
+                        (last_sequence.split('_').last.to_i + 1).to_s.rjust(2, '0')
+                      else
+                        '01'
+                      end
+    
+    "#{agent_initials}#{date.strftime('%d%m%y')}_#{sequence_number}"
+  end
+  
+  def generate_property_identifier(operation_type_code, property_name)
+    sanitized_name = property_name
+      .strip
+      .downcase
+      .gsub(/[áéíóú]/, 'a' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u')
+      .gsub(/[^a-z0-9\s-]/, '')
+      .gsub(/\s+/, '_')
+      .gsub(/-+/, '_')
+      .gsub(/^_|_$/, '')
+    
+    "#{operation_type_code}_#{sanitized_name}"
+  end
+ 
   private
+  
+  def validate_acquisition_method_requirements
+    return unless property_acquisition_method.present?
+    
+    if property_acquisition_method.requires_heirs? && 
+       inheritance_details['heirs_count'].blank?
+      errors.add(:inheritance_details, "es requerido para #{property_acquisition_method.name}")
+    end
+    
+    if property_acquisition_method.requires_judicial_sentence? && 
+       inheritance_details['judicial_sentence_number'].blank?
+      errors.add(:inheritance_details, "debe incluir número de sentencia judicial")
+    end
+  end
+
 
 # ============================================================
 # CALLBACK 1: Asignar TransactionScenario automáticamente

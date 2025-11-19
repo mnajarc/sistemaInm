@@ -1,0 +1,537 @@
+<!-- app/views/initial_contact_forms/_form_javascript.html.erb -->
+<!-- JAVASCRIPT FINAL - VERSIÓN VALIDADA Y CORREGIDA -->
+
+<script>
+function initializeInitialContactForm() {
+  console.log('🚀 InitialContactForm JavaScript initializing...');
+  
+  // ========================================================================
+  // NAVEGACIÓN ENTRE TABS
+  // ========================================================================
+  const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  let currentTab = 0;
+
+  function updateButtons() {
+    if (prevBtn && nextBtn) {
+      prevBtn.disabled = currentTab === 0;
+      nextBtn.disabled = currentTab === tabs.length - 1;
+    }
+  }
+
+  if (nextBtn && prevBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (currentTab < tabs.length - 1) {
+        currentTab++;
+        tabs[currentTab].click();
+        updateButtons();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentTab > 0) {
+        currentTab--;
+        tabs[currentTab].click();
+        updateButtons();
+      }
+    });
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('shown.bs.tab', () => {
+        currentTab = index;
+        updateButtons();
+      });
+    });
+
+    updateButtons();
+  }
+
+  // ========================================================================
+  // FUNCIÓN PARA LIMPIAR CAMPOS DE SECCIONES OCULTAS
+  // ========================================================================
+
+function clearHiddenSectionFields(exceptSectionId) {
+  const conditionalSections = document.querySelectorAll('.conditional-section');
+  
+  conditionalSections.forEach(section => {
+    // Si la sección NO es la que estamos mostrando
+    if (section.id !== exceptSectionId && section.style.display === 'none') {
+      // Limpiar SOLO los campos específicos del formulario condicional
+      // NO limpiar co_owners_count, state, etc que pueden estar en varias secciones
+      
+      const fieldsToPreserve = [
+        'co_owners_count', 'state', 'land_use', 'condominium_regime', 
+        'rental_units_count', 'mortgage_balance', 'monthly_payment',
+        'property_human_identifier'
+      ];
+      
+      const inputs = section.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="date"]');
+      inputs.forEach(input => {
+        // Obtener el nombre del campo (último elemento después de ][)
+        const fieldName = input.name.split('[').pop().replace(']', '');
+        
+        // NO limpiar si está en la lista de campos a preservar
+        if (!fieldsToPreserve.includes(fieldName) && !input.hasAttribute('data-keep-value')) {
+          input.value = '';
+        }
+      });
+      
+      // Desmarcar checkboxes
+      const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(checkbox => {
+        if (!checkbox.hasAttribute('data-keep-value')) {
+          checkbox.checked = false;
+        }
+      });
+      
+      // Resetear selects (EXCEPTO state que es requerido)
+      const selects = section.querySelectorAll('select');
+      selects.forEach(select => {
+        const fieldName = select.name.split('[').pop().replace(']', '');
+        if (fieldName !== 'state' && !select.hasAttribute('data-keep-value')) {
+          select.selectedIndex = 0;
+        }
+      });
+      
+      console.log('🧹 Cleared fields in hidden section:', section.id);
+    }
+  });
+}
+
+
+
+
+  // ========================================================================
+  // FUNCIÓN PARA MANEJAR REQUIRED EN CAMPOS CONDICIONALES
+  // ========================================================================
+  function updateRequiredFields() {
+    const conditionalSections = document.querySelectorAll('.conditional-section');
+    
+    conditionalSections.forEach(section => {
+      const isVisible = section.style.display === 'block';
+      const requiredInputs = section.querySelectorAll('input, select, textarea');
+      
+      requiredInputs.forEach(input => {
+        if (!input.hasAttribute('data-originally-required')) {
+          if (input.hasAttribute('required')) {
+            input.setAttribute('data-originally-required', 'true');
+          }
+        }
+        
+        const wasRequired = input.getAttribute('data-originally-required') === 'true';
+        
+        if (isVisible && wasRequired) {
+          input.setAttribute('required', 'required');
+        } else if (!isVisible) {
+          input.removeAttribute('required');
+        }
+      });
+    });
+  }
+
+  // ========================================================================
+  // CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN
+  // ========================================================================
+  const methodSelect = document.getElementById('acquisition_method_select');
+  const conditionalSections = document.querySelectorAll('.conditional-section');
+  
+  const methodCodesData = document.getElementById('acquisition_method_codes_data');
+  
+  if (!methodCodesData) {
+    console.error('❌ No se encontró el campo acquisition_method_codes_data');
+    return;
+  }
+  
+  // CORRECCIÓN: Validar que methodCodesData.value no esté vacío
+  let methodCodes = {};
+  try {
+    const codesValue = methodCodesData.value;
+    if (codesValue && codesValue.trim()) {
+      methodCodes = JSON.parse(codesValue);
+    }
+  } catch (e) {
+    console.error('❌ Error parsing method codes:', e);
+    methodCodes = {};
+  }
+  
+  const methodSectionMap = {
+    'compraventa': 'compraventa-fields',
+    'compraventa_derechos': 'compraventa-fields',
+    'herencia': 'herencia-fields',
+    'usucapion': 'usucapion-fields',
+    'prescripcion_negativa': 'usucapion-fields',
+    'dacion_pago': 'dacion-pago-fields',
+    'donacion': 'donacion-fields'
+  };
+  
+  // ========================================================================
+  // MOSTRAR/OCULTAR CAMPOS CONDICIONALES
+  // ========================================================================
+  function showConditionalFields(methodId, isInitialLoad = false) {
+    console.log('🔍 Showing fields for method ID:', methodId, 'isInitialLoad:', isInitialLoad);
+    
+    // Ocultar todas las secciones
+    conditionalSections.forEach(section => {
+      section.style.display = 'none';
+    });
+    
+    if (!methodId || methodId === '') {
+      console.log('⚠️ No method selected');
+      updateRequiredFields();
+      return;
+    }
+    
+    const selectedId = parseInt(methodId);
+    const methodCode = methodCodes[selectedId];
+    
+    console.log('Selected ID:', selectedId, 'Method Code:', methodCode);
+    
+    let sectionToShow = null;
+    
+    if (methodCode && methodSectionMap[methodCode]) {
+      const sectionId = methodSectionMap[methodCode];
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.style.display = 'block';
+        sectionToShow = sectionId;
+        console.log('✅ Showing section:', sectionId);
+      } else {
+        console.error('❌ Section not found:', sectionId);
+      }
+    } else if (methodCode) {
+      const section = document.getElementById('otros-fields');
+      if (section) {
+        section.style.display = 'block';
+        sectionToShow = 'otros-fields';
+        console.log('✅ Showing generic section for:', methodCode);
+      } else {
+        console.warn('⚠️ Generic section "otros-fields" not found');
+      }
+    } else {
+      console.warn('⚠️ No method code found for ID:', selectedId);
+    }
+    
+    // IMPORTANTE: SOLO limpiar si NO es la carga inicial
+    if (!isInitialLoad) {
+      clearHiddenSectionFields(sectionToShow);
+    }
+    
+    updateRequiredFields();
+  }
+
+  if (methodSelect) {
+    console.log('✅ Method select found');
+    
+    // Evento cuando cambia el select (el usuario lo cambia manualmente)
+    methodSelect.addEventListener('change', function() {
+      console.log('📌 Method changed:', this.value);
+      showConditionalFields(this.value, false); // NO es carga inicial
+    });
+    
+    // Trigger inicial (cuando carga la página)
+    setTimeout(() => {
+      if (methodSelect.value && methodSelect.value !== '') {
+        console.log('🔄 Triggering initial load for:', methodSelect.value);
+        showConditionalFields(methodSelect.value, true); // SÍ es carga inicial
+      } else {
+        console.log('⚠️ No method selected on initial load');
+        updateRequiredFields();
+      }
+    }, 50);
+  } else {
+    console.error('❌ Method select not found: acquisition_method_select');
+  }
+
+  // ========================================================================
+  // SECCIÓN 1: CONDICIONES GENERALES - Estado civil
+  // ========================================================================
+  
+  const civilStatusField = document.getElementById('civil_status_field');
+  const marriageField = document.querySelector('.marriage-regime-field');
+  
+  if (civilStatusField && marriageField) {
+    function updateMarriageRegimeVisibility() {
+      const isVisible = civilStatusField.value === 'casado';
+      marriageField.style.display = isVisible ? 'block' : 'none';
+      
+      const regimeSelect = marriageField.querySelector('select');
+      if (regimeSelect) {
+        if (isVisible) {
+          regimeSelect.setAttribute('required', 'required');
+        } else {
+          regimeSelect.removeAttribute('required');
+          regimeSelect.selectedIndex = 0;
+        }
+      }
+    }
+    
+    civilStatusField.addEventListener('change', updateMarriageRegimeVisibility);
+    updateMarriageRegimeVisibility();
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL
+  // ========================================================================
+  
+  const currentMortgageCheck = document.getElementById('current_has_mortgage_check');
+  const mortgageSection = document.querySelector('.mortgage-section');
+  
+  if (currentMortgageCheck && mortgageSection) {
+    currentMortgageCheck.addEventListener('change', function(e) {
+      mortgageSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (currentMortgageCheck.checked) {
+      mortgageSection.style.display = 'block';
+    }
+  }
+
+  const condominiumCheck = document.getElementById('is_in_condominium_check');
+  const condominiumDetails = document.querySelector('.condominium-details');
+  
+  if (condominiumCheck && condominiumDetails) {
+    condominiumCheck.addEventListener('change', function(e) {
+      condominiumDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (condominiumCheck.checked) {
+      condominiumDetails.style.display = 'block';
+    }
+  }
+
+  const rentalCheck = document.getElementById('has_rental_units_check');
+  const rentalDetails = document.querySelector('.rental-details');
+  
+  if (rentalCheck && rentalDetails) {
+    rentalCheck.addEventListener('change', function(e) {
+      rentalDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (rentalCheck.checked) {
+      rentalDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 3: EXENCIÓN ISR
+  // ========================================================================
+  
+  const previousSalesCheck = document.getElementById('previous_sales_check');
+  const previousSalesDetails = document.querySelector('.previous-sale-details');
+  
+  if (previousSalesCheck && previousSalesDetails) {
+    previousSalesCheck.addEventListener('change', function(e) {
+      previousSalesDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (previousSalesCheck.checked) {
+      previousSalesDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 4: PROMOCIÓN
+  // ========================================================================
+  
+  const signageCheck = document.getElementById('allows_signage_check');
+  const signageDetails = document.querySelector('.signage-details');
+  
+  if (signageCheck && signageDetails) {
+    signageCheck.addEventListener('change', function(e) {
+      signageDetails.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (signageCheck.checked) {
+      signageDetails.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // VALIDACIÓN ANTES DE SUBMIT
+  // ========================================================================
+  const form = document.getElementById('contactForm');
+  
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      updateRequiredFields();
+      console.log('📝 Form submitting...');
+    });
+  }
+  // ========================================================================
+  // AMPLIACIONES
+  // ========================================================================
+  const additionsCheck = document.getElementById('has_additions_check');
+  const additionsSection = document.querySelector('.additions-section');
+
+  if (additionsCheck && additionsSection) {
+    additionsCheck.addEventListener('change', function(e) {
+      additionsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (additionsCheck.checked) {
+      additionsSection.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // REMODELACIONES
+  // ========================================================================
+  const renovationsCheck = document.getElementById('has_renovations_check');
+  const renovationsSection = document.querySelector('.renovations-section');
+
+  if (renovationsCheck && renovationsSection) {
+    renovationsCheck.addEventListener('change', function(e) {
+      renovationsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (renovationsCheck.checked) {
+      renovationsSection.style.display = 'block';
+    }
+  }
+
+  const renovationKnownSelect = document.getElementById('renovation_known_select');
+  const renovationCostField = document.querySelector('.renovation-cost-field');
+
+  if (renovationKnownSelect && renovationCostField) {
+    renovationKnownSelect.addEventListener('change', function(e) {
+      renovationCostField.style.display = e.target.value === 'true' ? 'block' : 'none';
+    });
+    if (renovationKnownSelect.value === 'true') {
+      renovationCostField.style.display = 'block';
+    }
+  }
+
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Hipoteca - Despacho de cobranza
+  // ========================================================================
+  
+  const mortgagePaymentsSelect = document.getElementById('mortgage_payments_current_select');
+  const mortgageCollectionField = document.querySelector('.mortgage-collection-field');
+  
+  if (mortgagePaymentsSelect && mortgageCollectionField) {
+    mortgagePaymentsSelect.addEventListener('change', function(e) {
+      // Mostrar campo de cobranza SOLO si NO está al corriente
+      mortgageCollectionField.style.display = e.target.value === 'false' ? 'block' : 'none';
+    });
+    // Trigger inicial
+    if (mortgagePaymentsSelect.value === 'false') {
+      mortgageCollectionField.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Ampliaciones
+  // ========================================================================
+  
+  const extensionsCheck = document.getElementById('has_extensions_check');
+  const extensionsSection = document.querySelector('.extensions-section');
+  
+  if (extensionsCheck && extensionsSection) {
+    extensionsCheck.addEventListener('change', function(e) {
+      extensionsSection.style.display = e.target.checked ? 'block' : 'none';
+    });
+    if (extensionsCheck.checked) {
+      extensionsSection.style.display = 'block';
+    }
+  }
+
+  // ========================================================================
+  // SECCIÓN 2: ESTATUS ACTUAL - Remodelaciones
+  // ========================================================================
+  
+ 
+
+
+
+
+  console.log('✅ JavaScript initialization complete');
+}
+
+// ========================================================================
+// EVENTOS TURBO
+// ========================================================================
+
+document.addEventListener('turbo:load', function() {
+  console.log('🎯 turbo:load event fired');
+  initializeInitialContactForm();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🎯 DOMContentLoaded event fired');
+  if (typeof Turbo === 'undefined') {
+    initializeInitialContactForm();
+  }
+});
+</script>
+
+<style>
+/* ========================================================================== */
+/* ESTILOS PARA CAMPOS CONDICIONALES                                         */
+/* ========================================================================== */
+
+.conditional-section {
+  margin-top: 1.5rem;
+  animation: fadeIn 0.3s ease-in;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-in, visibility 0.3s ease-in;
+}
+
+.conditional-section[style*="display: none"],
+.conditional-section[style*="display:none"] {
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Animación de aparición suave */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilo de tarjeta para secciones condicionales */
+.conditional-section .card {
+  border-left: 4px solid #0d6efd;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: box-shadow 0.3s ease;
+}
+
+.conditional-section .card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.conditional-section .card-header {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Estilos para campos dentro de secciones condicionales */
+.conditional-section .form-control,
+.conditional-section .form-select {
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.conditional-section .form-control:focus,
+.conditional-section .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Alertas dentro de secciones condicionales */
+.conditional-section .alert {
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+/* Campos con atributo data-originally-required */
+[data-originally-required="true"] {
+  background-color: rgba(13, 110, 253, 0.02);
+}
+
+[data-originally-required="true"]:invalid {
+  border-color: #dc3545;
+}
+</style>
