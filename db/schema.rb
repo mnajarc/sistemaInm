@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_19_130410) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -804,6 +804,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_19_130410) do
     t.index ["sort_order"], name: "index_property_types_on_sort_order"
   end
 
+  create_table "relationship_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "category"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_relationship_types_on_active"
+    t.index ["category"], name: "index_relationship_types_on_category"
+    t.index ["name"], name: "index_relationship_types_on_name", unique: true
+  end
+
   create_table "role_change_logs", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.integer "old_role"
@@ -854,6 +869,34 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_19_130410) do
     t.index ["party_type"], name: "index_scenario_documents_on_party_type"
     t.index ["transaction_scenario_id", "document_type_id"], name: "idx_scenario_documents_scenario_document"
     t.index ["transaction_scenario_id"], name: "index_scenario_documents_on_transaction_scenario_id"
+  end
+
+  create_table "succession_authorities", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.string "category"
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_succession_authorities_on_active"
+    t.index ["name"], name: "index_succession_authorities_on_name", unique: true
+  end
+
+  create_table "succession_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "display_name", null: false
+    t.text "description"
+    t.boolean "requires_judicial", default: false
+    t.boolean "active", default: true
+    t.integer "sort_order", default: 0
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_succession_types_on_active"
+    t.index ["name"], name: "index_succession_types_on_name", unique: true
   end
 
   create_table "system_configurations", force: :cascade do |t|

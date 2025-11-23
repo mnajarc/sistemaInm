@@ -1,9 +1,6 @@
 <!-- app/views/initial_contact_forms/_conditional_fields.html.erb -->
 <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN -->
 <!-- CORRECCIÓN: Usar data-originally-required en lugar de required -->
-<!-- ========================================================================== -->
-<!-- CAMPOS GLOBALES - SIEMPRE VISIBLES                                         -->
-<!-- ========================================================================== -->
 
 <!-- COMPRAVENTA -->
 <div id="compraventa-fields" class="conditional-section" style="display: none;">
@@ -24,7 +21,6 @@
                               class: 'form-control', min: 1,
                               data: { originally_required: 'true' } %>
         </div>
-        
       </div>
       
       <div class="mb-3">
@@ -38,19 +34,17 @@
       </div>
       
       <div id="relationship-field" style="<%= 'display:none;' unless form.acquisition_details['has_relationship'] %>">
-        <div class="mb-3">
-          <%= label_tag 'acquisition_details_relationship_type', 'Especifique el parentesco',
-                        class: 'form-label' %>
+        <div class="col-md-6 mb-3">
+          <%= label_tag 'acquisition_details[relationship_type]', 'Especifique el parentesco', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][relationship_type]',
-                         options_for_select([
-                           ['Esposos', 'esposos'],
-                           ['Hermanos', 'hermanos'],
-                           ['Padres e hijos', 'padres_hijos'],
-                           ['Primos', 'primos'],
-                           ['Tíos y sobrinos', 'tios_sobrinos'],
-                           ['Otro', 'otro']
-                         ], form.acquisition_details['relationship_type']),
-                         class: 'form-select' %>
+              options_from_collection_for_select(
+                RelationshipType.active.where(category: 'copropietario').ordered,
+                :name,
+                :display_name,
+                form.acquisition_details['relationship_type']
+              ),
+              prompt: 'Seleccione...',
+              class: 'form-select' %>
         </div>
       </div>
       
@@ -127,33 +121,32 @@
       </div>
       
       <div class="mb-3">
-        <%= label_tag 'acquisition_details_deceased_civil_status', 'Estado civil del finado/a *',
-                      class: 'form-label' %>
+        <%= label_tag 'acquisition_details[deceased_civil_status]', 'Estado civil del finado(a) *', class: 'form-label' %>
         <%= select_tag 'initial_contact_form[acquisition_details][deceased_civil_status]',
-                       options_for_select([
-                         ['Soltero(a)', 'soltero'],
-                         ['Casado(a)', 'casado'],
-                         ['Divorciado(a)', 'divorciado'],
-                         ['Viudo(a)', 'viudo'],
-                         ['Unión libre', 'union_libre']
-                       ], form.acquisition_details['deceased_civil_status']),
-                       class: 'form-select',
-                       data: { originally_required: 'true' } %>
+            options_from_collection_for_select(
+              CivilStatus.active.order(:sort_order),
+              :name,
+              :display_name,
+              form.acquisition_details['deceased_civil_status']
+            ),
+            prompt: 'Seleccione...',
+            class: 'form-select',
+            data: { 'originally-required': 'true' } %>
       </div>
-      
+
       <div class="mb-3">
-        <%= label_tag 'acquisition_details_inheritance_from', '¿De quién es la herencia? *',
-                      class: 'form-label' %>
+        <%= label_tag 'acquisition_details[inheritance_from]', '¿De quién es la herencia? *', class: 'form-label' %>
         <%= select_tag 'initial_contact_form[acquisition_details][inheritance_from]',
-                       options_for_select([
-                         ['Ambos padres', 'ambos_padres'],
-                         ['Padre', 'padre'],
-                         ['Madre', 'madre'],
-                         ['Cónyuge', 'conyuge'],
-                         ['Otro', 'otro']
-                       ], form.acquisition_details['inheritance_from']),
-                       class: 'form-select', id: 'inheritance_from_select',
-                       data: { originally_required: 'true' } %>
+            options_from_collection_for_select(
+              RelationshipType.active.where(category: 'herencia').ordered,
+              :name,
+              :display_name,
+              form.acquisition_details['inheritance_from']
+            ),
+            prompt: 'Seleccione...',
+            id: 'inheritance-from-select',
+            class: 'form-select',
+            data: { 'originally-required': 'true' } %>
       </div>
       
       <div id="inheritance-other-field"
@@ -211,36 +204,34 @@
       
       <div id="yes-testamentary-field" style="display: none;">
         <div class="mb-3">
-          <%= label_tag 'acquisition_details_succession_authority', '¿Por juzgado o notaría?',
-                        class: 'form-label' %>
+          <%= label_tag 'acquisition_details[succession_authority]', '¿Por juzgado o notaría? *', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][succession_authority]',
-                         options_for_select([
-                           ['Juzgado', 'juzgado'],
-                           ['Notaría', 'notaria']
-                         ], form.acquisition_details['succession_authority']),
-                         class: 'form-select' %>
-
+              options_from_collection_for_select(
+                SuccessionAuthority.active.ordered,
+                :name,
+                :display_name,
+                form.acquisition_details['succession_authority']
+              ),
+              prompt: 'Seleccione...',
+              class: 'form-select',
+              data: { 'originally-required': 'true' } %>
         </div>
-
+        
         <div class="col-md-6 mb-3">
           <%= label_tag 'succession_type', '¿Cómo se llevó a cabo la sucesión? *', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][succession_type]',
-                        options_for_select([
-                          ['Seleccione...', ''],
-                          ['Juzgado', 'juzgado'],
-                          ['Notaría', 'notaria'],
-                          ['En proceso', 'en_proceso']
-                        ], form.acquisition_details['succession_type']),
-                        id: 'succession_type_select',
-                        class: 'form-select',
-                        data: { originally_required: 'true' } %>
+              options_from_collection_for_select(
+                SuccessionType.active.ordered,
+                :name,
+                :display_name,
+                form.acquisition_details['succession_type']
+              ),
+              prompt: 'Seleccione...',
+              id: 'succession-type-select',
+              class: 'form-select',
+              data: { 'originally-required': 'true' } %>
         </div>
       </div>
-
-
-
-
-
     </div>
   </div>
 </div>
@@ -339,22 +330,20 @@
                             placeholder: 'Ej: Juan Pérez García',
                             data: { originally_required: 'true' } %>
         </div>
-        
+
         <div class="col-md-6 mb-3">
-          <%= label_tag 'acquisition_details_donor_relationship', 'Relación con el donante *',
-                        class: 'form-label' %>
+          <%= label_tag 'acquisition_details[donor_relationship]', 'Relación con el donante *', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][donor_relationship]',
-                         options_for_select([
-                           ['Padre', 'padre'],
-                           ['Madre', 'madre'],
-                           ['Hermano', 'hermano'],
-                           ['Tío', 'tio'],
-                           ['Abuelo', 'abuelo'],
-                           ['Cónyuge', 'conyuge'],
-                           ['Otro', 'otro']
-                         ], form.acquisition_details['donor_relationship']),
-                         class: 'form-select', id: 'donor_relationship_select',
-                         data: { originally_required: 'true' } %>
+              options_from_collection_for_select(
+                RelationshipType.active.where(category: 'herencia').ordered,
+                :name,
+                :display_name,
+                form.acquisition_details['donor_relationship']
+              ),
+              prompt: 'Seleccione...',
+              id: 'donor-relationship-select',
+              class: 'form-select',
+              data: { 'originally-required': 'true' } %>
         </div>
       </div>
       
@@ -404,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  const inheritanceFromSelect = document.getElementById('inheritance_from_select');
+  const inheritanceFromSelect = document.getElementById('inheritance-from-select');
   const inheritanceOtherField = document.getElementById('inheritance-other-field');
   
   if (inheritanceFromSelect) {
@@ -444,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // DONACIÓN: Relación otro
-  const donorRelationshipSelect = document.getElementById('donor_relationship_select');
+  const donorRelationshipSelect = document.getElementById('donor-relationship-select');
   const donorOtherField = document.getElementById('donor-other-field');
   
   if (donorRelationshipSelect) {

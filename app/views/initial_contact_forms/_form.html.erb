@@ -212,21 +212,22 @@
           
           <div class="row">
             <div class="col-md-6 mb-3">
-              <%= label_tag 'general_conditions_civil_status', 'Estado civil *', class: 'form-label' %>
+              <%= label_tag 'general_conditions[civil_status]', 'Estado civil al momento de la adquisición *', class: 'form-label' %>
+
               <%= select_tag 'initial_contact_form[general_conditions][civil_status]',
-                             options_for_select([
-                               ['Seleccione...', ''],
-                               ['Soltero(a)', 'soltero'],
-                               ['Casado(a)', 'casado'],
-                               ['Divorciado(a)', 'divorciado'],
-                               ['Viudo(a)', 'viudo'],
-                               ['Unión libre', 'union_libre']
-                             ], form.general_conditions['civil_status']),
-                             class: 'form-select',
-                             id: 'civil_status_field',
-                             required: true %>
+                  options_from_collection_for_select(
+                    CivilStatus.active.order(:sort_order),
+                    :name,          # Guardar name (que debe ser: soltero, casado, etc)
+                    :display_name,  # Mostrar display_name (Soltero(a), Casado(a), etc)
+                    form.general_conditions['civil_status']
+                  ),
+                  prompt: 'Seleccione...',
+                  class: 'form-select',
+                  id: 'civil-status-field',
+                  required: true %>
+              <small class="text-muted">Estado civil del propietario</small>
             </div>
-            
+
             <div class="col-md-6 mb-3 marriage-regime-field" style="<%= 'display:none;' unless form.general_conditions['civil_status'] == 'casado' %>">
               <%= label_tag 'general_conditions_marriage_regime_id', 'Régimen matrimonial', class: 'form-label' %>
               <%= collection_select 'initial_contact_form[general_conditions]', :marriage_regime_id,
@@ -259,61 +260,43 @@
             <div class="col-md-6 mb-3">
               <%= f.label 'acquisition_details[state]', 'Entidad federativa *', class: 'form-label' %>
               <%= select_tag 'initial_contact_form[acquisition_details][state]',
-                            options_for_select([
-                              ['Selecciona un estado...', ''],
-                              ['Aguascalientes', 'Aguascalientes'],
-                              ['Baja California', 'Baja California'],
-                              ['Baja California Sur', 'Baja California Sur'],
-                              ['Campeche', 'Campeche'],
-                              ['Chiapas', 'Chiapas'],
-                              ['Chihuahua', 'Chihuahua'],
-                              ['Ciudad de México', 'CDMX'],
-                              ['Coahuila', 'Coahuila'],
-                              ['Colima', 'Colima'],
-                              ['Durango', 'Durango'],
-                              ['Estado de México', 'Estado de México'],
-                              ['Guanajuato', 'Guanajuato'],
-                              ['Guerrero', 'Guerrero'],
-                              ['Hidalgo', 'Hidalgo'],
-                              ['Jalisco', 'Jalisco'],
-                              ['Michoacán', 'Michoacán'],
-                              ['Morelos', 'Morelos'],
-                              ['Nayarit', 'Nayarit'],
-                              ['Nuevo León', 'Nuevo León'],
-                              ['Oaxaca', 'Oaxaca'],
-                              ['Puebla', 'Puebla'],
-                              ['Querétaro', 'Querétaro'],
-                              ['Quintana Roo', 'Quintana Roo'],
-                              ['San Luis Potosí', 'San Luis Potosí'],
-                              ['Sinaloa', 'Sinaloa'],
-                              ['Sonora', 'Sonora'],
-                              ['Tabasco', 'Tabasco'],
-                              ['Tamaulipas', 'Tamaulipas'],
-                              ['Tlaxcala', 'Tlaxcala'],
-                              ['Veracruz', 'Veracruz'],
-                              ['Yucatán', 'Yucatán'],
-                              ['Zacatecas', 'Zacatecas']
-                            ], form.acquisition_details['state']),
+                            options_from_collection_for_select(
+                              MexicanState.active.order(:sort_order),
+                              :name,
+                              :name,
+                              form.acquisition_details['state']
+                            ),
+                            prompt: 'Selecciona un estado...',
                             id: 'state_select',
                             class: 'form-select',
                             required: true %>
+              <small class="text-muted">Estado donde se ubica la propiedad</small>
             </div>
-
             <div class="col-md-6 mb-3">
               <%= f.label 'acquisition_details[land_use]', 'Uso de suelo *', class: 'form-label' %>
               <%= select_tag 'initial_contact_form[acquisition_details][land_use]',
-                            options_for_select([
-                              ['Selecciona uso de suelo...', ''],
-                              ['Habitacional', 'habitacional'],
-                              ['Comercial', 'comercial'],
-                              ['Industrial', 'industrial'],
-                              ['Mixto', 'mixto'],
-                              ['Rústico/Agrícola', 'rustico']
-                            ], form.acquisition_details['land_use']),
+                            options_from_collection_for_select(
+                              LandUseType.active.order(:sort_order),
+                              :code,
+                              :name,
+                              form.acquisition_details['land_use']
+                            ),
+                            prompt: 'Selecciona uso de suelo...',
                             id: 'land_use_select',
                             class: 'form-select',
                             required: true %>
+              <small class="text-muted">Clasificación del inmueble</small>
             </div>
+
+
+
+
+
+
+
+
+
+
           </div>
 
         </div>

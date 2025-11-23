@@ -605,3 +605,153 @@ load Rails.root.join('db', 'seeds', '02_marriage_regimes.rb')
 load Rails.root.join('db', 'seeds', '03_land_use_types.rb')
 
 puts "\n✅ Seeds completados exitosamente"
+
+
+
+puts "🌱 Sembrando RelationshipTypes..."
+
+RelationshipType.find_or_create_by!(name: 'esposos') do |rt|
+  rt.display_name = 'Esposos'
+  rt.description = 'Relación matrimonial'
+  rt.category = 'copropietario'
+  rt.sort_order = 10
+end
+
+RelationshipType.find_or_create_by!(name: 'hermanos') do |rt|
+  rt.display_name = 'Hermanos'
+  rt.description = 'Relación fraterna'
+  rt.category = 'copropietario'
+  rt.sort_order = 20
+end
+
+RelationshipType.find_or_create_by!(name: 'padres_hijos') do |rt|
+  rt.display_name = 'Padres e hijos'
+  rt.description = 'Relación filial'
+  rt.category = 'copropietario'
+  rt.sort_order = 30
+end
+
+RelationshipType.find_or_create_by!(name: 'socios') do |rt|
+  rt.display_name = 'Socios'
+  rt.description = 'Relación comercial'
+  rt.category = 'copropietario'
+  rt.sort_order = 40
+end
+
+RelationshipType.find_or_create_by!(name: 'sin_relacion') do |rt|
+  rt.display_name = 'Sin relación familiar'
+  rt.description = 'No existe relación familiar o comercial'
+  rt.category = 'copropietario'
+  rt.sort_order = 99
+end
+
+# Relaciones para herencias
+RelationshipType.find_or_create_by!(name: 'padre') do |rt|
+  rt.display_name = 'Padre'
+  rt.description = 'Padre del heredero'
+  rt.category = 'herencia'
+  rt.sort_order = 10
+end
+
+RelationshipType.find_or_create_by!(name: 'madre') do |rt|
+  rt.display_name = 'Madre'
+  rt.description = 'Madre del heredero'
+  rt.category = 'herencia'
+  rt.sort_order = 20
+end
+
+RelationshipType.find_or_create_by!(name: 'ambos_padres') do |rt|
+  rt.display_name = 'Ambos padres'
+  rt.description = 'Padre y madre del heredero'
+  rt.category = 'herencia'
+  rt.sort_order = 5
+end
+
+RelationshipType.find_or_create_by!(name: 'abuelo_paterno') do |rt|
+  rt.display_name = 'Abuelo paterno'
+  rt.category = 'herencia'
+  rt.sort_order = 30
+end
+
+RelationshipType.find_or_create_by!(name: 'abuelo_materno') do |rt|
+  rt.display_name = 'Abuelo materno'
+  rt.category = 'herencia'
+  rt.sort_order = 40
+end
+
+RelationshipType.find_or_create_by!(name: 'tio_tia') do |rt|
+  rt.display_name = 'Tío/Tía'
+  rt.category = 'herencia'
+  rt.sort_order = 50
+end
+
+RelationshipType.find_or_create_by!(name: 'otro_familiar') do |rt|
+  rt.display_name = 'Otro familiar'
+  rt.category = 'herencia'
+  rt.sort_order = 90
+end
+
+puts "✅ #{RelationshipType.count} RelationshipTypes creados"
+
+# ═══════════════════════════════════════════════════════════════
+
+puts "🌱 Sembrando SuccessionTypes..."
+
+SuccessionType.find_or_create_by!(name: 'testamentaria') do |st|
+  st.display_name = 'Testamentaria'
+  st.description = 'Sucesión con testamento válido'
+  st.requires_judicial = false
+  st.sort_order = 10
+end
+
+SuccessionType.find_or_create_by!(name: 'intestada') do |st|
+  st.display_name = 'Intestada (sin testamento)'
+  st.description = 'Sucesión sin testamento'
+  st.requires_judicial = true
+  st.sort_order = 20
+end
+
+SuccessionType.find_or_create_by!(name: 'mixta') do |st|
+  st.display_name = 'Mixta'
+  st.description = 'Sucesión parcialmente testamentaria'
+  st.requires_judicial = true
+  st.sort_order = 30
+end
+
+puts "✅ #{SuccessionType.count} SuccessionTypes creados"
+
+puts "🎉 Seeds completados"
+
+puts "🌱 Sembrando SuccessionAuthorities..."
+
+SuccessionAuthority.find_or_create_by!(name: 'notaria') do |sa|
+  sa.display_name = 'Notaría'
+  sa.description = 'Sucesión tramitada ante notario público'
+  sa.category = 'notarial'
+  sa.sort_order = 10
+end
+
+SuccessionAuthority.find_or_create_by!(name: 'juzgado_familiar') do |sa|
+  sa.display_name = 'Juzgado Familiar'
+  sa.description = 'Sucesión tramitada en juzgado familiar'
+  sa.category = 'judicial'
+  sa.sort_order = 20
+end
+
+SuccessionAuthority.find_or_create_by!(name: 'juzgado_civil') do |sa|
+  sa.display_name = 'Juzgado Civil'
+  sa.description = 'Sucesión tramitada en juzgado civil'
+  sa.category = 'judicial'
+  sa.sort_order = 30
+end
+
+SuccessionAuthority.find_or_create_by!(name: 'tribunal_superior') do |sa|
+  sa.display_name = 'Tribunal Superior de Justicia'
+  sa.description = 'Sucesión tramitada en tribunal superior'
+  sa.category = 'judicial'
+  sa.sort_order = 40
+end
+
+puts "✅ #{SuccessionAuthority.count} SuccessionAuthorities creadas"
+
+puts "🎉 Todas las tablas de catálogos completadas"
