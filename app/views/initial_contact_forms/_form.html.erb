@@ -256,22 +256,143 @@
               </h6>
               <hr>
             </div>
-            
-            <div class="col-md-6 mb-3">
-              <%= f.label 'acquisition_details[state]', 'Entidad federativa *', class: 'form-label' %>
-              <%= select_tag 'initial_contact_form[acquisition_details][state]',
-                            options_from_collection_for_select(
-                              MexicanState.active.order(:sort_order),
-                              :name,
-                              :name,
-                              form.acquisition_details['state']
-                            ),
-                            prompt: 'Selecciona un estado...',
-                            id: 'state_select',
-                            class: 'form-select',
-                            required: true %>
-              <small class="text-muted">Estado donde se ubica la propiedad</small>
+            <!-- ════════════════════════════════════════════════════════════════════ -->
+            <!-- DIRECCIÓN DE LA PROPIEDAD                                              -->
+            <!-- ════════════════════════════════════════════════════════════════════ -->
+
+            <div class="card mb-4">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📍 Ubicación de la Propiedad</h5>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-info">
+                  <strong>Importante:</strong> La dirección se usará para generar el identificador único de la oportunidad y evitar duplicados en el sistema.
+                </div>
+
+                <div class="row">
+                  <!-- Calle/Avenida -->
+                  <div class="col-md-8 mb-3">
+                    <%= f.label 'property_info[street]', 'Calle/Avenida *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][street]',
+                                      form.property_info['street'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: Av. Insurgentes Sur',
+                                      required: true,
+                                      id: 'property-street-field' %>
+                    <small class="text-muted">Nombre completo de la calle o avenida</small>
+                  </div>
+
+                  <!-- Número Exterior -->
+                  <div class="col-md-4 mb-3">
+                    <%= f.label 'property_info[exterior_number]', 'Número Exterior *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][exterior_number]',
+                                      form.property_info['exterior_number'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: 1500',
+                                      required: true,
+                                      id: 'property-exterior-field' %>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <!-- Número Interior -->
+                  <div class="col-md-4 mb-3">
+                    <%= f.label 'property_info[interior_number]', 'Número Interior', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][interior_number]',
+                                      form.property_info['interior_number'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: 301, Depto A' %>
+                    <small class="text-muted">Opcional</small>
+                  </div>
+
+                  <!-- Colonia -->
+                  <div class="col-md-4 mb-3">
+                    <%= f.label 'property_info[neighborhood]', 'Colonia *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][neighborhood]',
+                                      form.property_info['neighborhood'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: Del Valle',
+                                      required: true %>
+                  </div>
+
+                  <!-- Código Postal -->
+                  <div class="col-md-4 mb-3">
+                    <%= f.label 'property_info[postal_code]', 'Código Postal *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][postal_code]',
+                                      form.property_info['postal_code'],
+                                      class: 'form-control',
+                                      placeholder: '03100',
+                                      required: true,
+                                      pattern: '[0-9]{5}',
+                                      maxlength: 5 %>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <!-- Municipio/Alcaldía -->
+                  <div class="col-md-6 mb-3">
+                    <%= f.label 'property_info[municipality]', 'Municipio/Alcaldía *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][municipality]',
+                                      form.property_info['municipality'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: Benito Juárez',
+                                      required: true %>
+                  </div>
+
+                  <!-- Ciudad -->
+                  <div class="col-md-6 mb-3">
+                    <%= f.label 'property_info[city]', 'Ciudad *', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][city]',
+                                      form.property_info['city'],
+                                      class: 'form-control',
+                                      placeholder: 'Ej: Ciudad de México',
+                                      required: true %>
+                  </div>
+                </div>
+
+
+                <!-- Estado (ahora en dirección) -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <%= f.label 'acquisition_details[state]', 'Estado *', class: 'form-label' %>
+                    <%= select_tag 'initial_contact_form[acquisition_details][state]',
+                                  options_from_collection_for_select(
+                                    MexicanState.active.order(:sort_order),
+                                    :name,
+                                    :name,
+                                    form.acquisition_details['state']
+                                  ),
+                                  prompt: 'Selecciona un estado...',
+                                  id: 'property-state-field',
+                                  class: 'form-select',
+                                  required: true %>
+                    <small class="text-muted">Estado donde se ubica la propiedad</small>
+                  </div>
+
+                  <!-- País (por defecto México) -->
+                  <div class="col-md-6 mb-3">
+                    <%= f.label 'property_info[country]', 'País', class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[property_info][country]',
+                                      form.property_info['country'] || 'México',
+                                      class: 'form-control',
+                                      readonly: true %>
+                  </div>
+                </div>
+
+
+                <!-- Preview del identificador (se actualiza en tiempo real) -->
+                <div class="alert alert-success mt-3">
+                  <strong>🏷️ Identificador de oportunidad:</strong>
+                  <div id="opportunity-identifier-preview" class="mt-2 font-monospace fs-5">
+                    <em class="text-muted">Se generará automáticamente al completar los datos</em>
+                  </div>
+                  <small class="text-muted d-block mt-2">
+                    Este identificador único se usará para rastrear la oportunidad y evitar duplicados
+                  </small>
+                </div>
+              </div>
             </div>
+           
             <div class="col-md-6 mb-3">
               <%= f.label 'acquisition_details[land_use]', 'Uso de suelo *', class: 'form-label' %>
               <%= select_tag 'initial_contact_form[acquisition_details][land_use]',
@@ -348,8 +469,123 @@
       Siguiente <i class="bi bi-arrow-right"></i>
     </button>
   </div>
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Elementos del formulario
+    const operationTypeSelect = document.querySelector('select[name="initial_contact_form[operation_type_id]"]');
+    const streetField = document.getElementById('property-street-field');
+    const exteriorField = document.getElementById('property-exterior-field');
+    const previewDiv = document.getElementById('opportunity-identifier-preview');
 
-<% end %>
+    // Función para generar preview del identificador MIXTO
+    function updateIdentifierPreview() {
+      // Obtener valores
+      const operationTypeId = operationTypeSelect?.value || '';
+      const ownerName = document.querySelector('input[name="initial_contact_form[general_conditions][owner_or_representative_name]"]')?.value || '';
+      const street = streetField?.value || '';
+      const exterior = exteriorField?.value || '';
+
+      // Validar que tengamos todos los campos necesarios
+      if (!operationTypeId || !ownerName || !street || !exterior) {
+        previewDiv.innerHTML = '<em class="text-muted">Completa: operación, nombre propietario, calle y número</em>';
+        return;
+      }
+
+      // 1. OPERACIÓN - Obtener código
+      const selectedOption = operationTypeSelect.options[operationTypeSelect.selectedIndex];
+      const operationType = selectedOption ? selectedOption.text.toLowerCase() : '';
+      
+      let opCode = 'X';
+      if (operationType.includes('venta') || operationType.includes('sale')) {
+        opCode = 'V';
+      } else if (operationType.includes('renta') || operationType.includes('rent')) {
+        opCode = 'R';
+      } else if (operationType.includes('traspaso')) {
+        opCode = 'T';
+      } else if (operationType.includes('permuta')) {
+        opCode = 'P';
+      }
+      
+      // 2. CLIENTE - Extraer primer apellido
+      const nameParts = ownerName.trim().split(/\s+/);
+      let lastName = '';
+      
+      if (nameParts.length >= 2) {
+        lastName = nameParts;  // Segundo elemento = primer apellido
+      } else {
+        lastName = nameParts;  // Solo hay un nombre
+      }
+      
+      // Limpiar apellido (sin acentos, sin caracteres especiales, uppercase, max 10 chars)
+      const lastNameClean = lastName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')  // Remover acentos
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .substring(0, 10);
+      
+      // 3. PROPIEDAD - Limpiar calle (max 12 chars)
+      const streetClean = street
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 12);
+      
+      // 4. FECHA - Fecha actual YYYYMMDD
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const dateStr = `${year}${month}${day}`;
+
+      // 5. GENERAR IDENTIFICADOR MIXTO
+      // Formato: V-PEREZ-Insurgentes-1500-20251123
+      const identifier = `${opCode}-${lastNameClean}-${streetClean}-${exterior}-${dateStr}`;
+      
+      // 6. MOSTRAR con desglose
+      previewDiv.innerHTML = `
+        <code class="text-success fs-5">${identifier}</code>
+        <small class="d-block text-muted mt-2">
+          <strong>Desglose:</strong><br>
+          ${opCode} = Operación | 
+          ${lastNameClean} = Cliente | 
+          ${streetClean}-${exterior} = Propiedad | 
+          ${dateStr} = Fecha
+        </small>
+      `;
+    }
+
+
+      // Event listeners para actualización en tiempo real
+      if (operationTypeSelect) {
+        operationTypeSelect.addEventListener('change', updateIdentifierPreview);
+      }
+      
+      const ownerNameField = document.querySelector('input[name="initial_contact_form[general_conditions][owner_or_representative_name]"]');
+      if (ownerNameField) {
+        ownerNameField.addEventListener('input', updateIdentifierPreview);
+      }
+      
+      if (streetField) {
+        streetField.addEventListener('input', updateIdentifierPreview);
+      }
+      
+      if (exteriorField) {
+        exteriorField.addEventListener('input', updateIdentifierPreview);
+      }
+
+
+        
+        
+        
+        
+
+        // Ejecutar al cargar (por si hay datos pre-cargados)
+        updateIdentifierPreview();
+      });
+      </script>
+
+    <% end %>
 
 <!-- JAVASCRIPT -->
 <%= render 'form_javascript' %>

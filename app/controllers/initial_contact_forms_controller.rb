@@ -320,7 +320,15 @@ class InitialContactFormsController < ApplicationController
         :acquisition_date,
         :property_use,
         :has_improvements,
-        :mortgage_bank
+        :mortgage_bank,
+        :street,
+        :exterior_number,
+        :interior_number,
+        :neighborhood,
+        :postal_code,
+        :municipality,
+        :city,
+        :country
       ],
       
       # ============================================================

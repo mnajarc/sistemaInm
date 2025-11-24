@@ -77,8 +77,9 @@ class InitialContactForm < ApplicationRecord
   attr_accessor :auto_generated_identifier
   
   before_save :generate_folio_if_missing
-  before_save :generate_property_identifier_if_blank # ← NUEVO
-  
+  # before_save :generate_property_identifier_if_blank # ← NUEVO
+  before_save :generate_identifier_if_blank
+
   
   validate :validate_acquisition_method_requirements, if: -> { completed? }
    
@@ -123,6 +124,119 @@ class InitialContactForm < ApplicationRecord
     "#{operation_type}_#{sanitized_name}"
   end
   
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BÚSQUEDA/CREACIÓN INTELIGENTE DE PROPERTY
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Buscar Property existente por dirección normalizada
+  def find_existing_property
+    return nil unless property_info['street'].present? && 
+                      property_info['exterior_number'].present? &&
+                      acquisition_details['state'].present?
+
+    # Normalizar datos para búsqueda (sin espacios, minúsculas, sin caracteres especiales)
+    street_normalized = normalize_for_search(property_info['street'])
+    exterior_normalized = normalize_for_search(property_info['exterior_number'])
+    state_normalized = normalize_for_search(acquisition_details['state'])
+    
+    Rails.logger.info "🔍 Buscando propiedad: #{street_normalized}-#{exterior_normalized}-#{state_normalized}"
+    
+    # Buscar por coincidencia de dirección en scope del usuario
+    Property.where(user_id: agent.user_id)
+            .where(
+              "LOWER(REGEXP_REPLACE(street, '[^a-zA-Z0-9]', '', 'g')) = ? AND 
+              LOWER(REGEXP_REPLACE(exterior_number, '[^a-zA-Z0-9]', '', 'g')) = ? AND
+              LOWER(REGEXP_REPLACE(state, '[^a-zA-Z0-9]', '', 'g')) = ?",
+              street_normalized,
+              exterior_normalized,
+              state_normalized
+            ).first
+  end
+
+  # Normalizar string para búsqueda (remover espacios y caracteres especiales)
+  def normalize_for_search(text)
+    text.to_s.downcase.gsub(/[^a-z0-9]/, '')
+  end
+
+  # Generar identificador único de oportunidad
+  def generate_opportunity_identifier
+    return property_human_identifier if property_human_identifier.present?
+    
+    # ═══════════════════════════════════════════════════════════════
+    # IDENTIFICADOR MIXTO: Cliente + Propiedad + Fecha
+    # Formato: V-PEREZ-Insurgentes-1500-20251123
+    # ═══════════════════════════════════════════════════════════════
+    
+    # 1. OPERACIÓN - Código desde operation_type
+    operation_code = if operation_type.present?
+                      case operation_type.name.downcase
+                      when 'venta', 'sale' then 'V'
+                      when 'renta', 'rent' then 'R'
+                      when 'traspaso' then 'T'
+                      when 'permuta' then 'P'
+                      else 'X'
+                      end
+                    else
+                      'X'
+                    end
+    
+    # 2. CLIENTE - Primer apellido (hasta 10 caracteres)
+    owner_name = general_conditions['owner_or_representative_name'].to_s
+    
+    # Extraer primer apellido (asume formato: "Nombre Apellido1 Apellido2")
+    name_parts = owner_name.strip.split(/\s+/)
+    
+    # Si tiene al menos 2 palabras, segunda es apellido
+    # Si solo tiene 1 palabra, usa esa
+    last_name = if name_parts.length >= 2
+                name_parts[1]  # ✅ Segundo elemento = primer apellido
+                else
+                name_parts[0]  # ✅ Solo hay un nombre, usar primero
+                end
+    
+    # Limpiar apellido (sin acentos, sin caracteres especiales, max 10 chars)
+    last_name_clean = I18n.transliterate(last_name.to_s)  # ✅ Asegurar que sea String
+                        .gsub(/[^a-zA-Z0-9]/, '')
+                        .upcase
+                        .slice(0, 10)
+
+    # 3. PROPIEDAD - Calle (hasta 12 caracteres para no hacer muy largo)
+    street_clean = I18n.transliterate(property_info['street'].to_s)
+                    .gsub(/[^a-zA-Z0-9]/, '')
+    
+    # 4. NÚMERO - Exterior
+    exterior = property_info['exterior_number'].to_s.gsub(/[^a-zA-Z0-9]/, '')
+    
+    # 5. FECHA - YYYYMMDD
+    date_str = Date.current.strftime('%Y%m%d')
+    
+    # 6. CONSTRUIR IDENTIFICADOR
+    # Formato: V-PEREZ-Insurgentes-1500-20251123
+    identifier = [
+      operation_code,
+      last_name_clean,
+      street_clean,
+      exterior,
+      date_str
+    ].join('-')
+    
+    # 7. VERIFICAR UNICIDAD (agregar sufijo si existe)
+    counter = 1
+    base_identifier = identifier
+    
+    while InitialContactForm.exists?(property_human_identifier: identifier)
+      identifier = "#{base_identifier}-#{counter}"
+      counter += 1
+    end
+    
+    Rails.logger.info "🏷️ Identificador mixto generado: #{identifier}"
+    Rails.logger.info "   Operación: #{operation_code}"
+    Rails.logger.info "   Cliente: #{last_name_clean}"
+    Rails.logger.info "   Propiedad: #{street_clean}-#{exterior}"
+    Rails.logger.info "   Fecha: #{date_str}"
+    
+    identifier
+  end
 
 
 
@@ -348,6 +462,16 @@ end
   # ============================================================
   
   private
+  def generate_identifier_if_blank
+    if property_human_identifier.blank? && 
+      property_info['street'].present? && 
+      property_info['exterior_number'].present? &&
+      operation_type_id.present?
+      
+      self.property_human_identifier = generate_opportunity_identifier
+      Rails.logger.info "💾 Auto-generando identificador: #{property_human_identifier}"
+    end
+  end
 
 
   def ensure_operation_type_present
@@ -526,104 +650,135 @@ private
 
 # app/models/initial_contact_form.rb
 
-def find_or_create_property!(client)
-  return property if property.present?
-  
-  # Usar datos de acquisition_details para ubicación
-  state = acquisition_details['state'] || 'CDMX'
-  land_use = acquisition_details['land_use'] || 'habitacional'
-  
-  # Dirección: usar datos de general_conditions si existen
-  address_full = general_conditions['owner_address'].presence || 
-                 property_info['address'].presence || 
-                 "#{state}, México"
-  
-  Rails.logger.info "📍 Creando propiedad con dirección: #{address_full}"
-  
-  Property.create!(
-    # Relaciones
-    user: agent.user,  # ✅ CORREGIDO: agent.user
-    property_type: determine_property_type,
+
+  # Buscar o crear Property con búsqueda inteligente
+  def find_or_create_property!(client)
+    # 1. Intentar encontrar propiedad existente por dirección
+    existing_property = find_existing_property
     
-    # Dirección completa (legacy field)
-    address: address_full,
+    if existing_property.present?
+      Rails.logger.info "✅ Propiedad ENCONTRADA: ##{existing_property.id} - #{existing_property.address}"
+      Rails.logger.info "   Reutilizando propiedad existente para evitar duplicado"
+      return existing_property
+    end
     
-    # Dirección desagregada - SIMPLIFICADO
-    street: general_conditions['owner_address'].presence || '[Pendiente de definir]',
-    exterior_number: 'S/N',
-    interior_number: nil,
-    neighborhood: '[Pendiente de definir]',
-    city: state == 'CDMX' ? 'Ciudad de México' : state,
-    municipality: state == 'CDMX' ? 'Benito Juárez' : '[Pendiente de definir]',
-    state: state,
-    postal_code: '00000',
-    country: 'México',
+    # 2. Si no existe, crear nueva propiedad
+    Rails.logger.info "📍 Creando NUEVA propiedad con dirección: #{full_address}"
     
-    # ════════════════════════════════════════════════════════════
-    # PRECIO - Default 1 para pasar validación (debe ser > 0)
-    # ════════════════════════════════════════════════════════════
-    price: property_info['asking_price']&.to_f&.positive? ? property_info['asking_price'].to_f :
-           property_info['estimated_price']&.to_f&.positive? ? property_info['estimated_price'].to_f :
-           1.0,  # ✅ Default: 1 peso (mínimo válido)
+    state = acquisition_details['state'] || 'CDMX'
+    land_use = acquisition_details['land_use'] || 'habitacional'
     
-    # ════════════════════════════════════════════════════════════
-    # CARACTERÍSTICAS FÍSICAS - Default 1 para pasar validación
-    # ════════════════════════════════════════════════════════════
-    bedrooms: property_info['bedrooms']&.to_i || 0,
-    bathrooms: property_info['bathrooms']&.to_f || 0,
-    
-    # Áreas: usar valores reales o 1.0 como mínimo (debe ser > 0)
-    built_area_m2: property_info['built_area_m2']&.to_f&.positive? ? property_info['built_area_m2'].to_f : 1.0,
-    lot_area_m2: property_info['lot_area_m2']&.to_f&.positive? ? property_info['lot_area_m2'].to_f : 1.0,
-    
-    parking_spaces: 0,
-    year_built: property_info['acquisition_date']&.to_date&.year || Time.current.year,
-    
-    # Amenidades (todas false por defecto)
-    furnished: false,
-    pets_allowed: false,
-    elevator: false,
-    balcony: false,
-    terrace: false,
-    garden: false,
-    pool: false,
-    security: false,
-    gym: false,
-    
-    # Textos descriptivos
-    title: generate_property_title,
-    description: generate_property_description,
-    
-    # Información de contacto
-    contact_phone: general_conditions['owner_phone'],
-    contact_email: general_conditions['owner_email'],
-    
-    # Uso del suelo desde acquisition_details
-    has_extensions: current_status['has_extensions'] == 'true',
-    land_use: land_use,
-    
-    # Notas internas
-    internal_notes: "Creado desde formulario de contacto inicial ##{id} (#{initial_contact_folio})\nIdentificador: #{property_human_identifier}\nAgente: #{agent.user.name}\n\n⚠️ NOTA: Precio y áreas con valores por defecto - pendientes de actualizar.\n\n#{agent_notes}",
-    
-    # Fechas
-    available_from: Date.current,
-    published_at: nil  # No publicar automáticamente
-  )
-rescue ActiveRecord::RecordInvalid => e
-  Rails.logger.error "❌ Error creando Property desde InitialContactForm ##{id}:"
-  Rails.logger.error "   Errores de validación:"
-  e.record.errors.full_messages.each do |msg|
-    Rails.logger.error "     • #{msg}"
+    Property.create!(
+      # Relaciones
+      user: agent.user,
+      property_type: determine_property_type,
+      
+      # Dirección completa (campo legacy)
+      address: full_address,
+      
+      # Dirección desagregada (DESDE property_info)
+      street: property_info['street'] || '[Pendiente]',
+      exterior_number: property_info['exterior_number'] || 'S/N',
+      interior_number: property_info['interior_number'],
+      neighborhood: property_info['neighborhood'] || '[Pendiente]',
+      city: property_info['city'] || state,
+      municipality: property_info['municipality'] || '[Pendiente]',
+      state: state,
+      postal_code: property_info['postal_code'] || '00000',
+      country: property_info['country'] || 'México',
+      
+      # Precio
+      price: property_info['asking_price']&.to_f&.positive? ? property_info['asking_price'].to_f :
+            property_info['estimated_price']&.to_f&.positive? ? property_info['estimated_price'].to_f :
+            1.0,
+      
+      # Características físicas
+      bedrooms: property_info['bedrooms']&.to_i || 0,
+      bathrooms: property_info['bathrooms']&.to_f || 0,
+      built_area_m2: property_info['built_area_m2']&.to_f&.positive? ? property_info['built_area_m2'].to_f : 1.0,
+      lot_area_m2: property_info['lot_area_m2']&.to_f&.positive? ? property_info['lot_area_m2'].to_f : 1.0,
+      parking_spaces: 0,
+      year_built: property_info['acquisition_date']&.to_date&.year || Time.current.year,
+      
+      # Amenidades (valores por defecto)
+      furnished: false,
+      pets_allowed: false,
+      elevator: false,
+      balcony: false,
+      terrace: false,
+      garden: false,
+      pool: false,
+      security: false,
+      gym: false,
+      
+      # Textos
+      title: generate_property_title,
+      description: generate_property_description,
+      
+      # Información de contacto
+      contact_phone: general_conditions['owner_phone'],
+      contact_email: general_conditions['owner_email'],
+      
+      # Uso del suelo
+      has_extensions: current_status['has_extensions'] == 'true',
+      land_use: land_use,
+      
+      # Notas internas
+      internal_notes: compile_property_notes,
+      
+      # Fechas
+      available_from: Date.current,
+      published_at: nil
+    )
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "❌ Error creando Property desde InitialContactForm ##{id}:"
+    Rails.logger.error "   Errores: #{e.record.errors.full_messages.join(', ')}"
+    raise
   end
-  Rails.logger.error "   Datos enviados:"
-  Rails.logger.error "     state: #{state}"
-  Rails.logger.error "     land_use: #{land_use}"
-  Rails.logger.error "     address: #{address_full}"
-  Rails.logger.error "     price: #{property_info['asking_price'] || property_info['estimated_price'] || 1.0}"
-  Rails.logger.error "     built_area_m2: #{property_info['built_area_m2'] || 1.0}"
-  Rails.logger.error "     lot_area_m2: #{property_info['lot_area_m2'] || 1.0}"
-  raise
-end
+
+  # Método auxiliar: Dirección completa para campo legacy
+  def full_address
+    parts = [
+      property_info['street'],
+      "Núm. #{property_info['exterior_number']}",
+      property_info['interior_number'].present? ? "Int. #{property_info['interior_number']}" : nil,
+      property_info['neighborhood'],
+      "C.P. #{property_info['postal_code']}",
+      property_info['municipality'],
+      acquisition_details['state'],
+      property_info['country']
+    ].compact
+    
+    parts.join(', ')
+  end
+
+  # Método auxiliar: Compilar notas internas
+  def compile_property_notes
+    notes = []
+    notes << "📋 Creado desde formulario de contacto inicial ##{id}"
+    notes << "🏷️ Identificador de oportunidad: #{property_human_identifier}"
+    notes << "👤 Agente: #{agent.user.name} (#{agent.user.email})"
+    notes << "📅 Fecha de captura: #{created_at.strftime('%d/%m/%Y %H:%M')}"
+    notes << ""
+    
+    # Advertencias sobre datos pendientes
+    if property_info['asking_price'].blank? && property_info['estimated_price'].blank?
+      notes << "⚠️ PENDIENTE: Actualizar precio (valor por defecto asignado)"
+    end
+    
+    if property_info['built_area_m2'].blank? || property_info['lot_area_m2'].blank?
+      notes << "⚠️ PENDIENTE: Actualizar áreas construida y de terreno"
+    end
+    
+    # Notas del agente si existen
+    if agent_notes.present?
+      notes << ""
+      notes << "📝 Notas del agente:"
+      notes << agent_notes
+    end
+    
+    notes.join("\n")
+  end
 
 
   # Generar título de propiedad automáticamente
