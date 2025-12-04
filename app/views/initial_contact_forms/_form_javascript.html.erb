@@ -1,6 +1,7 @@
 <!-- app/views/initial_contact_forms/_form_javascript.html.erb -->
 <!-- JAVASCRIPT FINAL - VERSIÓN VALIDADA Y CORREGIDA -->
 
+
 <script>
 function initializeInitialContactForm() {
   console.log('🚀 InitialContactForm JavaScript initializing...');
@@ -63,7 +64,7 @@ function clearHiddenSectionFields(exceptSectionId) {
       const fieldsToPreserve = [
         'co_owners_count', 'state', 'land_use', 'condominium_regime', 
         'rental_units_count', 'mortgage_balance', 'monthly_payment',
-        'property_human_identifier'
+        'opportunity_identifier'
       ];
       
       const inputs = section.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="date"]');

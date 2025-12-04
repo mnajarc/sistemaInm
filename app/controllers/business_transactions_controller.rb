@@ -18,6 +18,7 @@ class BusinessTransactionsController < ApplicationController
 
   def new
     @transaction = BusinessTransaction.new
+    load_form_data
     authorize @transaction
     @transaction.build_property
     @transaction.business_transaction_co_owners.build(percentage: 100.0, role: 'propietario')
@@ -50,6 +51,7 @@ class BusinessTransactionsController < ApplicationController
   end
 
   def edit
+    load_form_data
     authorize @transaction
     if @transaction.business_transaction_co_owners.empty?
       @transaction.business_transaction_co_owners.build(percentage: 100.0, role: 'propietario')

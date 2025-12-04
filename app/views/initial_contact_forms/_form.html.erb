@@ -1,7 +1,11 @@
 <!-- app/views/initial_contact_forms/_form.html.erb -->
 <!-- FORMULARIO REFACTORIZADO - 4 SECCIONES -->
 
-<%= form_with(model: form, local: true, html: { class: 'initial-contact-form', id: 'contactForm' }) do |f| %> <% if form.errors.any? %>
+<%= form_with(model: form, local: true, html: { class: 'initial-contact-form', id: 'contactForm' }) do |f| %>
+  <%# ✅ CAMPO OCULTO PARA AGENTE %>
+  <%= f.hidden_field :agent_id, value: form.agent_id || current_user.agent&.id %>
+  
+  <% if form.errors.any? %>
     <div class="alert alert-danger">
       <h5>Errores en el formulario:</h5>
       <ul>
@@ -28,7 +32,7 @@
       </p>
       <p class="mb-0 text-muted">
         <strong>Identificador:</strong>
-        <%= form.property_human_identifier || "Sin identificador" %>
+        <%= form.opportunity_identifier || "Sin identificador" %>
       </p>
     </div>
   </div>
@@ -45,8 +49,8 @@
     <div class="card-body">
       <div class="row">
         <div class="col-md-12 mb-3">
-          <%= f.label :property_human_identifier, 'Nombre de la oportunidad *', class: 'form-label fw-bold' %>
-          <%= f.text_field :property_human_identifier, 
+          <%= f.label :opportunity_identifier, 'Nombre de la oportunidad *', class: 'form-label fw-bold' %>
+          <%= f.text_field :opportunity_identifier, 
                            class: 'form-control form-control-lg', 
                            required: true,
                            placeholder: 'Ej: Casa Lomas de Chapultepec - Familia García' %>
@@ -72,6 +76,177 @@
       </div>
     </div>
   </div>
+
+  <!-- IDENTIFICADORES Y BOTONES DE EDICIÓN -->
+  <div class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">
+        <i class="bi bi-tag"></i> Identificadores y Datos Asociados
+      </h5>
+    </div>
+    <div class="card-body">
+      
+      <!-- SECTION 1: OPORTUNIDAD -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <h6 class="text-secondary">
+            <i class="bi bi-bookmark"></i> Identificador de Oportunidad
+          </h6>
+          <div class="font-monospace bg-light p-3 rounded border border-secondary">
+            <strong><%= form.opportunity_identifier || "Se genera automáticamente" %></strong>
+          </div>
+          <small class="text-muted">
+            Identifica ESTA OPORTUNIDAD (cliente + operación + fecha)
+            <br>
+            Cambia si: El propietario o la fecha cambian
+          </small>
+        </div>
+        
+        <div class="col-md-6">
+          <h6 class="text-secondary">
+            <i class="bi bi-geo-alt"></i> Identificador de Propiedad
+          </h6>
+          <div class="font-monospace bg-light p-3 rounded border border-success">
+            <strong><%= form.property&.property_id || "Pendiente" %></strong>
+          </div>
+          <small class="text-muted">
+            Identifica LA PROPIEDAD (ubicación permanente)
+            <br>
+            NO cambia aunque cambien clientes o propietarios
+          </small>
+        </div>
+      </div>
+      
+      <hr class="my-4">
+      
+      <!-- SECTION 2: PROPIEDAD CON BOTÓN -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <h6 class="text-info mb-3">
+            <i class="bi bi-house-fill"></i> Datos de la Propiedad
+          </h6>
+          
+          <% if form.property_info.present? %>
+            <div class="alert alert-success">
+              <strong>✓ Completado</strong>
+              <br>
+              <small>
+                <%= form.property_info['street'] %> <%= form.property_info['exterior_number'] %>
+                <br>
+                <%= form.property_info['neighborhood'] %>, <%= form.property_info['municipality'] %>
+              </small>
+            </div>
+          <% else %>
+            <div class="alert alert-warning">
+              <strong>⚠️ Pendiente</strong>
+              <br>
+              <small>No hay datos de propiedad</small>
+            </div>
+          <% end %>
+
+          <% if form.persisted? %>
+            <%= button_to "Editar Propiedad", 
+                edit_property_modal_initial_contact_form_path(form),
+                method: :get,
+                class: 'btn btn-primary btn-sm w-100',
+                data: { turbo_frame: 'modal' } %>
+          <% else %>
+            <button class="btn btn-primary btn-sm w-100" disabled>
+              Guardar primero para editar propiedad
+            </button>
+          <% end %>
+
+          
+        </div>
+        
+        <!-- SECTION 3: CLIENTE CON BOTÓN -->
+        <div class="col-md-6">
+          <h6 class="text-info mb-3">
+            <i class="bi bi-person-fill"></i> Datos del Cliente/Propietario
+          </h6>
+          
+          <% if form.general_conditions['owner_or_representative_name'].present? %>
+            <div class="alert alert-success">
+              <strong>✓ Completado</strong>
+              <br>
+              <small>
+                <%= form.general_conditions['owner_or_representative_name'] %>
+                <br>
+                <%= form.general_conditions['owner_email'] %>
+              </small>
+            </div>
+          <% else %>
+            <div class="alert alert-warning">
+              <strong>⚠️ Pendiente</strong>
+              <br>
+              <small>No hay datos del cliente</small>
+            </div>
+          <% end %>
+          
+          <% if form.persisted? %>
+            <%= button_to "Editar Cliente", 
+                edit_client_modal_initial_contact_form_path(form),
+                method: :get,
+                class: 'btn btn-primary btn-sm w-100',
+                data: { turbo_frame: 'modal' } %>
+          <% else %>
+            <button class="btn btn-primary btn-sm w-100" disabled>
+              Guardar primero para editar cliente
+            </button>
+          <% end %>
+        </div>
+      </div>
+      
+      <hr class="my-4">
+      
+      <!-- SECTION 4: COPROPIETARIOS -->
+      <div class="row">
+        <div class="col-12">
+          <h6 class="text-warning mb-3">
+            <i class="bi bi-people-fill"></i> Copropietarios 
+            <% if form.acquisition_details['co_owners_count'].to_i > 1 %>
+              (<%= form.acquisition_details['co_owners_count'] %> registrados)
+            <% end %>
+          </h6>
+          
+          <% if form.acquisition_details['co_owners_count'].to_i > 1 %>
+            <div class="alert alert-info">
+              <strong>ℹ️ Información Importante</strong>
+              <br>
+              <small>
+                Hay <%= form.acquisition_details['co_owners_count'] %> copropietarios registrados.
+                <br>
+                Cada uno necesita un identificador de oportunidad y datos completos.
+                <br>
+                Los copropietarios son CLIENTES también (aunque no directos).
+              </small>
+            </div>
+            
+            <% if form.persisted? %>
+              <%= button_to "Editar Copropietarios", 
+                  edit_co_owners_modal_initial_contact_form_path(form),
+                  method: :get,
+                  class: 'btn btn-primary btn-sm w-100',
+                  data: { turbo_frame: 'modal' } %>
+            <% else %>
+              <button class="btn btn-primary btn-sm w-100" disabled>
+                Guardar primero para editar copropietarios
+              </button>
+            <% end %>
+
+          <% else %>
+            <div class="alert alert-secondary">
+              <small>Este formulario tiene 1 único propietario (sin copropietarios)</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- MODAL CONTAINER (Turbo Frame) -->
+  <turbo-frame id="modal" target="_top"></turbo-frame>
 
 
   
@@ -182,33 +357,106 @@
                                      { class: 'form-select', required: true } %>
             </div>
             
-            <div class="col-md-6 mb-3">
-              <%= label_tag 'general_conditions_owner_or_representative_name', 'Nombre completo del propietario/representante *', class: 'form-label' %>
-              <%= text_field_tag 'initial_contact_form[general_conditions][owner_or_representative_name]',
-                                form.general_conditions['owner_or_representative_name'],
-                                class: 'form-control',
-                                placeholder: 'Ej: Juan Pérez García',
-                                required: true %>
-            </div>
-          </div>
           
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <%= label_tag 'general_conditions_owner_phone', 'Teléfono de contacto', class: 'form-label' %>
-              <%= text_field_tag 'initial_contact_form[general_conditions][owner_phone]',
-                                form.general_conditions['owner_phone'],
-                                class: 'form-control',
-                                placeholder: '(55) 1234-5678' %>
-            </div>
-            
-            <div class="col-md-6 mb-3">
-              <%= label_tag 'general_conditions_owner_email', 'Email de contacto', class: 'form-label' %>
-              <%= email_field_tag 'initial_contact_form[general_conditions][owner_email]',
-                                 form.general_conditions['owner_email'],
-                                 class: 'form-control',
-                                 placeholder: 'ejemplo@email.com' %>
+
+            <!-- DESPUÉS: Campos separados -->
+            <div class="card mb-4">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                  <i class="bi bi-person-fill"></i> Datos del Propietario/Representante
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-info">
+                  <strong>Importante:</strong> Por favor, ingresa los nombres y apellidos de forma separada para documentos legales.
+                  <br><strong>Ejemplo:</strong> 
+                  <ul class="mb-0">
+                    <li><strong>Nombre(s):</strong> Isabel María Luisa</li>
+                    <li><strong>Primer Apellido:</strong> Calderón</li>
+                    <li><strong>Segundo Apellido:</strong> Grajales</li>
+                  </ul>
+                </div>
+                
+                <!-- Nombre(s) propio(s) -->
+                <div class="col-md-6 mb-3">
+                  <%= label_tag 'general_conditions_first_names', 
+                                'Nombre(s) propio(s) *', 
+                                class: 'form-label' %>
+                  <%= text_field_tag 'initial_contact_form[general_conditions][first_names]',
+                                    form.general_conditions['first_names'],
+                                    class: 'form-control',
+                                    placeholder: 'Ej: Isabel María Luisa',
+                                    required: true %>
+                  <small class="text-muted">Incluye todos tus nombres propios</small>
+                </div>
+                
+                <!-- Primer apellido -->
+                <div class="col-md-6 mb-3">
+                  <%= label_tag 'general_conditions_first_surname', 
+                                'Primer Apellido *', 
+                                class: 'form-label' %>
+                  <%= text_field_tag 'initial_contact_form[general_conditions][first_surname]',
+                                    form.general_conditions['first_surname'],
+                                    class: 'form-control',
+                                    placeholder: 'Ej: Calderón',
+                                    required: true %>
+                  <small class="text-muted">Apellido paterno o principal</small>
+                </div>
+                
+                <!-- Segundo apellido (opcional) -->
+                <div class="col-md-6 mb-3">
+                  <%= label_tag 'general_conditions_second_surname', 
+                                'Segundo Apellido', 
+                                class: 'form-label' %>
+                  <%= text_field_tag 'initial_contact_form[general_conditions][second_surname]',
+                                    form.general_conditions['second_surname'],
+                                    class: 'form-control',
+                                    placeholder: 'Ej: Grajales (opcional)' %>
+                  <small class="text-muted">Apellido materno (si aplica)</small>
+                </div>
+                
+                <!-- VISTA PREVIA: Nombre completo como aparecerá -->
+                <div class="col-md-12 mb-3">
+                  <div class="bg-light p-3 rounded border">
+                    <strong>✓ Nombre legal (tal como aparecerá en documentos):</strong>
+                    <br>
+                    <span class="font-monospace" id="full_name_preview">
+                      <!-- Se actualiza con JavaScript -->
+                      (Se completa al rellenar arriba)
+                    </span>
+                  </div>
+                </div>
+                
+                <!-- Resto de datos de contacto -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <%= label_tag 'general_conditions_owner_phone', 
+                                  'Teléfono de contacto', 
+                                  class: 'form-label' %>
+                    <%= text_field_tag 'initial_contact_form[general_conditions][owner_phone]',
+                                      form.general_conditions['owner_phone'],
+                                      class: 'form-control',
+                                      placeholder: '(55) 1234-5678' %>
+                  </div>
+                  
+                  <div class="col-md-6 mb-3">
+                    <%= label_tag 'general_conditions_owner_email', 
+                                  'Email de contacto', 
+                                  class: 'form-label' %>
+                    <%= email_field_tag 'initial_contact_form[general_conditions][owner_email]',
+                                      form.general_conditions['owner_email'],
+                                      class: 'form-control',
+                                      placeholder: 'ejemplo@email.com' %>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+
+
+
+          
           
           <div class="row">
             <div class="col-md-6 mb-3">
@@ -301,7 +549,9 @@
                     <%= text_field_tag 'initial_contact_form[property_info][interior_number]',
                                       form.property_info['interior_number'],
                                       class: 'form-control',
-                                      placeholder: 'Ej: 301, Depto A' %>
+                                      placeholder: 'Ej: 301, Depto A',
+                                      required: false,
+                                      id: 'property-interior-field' %>
                     <small class="text-muted">Opcional</small>
                   </div>
 
@@ -458,13 +708,29 @@
     
     <div>
       <%= f.submit 'Guardar Borrador', 
-                   name: 'save_draft', 
-                   class: 'btn btn-outline-primary me-2',
-                   formnovalidate: true %>
-      <%= f.submit form.persisted? ? 'Actualizar' : 'Guardar y Completar', 
-                   class: 'btn btn-primary' %>
+                  name: 'save_draft', 
+                  class: 'btn btn-outline-primary me-2',
+                  formnovalidate: true %>
+      
+      <% if @initial_contact_form.persisted? && @initial_contact_form.draft? %>
+        <%= f.submit 'Guardar y Completar', 
+                    name: 'complete', 
+                    class: 'btn btn-success',
+                    data: { confirm: '¿Completar este formulario? Se generará el identificador y podrás convertirlo a transacción.' } %>
+      <% elsif @initial_contact_form.persisted? %>
+        <%= f.submit 'Actualizar', 
+                    name: 'update',
+                    class: 'btn btn-primary' %>
+      <% else %>
+        <%= f.submit 'Guardar y Completar', 
+                    name: 'complete',
+                    class: 'btn btn-primary' %>
+      <% end %>
     </div>
-    
+
+
+
+
     <button type="button" class="btn btn-secondary" id="nextBtn">
       Siguiente <i class="bi bi-arrow-right"></i>
     </button>
@@ -475,6 +741,7 @@
     const operationTypeSelect = document.querySelector('select[name="initial_contact_form[operation_type_id]"]');
     const streetField = document.getElementById('property-street-field');
     const exteriorField = document.getElementById('property-exterior-field');
+    const interiorField = document.getElementById('property-interior-field');
     const previewDiv = document.getElementById('opportunity-identifier-preview');
 
     // Función para generar preview del identificador MIXTO
@@ -484,10 +751,11 @@
       const ownerName = document.querySelector('input[name="initial_contact_form[general_conditions][owner_or_representative_name]"]')?.value || '';
       const street = streetField?.value || '';
       const exterior = exteriorField?.value || '';
+      const interior = interiorField?.value || '';
 
       // Validar que tengamos todos los campos necesarios
-      if (!operationTypeId || !ownerName || !street || !exterior) {
-        previewDiv.innerHTML = '<em class="text-muted">Completa: operación, nombre propietario, calle y número</em>';
+      if (!operationTypeId || !ownerName || !street || !exterior || !interior) {
+        previewDiv.innerHTML = '<em class="text-muted">Completa: operación, nombre propietario, calle y número Exterior e interior (en su caso)</em>';
         return;
       }
 
@@ -506,31 +774,26 @@
         opCode = 'P';
       }
       
-      // 2. CLIENTE - Extraer primer apellido
+           // 2. CLIENTE - Extraer primer apellido
       const nameParts = ownerName.trim().split(/\s+/);
-      let lastName = '';
+      let lastName = nameParts;
       
-      if (nameParts.length >= 2) {
-        lastName = nameParts;  // Segundo elemento = primer apellido
-      } else {
-        lastName = nameParts;  // Solo hay un nombre
-      }
+      // if (nameParts.length >= 2) {
+        // lastName = nameParts;  // ✅ Segundo elemento = primer apellido
+      // } else {
+        // lastName = nameParts;  // ✅ Primer elemento si solo hay uno
+      // }
       
       // Limpiar apellido (sin acentos, sin caracteres especiales, uppercase, max 10 chars)
-      const lastNameClean = lastName
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')  // Remover acentos
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .toUpperCase()
-        .substring(0, 10);
+      const lastNameClean = lastName;
       
-      // 3. PROPIEDAD - Limpiar calle (max 12 chars)
+      // 3. PROPIEDAD - Limpiar calle (NOMBRE COMPLETO - sin límite)
       const streetClean = street
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .substring(0, 12);
-      
+        .replace(/[^a-zA-Z0-9]/g, '');
+        // ✅ SIN substring - mantiene nombre completo
+ 
       // 4. FECHA - Fecha actual YYYYMMDD
       const today = new Date();
       const year = today.getFullYear();
@@ -540,7 +803,7 @@
 
       // 5. GENERAR IDENTIFICADOR MIXTO
       // Formato: V-PEREZ-Insurgentes-1500-20251123
-      const identifier = `${opCode}-${lastNameClean}-${streetClean}-${exterior}-${dateStr}`;
+      const identifier = `${opCode}-${lastNameClean}-${streetClean}-${exterior}-${interior}-${dateStr}`;
       
       // 6. MOSTRAR con desglose
       previewDiv.innerHTML = `
@@ -549,7 +812,7 @@
           <strong>Desglose:</strong><br>
           ${opCode} = Operación | 
           ${lastNameClean} = Cliente | 
-          ${streetClean}-${exterior} = Propiedad | 
+          ${streetClean}-${exterior}-${interior} = Propiedad | 
           ${dateStr} = Fecha
         </small>
       `;
@@ -572,6 +835,10 @@
       
       if (exteriorField) {
         exteriorField.addEventListener('input', updateIdentifierPreview);
+      }
+      
+      if (interiorField) {
+        interiorField.addEventListener('input', updateIdentifierPreview);
       }
 
 

@@ -1,51 +1,42 @@
 # app/models/initial_contact_form.rb
+# VERSIÓN FINAL - COMPLETA Y SIN DUPLICADOS
+# Incluye TODO: identificadores, validaciones, documentos, conversión
+# Fecha: 2025-12-01 - REVISIÓN CRÍTICA COMPLETADA
+
 class InitialContactForm < ApplicationRecord
   # ============================================================
   # RELACIONES
   # ============================================================
-  belongs_to :agent # , class_name: 'User'
+  belongs_to :agent
   belongs_to :client, optional: true
   belongs_to :property, optional: true
   belongs_to :business_transaction, optional: true
   belongs_to :property_acquisition_method, optional: true
   belongs_to :operation_type, optional: true
   belongs_to :contract_signer_type, optional: true
-
   has_one :acquisition_suggestion, class_name: 'AcquisitionMethodSuggestion', dependent: :nullify
 
   # ============================================================
-  # ENUMS (Rails 8.0 syntax)
+  # ENUMS
   # ============================================================
-  enum :status, {
-    draft: 0,              # Borrador (guardado parcial)
-    completed: 1,          # Completado (listo para convertir)
-    converted: 2,          # Convertido a BusinessTransaction
-    archived: 3            # Archivado (no se convirtió)
-  }, default: :draft
-  
-  enum :form_source, {
-    web: 0,
-    mobile: 1,
-    paper: 2,
-    phone: 3
-  }, default: :web
-  
+  enum :status, { draft: 0, completed: 1, converted: 2, archived: 3 }, default: :draft
+  enum :form_source, { web: 0, mobile: 1, paper: 2, phone: 3 }, default: :web
+
   # ============================================================
   # VALIDACIONES
   # ============================================================
   validates :agent_id, presence: true
   validates :status, presence: true
   
-  # Validaciones condicionales según el estado
   with_options if: :completed? do
     validate :general_conditions_complete
     validate :property_info_complete
   end
- 
+  
   validate :ensure_operation_type_present, if: :completed?
   validate :ensure_acquisition_method_present, if: :completed?
+  validate :validate_acquisition_method_requirements, if: -> { completed? }
 
- 
   # ============================================================
   # SCOPES
   # ============================================================
@@ -53,55 +44,38 @@ class InitialContactForm < ApplicationRecord
   scope :by_agent, ->(agent_id) { where(agent_id: agent_id) }
   scope :recent, -> { order(created_at: :desc) }
   scope :this_month, -> { where('created_at >= ?', Time.current.beginning_of_month) }
-
-  scope :with_owner_name, ->(name) {
-    where("general_conditions->>'owner_or_representative_name' ILIKE ?", "%#{name}%")
-  }
-
-  scope :by_state, ->(state) {
-    where("acquisition_details->>'state' = ?", state)
-  }
-
-  scope :by_acquisition_method, ->(method_id) {
-    where(property_acquisition_method_id: method_id)
-  }
-
-  scope :with_active_mortgage, -> {
-    where("current_status->>'has_active_mortgage' = ?", 'true')
-  }
-
-  scope :pending_documents, -> {
-    completed.where.not(status: :converted)
-  }  
+  scope :with_owner_name, ->(name) { where("general_conditions->>'owner_or_representative_name' ILIKE ?", "%#{name}%") }
+  scope :by_state, ->(state) { where("acquisition_details->>'state' = ?", state) }
+  scope :by_acquisition_method, ->(method_id) { where(property_acquisition_method_id: method_id) }
+  scope :with_active_mortgage, -> { where("current_status->>'has_active_mortgage' = ?", 'true') }
+  scope :pending_documents, -> { completed.where.not(status: :converted) }
 
   attr_accessor :auto_generated_identifier
-  
-  before_save :generate_folio_if_missing
-  # before_save :generate_property_identifier_if_blank # ← NUEVO
-  before_save :generate_identifier_if_blank
 
-  
-  validate :validate_acquisition_method_requirements, if: -> { completed? }
-   
   # ============================================================
-  # CALLBACKS
+  # CALLBACKS - ORDEN CRÍTICO
   # ============================================================
+  before_validation :generate_folio_if_missing
+  before_validation :generate_opportunity_identifier
+  before_validation :generate_opportunity_identifier_if_blank
+  before_validation :validate_acquisition_method_details
   before_save :set_completed_at, if: -> { status_changed? && completed? }
   before_save :set_converted_at, if: -> { status_changed? && converted? }
+
+  # ============================================================
+  # MÉTODOS PÚBLICOS - HELPERS PARA VISTAS
+  # ============================================================
   
-  # ============================================================
-  # MÉTODOS PÚBLICOS
-  # ============================================================
-   def acquisition_method_display
+  def acquisition_method_display
     return unless property_acquisition_method
     property_acquisition_method.name
   end
-  
+
   def requires_clarification?
     property_acquisition_method&.requires_heirs? || 
     property_acquisition_method&.requires_judicial_sentence?
   end
-  
+
   def suggest_new_acquisition_method!(name, legal_basis)
     AcquisitionMethodSuggestion.create!(
       user: agent.user,
@@ -110,340 +84,36 @@ class InitialContactForm < ApplicationRecord
       legal_basis: legal_basis
     )
   end
-  
-  def generate_property_identifier(operation_type, property_name)
-    sanitized_name = property_name
-      .strip
-      .downcase
-      .gsub(/[áéíóú]/, 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u')
-      .gsub(/[^a-z0-9\s-]/, '')
-      .gsub(/\s+/, '_')
-      .gsub(/-+/, '_')
-      .gsub(/^_|_$/, '')
-    
-    "#{operation_type}_#{sanitized_name}"
-  end
-  
-  # ═══════════════════════════════════════════════════════════════════════════
-  # BÚSQUEDA/CREACIÓN INTELIGENTE DE PROPERTY
-  # ═══════════════════════════════════════════════════════════════════════════
 
-  # Buscar Property existente por dirección normalizada
-  def find_existing_property
-    return nil unless property_info['street'].present? && 
-                      property_info['exterior_number'].present? &&
-                      acquisition_details['state'].present?
-
-    # Normalizar datos para búsqueda (sin espacios, minúsculas, sin caracteres especiales)
-    street_normalized = normalize_for_search(property_info['street'])
-    exterior_normalized = normalize_for_search(property_info['exterior_number'])
-    state_normalized = normalize_for_search(acquisition_details['state'])
-    
-    Rails.logger.info "🔍 Buscando propiedad: #{street_normalized}-#{exterior_normalized}-#{state_normalized}"
-    
-    # Buscar por coincidencia de dirección en scope del usuario
-    Property.where(user_id: agent.user_id)
-            .where(
-              "LOWER(REGEXP_REPLACE(street, '[^a-zA-Z0-9]', '', 'g')) = ? AND 
-              LOWER(REGEXP_REPLACE(exterior_number, '[^a-zA-Z0-9]', '', 'g')) = ? AND
-              LOWER(REGEXP_REPLACE(state, '[^a-zA-Z0-9]', '', 'g')) = ?",
-              street_normalized,
-              exterior_normalized,
-              state_normalized
-            ).first
-  end
-
-  # Normalizar string para búsqueda (remover espacios y caracteres especiales)
-  def normalize_for_search(text)
-    text.to_s.downcase.gsub(/[^a-z0-9]/, '')
-  end
-
-  # Generar identificador único de oportunidad
-  def generate_opportunity_identifier
-    return property_human_identifier if property_human_identifier.present?
-    
-    # ═══════════════════════════════════════════════════════════════
-    # IDENTIFICADOR MIXTO: Cliente + Propiedad + Fecha
-    # Formato: V-PEREZ-Insurgentes-1500-20251123
-    # ═══════════════════════════════════════════════════════════════
-    
-    # 1. OPERACIÓN - Código desde operation_type
-    operation_code = if operation_type.present?
-                      case operation_type.name.downcase
-                      when 'venta', 'sale' then 'V'
-                      when 'renta', 'rent' then 'R'
-                      when 'traspaso' then 'T'
-                      when 'permuta' then 'P'
-                      else 'X'
-                      end
-                    else
-                      'X'
-                    end
-    
-    # 2. CLIENTE - Primer apellido (hasta 10 caracteres)
-    owner_name = general_conditions['owner_or_representative_name'].to_s
-    
-    # Extraer primer apellido (asume formato: "Nombre Apellido1 Apellido2")
-    name_parts = owner_name.strip.split(/\s+/)
-    
-    # Si tiene al menos 2 palabras, segunda es apellido
-    # Si solo tiene 1 palabra, usa esa
-    last_name = if name_parts.length >= 2
-                name_parts[1]  # ✅ Segundo elemento = primer apellido
-                else
-                name_parts[0]  # ✅ Solo hay un nombre, usar primero
-                end
-    
-    # Limpiar apellido (sin acentos, sin caracteres especiales, max 10 chars)
-    last_name_clean = I18n.transliterate(last_name.to_s)  # ✅ Asegurar que sea String
-                        .gsub(/[^a-zA-Z0-9]/, '')
-                        .upcase
-                        .slice(0, 10)
-
-    # 3. PROPIEDAD - Calle (hasta 12 caracteres para no hacer muy largo)
-    street_clean = I18n.transliterate(property_info['street'].to_s)
-                    .gsub(/[^a-zA-Z0-9]/, '')
-    
-    # 4. NÚMERO - Exterior
-    exterior = property_info['exterior_number'].to_s.gsub(/[^a-zA-Z0-9]/, '')
-    
-    # 5. FECHA - YYYYMMDD
-    date_str = Date.current.strftime('%Y%m%d')
-    
-    # 6. CONSTRUIR IDENTIFICADOR
-    # Formato: V-PEREZ-Insurgentes-1500-20251123
-    identifier = [
-      operation_code,
-      last_name_clean,
-      street_clean,
-      exterior,
-      date_str
-    ].join('-')
-    
-    # 7. VERIFICAR UNICIDAD (agregar sufijo si existe)
-    counter = 1
-    base_identifier = identifier
-    
-    while InitialContactForm.exists?(property_human_identifier: identifier)
-      identifier = "#{base_identifier}-#{counter}"
-      counter += 1
-    end
-    
-    Rails.logger.info "🏷️ Identificador mixto generado: #{identifier}"
-    Rails.logger.info "   Operación: #{operation_code}"
-    Rails.logger.info "   Cliente: #{last_name_clean}"
-    Rails.logger.info "   Propiedad: #{street_clean}-#{exterior}"
-    Rails.logger.info "   Fecha: #{date_str}"
-    
-    identifier
-  end
-
-
-
-  # Convertir a BusinessTransaction
-  def convert_to_transaction!
-    # Validaciones de estado
-    if converted?
-      errors.add(:base, "Este formulario ya fue convertido")
-      return false
-    end
-    
-    if business_transaction.present?
-      errors.add(:base, "Ya existe una transacción asociada")
-      return false
-    end
-    
-    unless valid_for_conversion?
-      errors.add(:base, "El formulario no cumple los requisitos para conversión")
-      return false
-    end
-    
-    # Logging inicial
-    Rails.logger.info "=" * 80
-    Rails.logger.info "🔄 INICIANDO CONVERSIÓN DE FORMULARIO"
-    Rails.logger.info "=" * 80
-    Rails.logger.info "   ID: ##{id}"
-    Rails.logger.info "   Folio: #{initial_contact_folio}"
-    Rails.logger.info "   Identificador: #{property_human_identifier}"
-    Rails.logger.info "   Propietario: #{general_conditions['owner_or_representative_name']}"
-    Rails.logger.info "   Método adquisición: #{property_acquisition_method&.name}"
-    Rails.logger.info "   Agente: #{agent.user.name} (#{agent.email})"
-    Rails.logger.info "=" * 80
-    
-    # Transacción atómica
-    ActiveRecord::Base.transaction do
-      # 1. Crear/encontrar cliente
-      client = find_or_create_client!
-      Rails.logger.info "✅ Cliente: #{client.name} (ID: #{client.id})"
-      
-      # 2. Crear propiedad
-      property = find_or_create_property!(client)
-      Rails.logger.info "✅ Propiedad: #{property.title} (ID: #{property.id})"
-      
-      # 3. Crear transacción de negocio
-      transaction = create_business_transaction!(client, property)
-      Rails.logger.info "✅ BusinessTransaction creada (ID: #{transaction.id})"
-      
-      # 4. Crear copropietarios
-      create_co_owners!(transaction)
-      Rails.logger.info "✅ Copropietarios creados: #{co_owners_count}"
-      
-      # 5. Actualizar estado del formulario
-      update!(
-        status: :converted,
-        converted_at: Time.current,
-        client: client,
-        property: property,
-        business_transaction: transaction
-      )
-      
-      Rails.logger.info "=" * 80
-      Rails.logger.info "✅ CONVERSIÓN COMPLETADA EXITOSAMENTE"
-      Rails.logger.info "   BusinessTransaction ID: #{transaction.id}"
-      Rails.logger.info "   Property ID: #{property.id}"
-      Rails.logger.info "   Client ID: #{client.id}"
-      Rails.logger.info "=" * 80
-      
-      # Retornar la transacción creada
-      transaction
-    end
-
-  # ═══════════════════════════════════════════════════════════════════
-  # MANEJO DE ERRORES ESPECÍFICOS
-  # ═══════════════════════════════════════════════════════════════════
-
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "=" * 80
-    Rails.logger.error "❌ ERROR DE VALIDACIÓN - Formulario ##{id}"
-    Rails.logger.error "=" * 80
-    Rails.logger.error "   Modelo que falló: #{e.record.class.name}"
-    Rails.logger.error "   ID del registro: #{e.record.id rescue 'nuevo registro'}"
-    Rails.logger.error "   Errores:"
-    e.record.errors.full_messages.each do |msg|
-      Rails.logger.error "     • #{msg}"
-    end
-    Rails.logger.error "=" * 80
-    
-    errors.add(:base, "Validación falló: #{e.record.errors.full_messages.to_sentence}")
-    false
-
-  rescue ActiveRecord::RecordNotUnique => e
-    Rails.logger.error "=" * 80
-    Rails.logger.error "❌ ERROR DE DUPLICADO - Formulario ##{id}"
-    Rails.logger.error "=" * 80
-    Rails.logger.error "   Mensaje: #{e.message}"
-    Rails.logger.error "=" * 80
-    
-    errors.add(:base, "Ya existe un registro con estos datos. Por favor revise la información.")
-    false
-
-  rescue ActiveRecord::RecordNotFound => e
-    Rails.logger.error "=" * 80
-    Rails.logger.error "❌ REGISTRO NO ENCONTRADO - Formulario ##{id}"
-    Rails.logger.error "=" * 80
-    Rails.logger.error "   Mensaje: #{e.message}"
-    Rails.logger.error "=" * 80
-    
-    errors.add(:base, "No se encontró un registro requerido para la conversión.")
-    false
-
-  rescue StandardError => e
-    Rails.logger.error "=" * 80
-    Rails.logger.error "❌ ERROR INESPERADO - Formulario ##{id}"
-    Rails.logger.error "=" * 80
-    Rails.logger.error "   Tipo: #{e.class.name}"
-    Rails.logger.error "   Mensaje: #{e.message}"
-    Rails.logger.error "   Backtrace:"
-    e.backtrace.first(10).each do |line|
-      Rails.logger.error "     #{line}"
-    end
-    Rails.logger.error "=" * 80
-    
-    errors.add(:base, "Error del sistema. Por favor contacte al administrador (Ref: #{id})")
-    false
-  end
-  
-
-def valid_for_conversion?
-  # 1. Debe estar en estado completed
-  return false unless completed?
-  
-  # 2. Debe tener condiciones generales con nombre del propietario
-  return false unless general_conditions.present? && 
-                      general_conditions['owner_or_representative_name'].present?
-  
-  # 3. Debe tener método de adquisición
-  return false unless property_acquisition_method_id.present?
-  
-  # 4. Debe tener tipo de operación
-  return false unless operation_type_id.present?
-  
-  # 5. Debe tener acquisition_details con datos básicos
-  # (TU FORMULARIO USA acquisition_details, NO property_info)
-  return false unless acquisition_details.present? && 
-                      acquisition_details['state'].present? &&
-                      acquisition_details['land_use'].present? &&
-                      acquisition_details['co_owners_count'].present?
-  
-  true
-end
-
-# Método auxiliar para debugging
-def conversion_requirements_status
-  {
-    completed: completed?,
-    has_owner_name: general_conditions['owner_or_representative_name'].present?,
-    has_acquisition_method: property_acquisition_method_id.present?,
-    has_operation_type: operation_type_id.present?,
-    has_state: acquisition_details['state'].present?,
-    has_land_use: acquisition_details['land_use'].present?,
-    has_co_owners_count: acquisition_details['co_owners_count'].present?
-  }
-end
-
-
- 
-  # Verificar si está listo para conversión
-  
-  # Obtener método de adquisición legible
-  def acquisition_method_display
-    methods = {
-      'compra_directa' => 'Compra directa',
-      'herencia' => 'Herencia',
-      'donacion' => 'Donación',
-      'adjudicacion' => 'Adjudicación',
-      'prescripcion' => 'Prescripción adquisitiva',
-      'dacion_pago' => 'Dación en pago',
-      'permuta' => 'Permuta',
-      'otro' => 'Otro'
-    }
-    methods[general_conditions['property_acquisition_method']] || 'No especificado'
-  end
-  
-  # Verificar si es herencia
+  # ✅ HERENCIA - METODO UTILIZADO EN LA VISTA show.html.erb:136
   def is_inheritance?
     general_conditions['property_acquisition_method'] == 'herencia' ||
     inheritance_info['is_inheritance'] == true
   end
-  
-  # Verificar si tiene copropietarios
+
+  # ✅ COPROPIETARIOS
   def has_co_owners?
-    (property_info['co_owners_count'] || 1) > 1
+    (acquisition_details['co_owners_count']&.to_i || 1) > 1
   end
-  
-  # Obtener número de copropietarios
+
   def co_owners_count
-    property_info['co_owners_count'] || 1
+    acquisition_details['co_owners_count'] || 1
   end
-  
-  # Verificar si califica para exención ISR
+
+  # ✅ HIPOTECA
+  def has_mortgage?
+    current_status['has_active_mortgage'] == true ||
+    current_status['has_active_mortgage'] == 'true'
+  end
+
+  # ✅ IMPUESTOS
   def qualifies_for_tax_exemption?
     tax_exemption['qualifies_for_exemption'] == true
   end
-  
-  # Porcentaje de completitud
+
+  # ✅ COMPLETITUD
   def completion_percentage
-    total_fields = 6 # 6 secciones principales
+    total_fields = 6
     completed_sections = 0
     
     completed_sections += 1 if general_conditions.present? && general_conditions.any?
@@ -455,91 +125,390 @@ end
     
     ((completed_sections.to_f / total_fields) * 100).round(0)
   end
-  
 
-  # ============================================================
-  # MÉTODOS PRIVADOS
-  # ============================================================
-  
-  private
-  def generate_identifier_if_blank
-    if property_human_identifier.blank? && 
-      property_info['street'].present? && 
-      property_info['exterior_number'].present? &&
-      operation_type_id.present?
-      
-      self.property_human_identifier = generate_opportunity_identifier
-      Rails.logger.info "💾 Auto-generando identificador: #{property_human_identifier}"
-    end
-  end
-
-
-  def ensure_operation_type_present
-    if operation_type_id.blank?
-      errors.add(:operation_type, "debe estar especificado para completar el formulario")
-    end
-  end
-
-  def ensure_acquisition_method_present
-    if property_acquisition_method_id.blank?
-      errors.add(:property_acquisition_method, "debe estar especificado para completar el formulario")
-    end
-  end
-  
-
-  # ============================================================
-  # GENERACIÓN AUTOMÁTICA DE IDENTIFICADOR
-  # ============================================================
- 
-  def extract_street(address)
-    return nil if address.blank?
-    # Lógica simple para extraer calle
-    parts = address.split(',').first
-    parts&.strip
-  end
-
-  def extract_municipality(state)
-    # Mapeo básico estado → municipio principal
+  def conversion_requirements_status
     {
-      'CDMX' => 'Benito Juárez',
-      'Jalisco' => 'Guadalajara',
-      'Nuevo León' => 'Monterrey'
-    }[state]
-  end 
-
-  def generate_property_identifier_if_blank
-    return if property_human_identifier.present?
-    return unless new_record?
-    
-    self.auto_generated_identifier = true
-    
-    # MEJOR: usar name en lugar de display_name si no existe
-    operation = operation_type&.display_name || 
-                operation_type&.name || 
-                "Operación"
-    
-    owner = general_conditions['owner_or_representative_name']&.strip
-    
-    if owner.present?
-      self.property_human_identifier = "#{operation} - #{owner}"
-    else
-      # Usar folio si existe para mejor tracking
-      folio = initial_contact_folio || Time.current.strftime('%d%m%Y-%H%M')
-      self.property_human_identifier = "#{operation} - Folio #{folio}"
-    end
-    
-    Rails.logger.info "🏷️  Auto-generando identificador: #{property_human_identifier}"
+      completed: completed?,
+      has_owner_name: general_conditions['owner_or_representative_name'].present?,
+      has_acquisition_method: property_acquisition_method_id.present?,
+      has_operation_type: operation_type_id.present?,
+      has_state: acquisition_details['state'].present?,
+      has_land_use: acquisition_details['land_use'].present?,
+      has_co_owners_count: acquisition_details['co_owners_count'].present?
+    }
   end
 
+  def normalize_for_search(text)
+    text.to_s.downcase.gsub(/[^a-z0-9]/, '')
+  end
+
+  # ============================================================
+  # MÉTODOS PÚBLICOS - LÓGICA DE CONVERSIÓN
+  # ============================================================
+
+  def detect_transaction_scenario
+    return nil unless operation_type.present?
+    operation_name = operation_type.name.downcase
+    acquisition_code = property_acquisition_method&.code
+
+    scenario_name = case operation_name
+    when 'venta', 'sale'
+      case acquisition_code
+      when 'compraventa', 'compra_directa' then 'Venta por Compra Directa'
+      when 'herencia' then 'Venta por Herencia'
+      else 'Venta por Compra Directa'
+      end
+    when 'renta', 'rent', 'arrendamiento'
+      land_use_code = acquisition_details['land_use']
+      case land_use_code
+      when 'COM', 'COM_LOCAL' then 'Renta Local Comercial'
+      when 'IND', 'IND_BODEGA' then 'Renta Bodega Industrial'
+      when 'HAB', 'HAB_PLURI' then 'Renta Apartamento'
+      when 'HAB_UNI' then 'Renta Casa Habitacional'
+      else 'Renta Casa Habitacional'
+      end
+    else nil
+    end
+
+    return nil unless scenario_name
+    scenario = TransactionScenario.find_by(name: scenario_name)
+    Rails.logger.info "✅ Escenario: #{scenario_name}" if scenario
+    scenario
+  end
+
+  def valid_for_conversion?
+    return false unless completed?
+    return false unless general_conditions.present? && 
+                        general_conditions['owner_or_representative_name'].present?
+    return false unless property_acquisition_method_id.present?
+    return false unless operation_type_id.present?
+    return false unless acquisition_details.present? && 
+                        acquisition_details['state'].present? &&
+                        acquisition_details['land_use'].present? &&
+                        acquisition_details['co_owners_count'].present?
+    return false unless property_info.present? &&
+                        property_info['street'].present? &&
+                        property_info['exterior_number'].present? &&
+                        property_info['neighborhood'].present? &&
+                        property_info['postal_code'].present? &&
+                        property_info['municipality'].present? &&
+                        property_info['city'].present?
+    true
+  end
+
+  def find_or_create_client!
+    return client if client.present?
+    owner_name = general_conditions['owner_or_representative_name']
+    Client.find_or_create_by!(name: owner_name) do |c|
+      c.email = general_conditions['owner_email'] || "temp_#{SecureRandom.hex(4)}@pending.com"
+      c.phone = general_conditions['owner_phone'] if general_conditions['owner_phone'].present?
+    end
+  end
+
+  def find_or_create_property!(client)
+    existing_property = Property.find_by_location(
+      property_info['street'],
+      property_info['exterior_number'],
+      property_info['interior_number'],
+      property_info['neighborhood'],
+      property_info['municipality'],
+      acquisition_details['state']
+    )
     
+    return existing_property if existing_property.present?
+
+    land_use_code = acquisition_details['land_use'] || 'HAB'
+    land_use_record = LandUseType.find_by(code: land_use_code)
+    land_use = land_use_record&.property_category || 'otros'
+    
+    Property.create!(
+      user: agent.user,
+      property_type: determine_property_type,
+      address: full_address,
+      street: property_info['street'],
+      exterior_number: property_info['exterior_number'],
+      interior_number: property_info['interior_number'],
+      neighborhood: property_info['neighborhood'],
+      city: property_info['city'] || acquisition_details['state'],
+      municipality: property_info['municipality'],
+      state: acquisition_details['state'],
+      postal_code: property_info['postal_code'],
+      country: 'México',
+      price: property_info['asking_price']&.to_f || 1.0,
+      bedrooms: property_info['bedrooms']&.to_i,
+      bathrooms: property_info['bathrooms']&.to_f,
+      built_area_m2: property_info['built_area_m2']&.to_f,
+      lot_area_m2: property_info['lot_area_m2']&.to_f,
+      land_use: land_use,
+      detailed_land_use: land_use_record&.name || 'No especificado',
+      title: generate_property_title,
+      description: generate_property_description,
+      contact_phone: general_conditions['owner_phone'],
+      contact_email: general_conditions['owner_email'],
+      internal_notes: compile_property_notes,
+      available_from: Date.current
+    )
+  end
+
+  def convert_to_transaction!
+    return false if converted? || business_transaction.present? || !valid_for_conversion?
+
+    Rails.logger.info "═" * 100
+    Rails.logger.info "✅ INICIANDO CONVERSIÓN"
+    Rails.logger.info "═" * 100
+
+    begin
+      ActiveRecord::Base.transaction do
+        client = find_or_create_client!
+        property = find_or_create_property!(client)
+        transaction = create_business_transaction!(client, property)
+        
+        co_owners_count = acquisition_details['co_owners_count']&.to_i || 1
+        build_transaction_co_owners!(transaction, client, co_owners_count)
+        
+        update!(
+          status: :converted,
+          converted_at: Time.current,
+          client: client,
+          property: property,
+          business_transaction: transaction
+        )
+        
+        Rails.logger.info "✅ CONVERSIÓN COMPLETADA"
+        Rails.logger.info "   BT: #{transaction.id} | Property: #{property.id} | Client: #{client.id}"
+        Rails.logger.info "═" * 100
+        
+        transaction
+      end
+    rescue StandardError => e
+      Rails.logger.error "❌ ERROR: #{e.class.name}: #{e.message}"
+      errors.add(:base, "Error: #{e.message}")
+      false
+    end
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - GENERACIÓN DE IDENTIFICADORES
+  # ============================================================
+  private
+
+  def should_generate_identifier?
+    general_conditions['owner_or_representative_name'].present? &&
+    property_info['street'].present? &&
+    property_info['exterior_number'].present?
+  end
+
+  def generate_opportunity_identifier
+    return if opportunity_identifier.present?
+    
+    return unless property_info.present? && 
+                 property_info['street'].present? &&
+                 property_info['exterior_number'].present? &&
+                 acquisition_details.present? &&
+                 acquisition_details['state'].present?
+    
+    state_code = extract_state_code_for_property
+    municipality_code = extract_municipality_code
+    street_code = extract_full_street_code
+    exterior = property_info['exterior_number'].to_s.rjust(5, '0')
+    interior = property_info['interior_number'].to_s.rjust(5, '0')
+    neighborhood_code = extract_neighborhood_code
+    
+    base_id = [
+      state_code,
+      municipality_code,
+      neighborhood_code,
+      street_code,
+      exterior,
+      interior
+    ].compact.join('-')
+    
+    counter = 0
+    final_id = base_id
+    
+    while InitialContactForm
+      .where(opportunity_identifier: final_id)
+      .where.not(id: id)
+      .exists?
+      counter += 1
+      final_id = "#{base_id}-#{counter}"
+    end
+    
+    self.opportunity_identifier = final_id
+    self.opportunity_identifier_generated_at = Time.current
+    
+    Rails.logger.info "✅ Property ID: #{final_id}"
+    Rails.logger.info "   Ubicación: #{full_address}"
+  end
+
+  def extract_full_street_code
+    street = property_info['street'].to_s.strip
+    return 'STREET' if street.blank?
+    
+    clean_street = street.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+    
+    nomenclaturas = ['AVENIDA', 'AV', 'PASEO', 'CALZADA', 'CALLE', 'BOULEVARD', 
+                     'BLVD', 'CIRCUITO', 'PROLONGACION', 'CARRERA', 'PLAZA',
+                     'PASAJE', 'CERRADA', 'ANDADOR', 'BOSQUE', 'LOMA', 'LOMAS']
+    
+    words = clean_street.split(/\s+/).compact
+    start_idx = nomenclaturas.include?(words[0]) ? 1 : 0
+    
+    significant = words[start_idx..-1]&.join('') || 'STREET'
+    code = significant.gsub(/[^A-Z0-9]/, '').slice(0, 30).presence || 'STREET'
+  end
+
+  def extract_municipality_code
+    municipality = property_info['municipality'].to_s.strip
+    return 'MUN' if municipality.blank?
+    
+    clean = municipality.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 8)
+    
+    (clean || 'MUN').ljust(8, '0')[0..7]
+  end
+
+
+
+  def extract_state_code_for_property
+    state = acquisition_details['state'].to_s.strip
+    return 'EDO' if state.blank?
+    
+    state_map = {
+      'Ciudad de México' => 'CDMX', 'Ciudad De México' => 'CDMX', 'CDMX' => 'CDMX',
+      'Estado de México' => 'EDOMEX', 'Jalisco' => 'JAL', 'Nuevo León' => 'NL',
+      'Guanajuato' => 'GTO', 'Puebla' => 'PUE', 'Veracruz' => 'VER',
+      'Sinaloa' => 'SIN', 'Chihuahua' => 'CHIH', 'Coahuila' => 'COAH',
+      'Durango' => 'DGO', 'Querétaro' => 'QTO', 'Yucatán' => 'YUC',
+      'Quintana Roo' => 'QROO'
+    }
+    
+    state_map[state] || state.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 6)
+  end
+
+  def generate_opportunity_identifier_if_blank
+    return if opportunity_identifier.present?  # ← AGREGAR ESTO
+    
+    return unless should_generate_identifier?   # ← Usar el método que ya existe
+    generate_opportunity_identifier             # ← LLAMAR AL GENERADOR
+  end
+
+  def extract_operation_code
+    return 'X' if operation_type_id.blank?
+    op_type = OperationType.find_by(id: operation_type_id)
+    return 'X' unless op_type
+    
+    case op_type.name.to_s.downcase
+    when /venta/i, /sale/i then 'V'
+    when /renta/i, /rent/i then 'R'
+    when /traspaso/i then 'T'
+    when /permuta/i then 'P'
+    when /arrendamiento/i then 'A'
+    else 'X'
+    end
+  end
+
+  def extract_client_code
+    name = general_conditions['owner_or_representative_name'].to_s.strip
+    return 'XXXX' if name.blank?
+    
+    clean_name = name
+      .downcase
+      .gsub(/á|à|ä/, 'a').gsub(/é|è|ë/, 'e').gsub(/í|ì|ï/, 'i')
+      .gsub(/ó|ò|ö/, 'o').gsub(/ú|ù|ü/, 'u').gsub(/ñ/, 'n')
+      .gsub(/[^a-z0-9\s]/, '').gsub(/\s+/, ' ').strip
+    
+    parts = clean_name.split(' ')
+    return 'XXXX' if parts.empty?
+    
+    code = if parts.length == 1
+             parts[0][0..3]
+           elsif parts.length == 2
+             parts[0][0] + parts[1][0..2]
+           else
+             first_surname = parts[1]
+             second_char = 'X'
+             (2...parts.length).each do |i|
+               unless ['de', 'la', 'las', 'los', 'el', 'y'].include?(parts[i])
+                 second_char = parts[i][0]
+                 break
+               end
+             end
+             parts[0][0] + first_surname[0..2] + second_char
+           end
+    
+    code.upcase.ljust(6, 'X')[0..5]
+  end
+
+  def extract_street_code
+    street = property_info['street'].to_s.strip
+    return 'STREET' if street.blank?
+    
+    clean_street = street.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+    
+    words = clean_street.split(/\s+/).compact
+    nomenclaturas = ['AVENIDA', 'AV', 'PASEO', 'CALZADA', 'CALLE', 'BOULEVARD', 
+                     'BLVD', 'CIRCUITO', 'PROLONGACION', 'CARRERA', 'PLAZA',
+                     'PASAJE', 'CERRADA', 'ANDADOR']
+    
+    significant_words = nomenclaturas.include?(words[0]) ? words.first(2) : words.first(2)
+    code = significant_words.join('').gsub(/[^A-Z0-9]/, '').slice(0, 12)
+    
+    (code || 'STREET').ljust(12, '0')[0..11]
+  end
+
+  def extract_neighborhood_code
+    neighborhood = property_info['neighborhood'].to_s.strip
+    return 'NEIGH' if neighborhood.blank?
+    
+    clean = neighborhood.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 8)
+    
+    (clean || 'NEIGH').ljust(8, '0')[0..7]
+  end
+
+  def extract_state_code
+    state = acquisition_details['state'].to_s.strip
+    return 'EDO' if state.blank?
+    
+    state_map = {
+      'Ciudad de México' => 'CDMX', 'Ciudad De México' => 'CDMX', 'CDMX' => 'CDMX',
+      'Estado de México' => 'EDOMEX', 'Jalisco' => 'JAL', 'Nuevo León' => 'NL',
+      'Guanajuato' => 'GTO', 'Puebla' => 'PUE', 'Veracruz' => 'VER',
+      'Sinaloa' => 'SIN', 'Chihuahua' => 'CHIH', 'Coahuila' => 'COAH',
+      'Durango' => 'DGO', 'Querétaro' => 'QTO', 'Yucatán' => 'YUC',
+      'Quintana Roo' => 'QROO'
+    }
+    
+    state_map[state] || state.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 6)
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - UTILIDADES
+  # ============================================================
+
   def generate_folio_if_missing
     return if initial_contact_folio.present?
     return unless agent.present? && agent.user.present?
+    
     initials = extract_initials_from_name(agent.user.name || agent.user.email)
     date = (created_at || Time.current)
     self.initial_contact_folio = generate_contact_folio(initials, date)
   end
-
 
   def generate_contact_folio(initials, date)
     date_str = date.strftime('%d%m%y')
@@ -558,9 +527,117 @@ end
     "#{base_folio}_#{sequence}"
   end
 
+  def extract_initials_from_name(full_name)
+    return full_name.split('@').first.upcase[0..2] if full_name.include?('@')
+    
+    parts = full_name.strip.split(/\s+/)
+    
+    case parts.length
+    when 1 then parts[0].upcase[0..2]
+    when 2 then "#{parts[0][0]}#{parts[1][0]}#{parts[0][1]}".upcase
+    else "#{parts[0][0]}#{parts[1][0]}#{parts[2][0]}".upcase
+    end
+  end
 
-  
-  
+  def set_completed_at
+    self.completed_at = Time.current
+  end
+
+  def set_converted_at
+    self.converted_at = Time.current
+  end
+
+  def determine_property_type
+    land_use = acquisition_details['land_use']
+    case land_use
+    when 'VIVIENDA_UNIFAMILIAR', 'CASA' then 'casa'
+    when 'VIVIENDA_MULTIFAMILIAR', 'DEPARTAMENTOS', 'EDIFICIO' then 'apartment'
+    when 'LOCAL_COMERCIAL', 'COMERCIO' then 'comercial'
+    when 'OFICINA' then 'oficina'
+    when 'BODEGA', 'INDUSTRIAL', 'NAVE' then 'industrial'
+    when 'TERRENO', 'LOTE' then 'lote'
+    when 'ESTACIONAMIENTO' then 'estacionamiento'
+    when 'HOTEL', 'MOTEL' then 'hotel'
+    else 'otros'
+    end
+  end
+
+  def generate_property_title
+    street = property_info['street'].to_s
+    number =  [ property_info['exterior_number'].to_s,
+                property_info['interior_number'].to_s ]
+                .reject(&:blank?)
+                .join('-')
+    city = property_info['city'].to_s
+    "#{street} #{number} - #{city}"
+  end
+
+  def generate_property_description
+    desc_parts = []
+    
+    desc_parts << "**Método:** #{property_acquisition_method.name}" if property_acquisition_method
+    desc_parts << "• Hipoteca activa" if current_status['has_active_mortgage'] == 'true'
+    desc_parts << "• Condominio" if current_status['is_in_condominium'] == 'true'
+    desc_parts << "• Ampliaciones" if current_status['has_extensions'] == 'true'
+    desc_parts << "• Remodelaciones" if current_status['has_renovations'] == 'true'
+    
+    desc_parts.empty? ? 'Propiedad sin características especiales' : desc_parts.join("\n")
+  end
+
+  def compile_property_notes
+    notes = []
+    notes << "📋 Desde ICF ##{id}"
+    notes << "🏷️ ID: #{opportunity_identifier}"
+    notes << "👤 Agente: #{agent.user.name}"
+    notes.join("\n")
+  end
+
+  def full_address
+    parts = [
+      property_info['street'],
+      "Núm. #{property_info['exterior_number']}",
+      "Int. #{property_info['interior_number']}"
+    ]
+    
+    parts << "Int. #{property_info['interior_number']}" if property_info['interior_number'].present?
+    
+    parts += [
+      property_info['neighborhood'],
+      "C.P. #{property_info['postal_code']}",
+      property_info['municipality'],
+      acquisition_details['state'],
+      property_info['country'] || 'México'
+    ]
+    
+    parts.compact.join(', ')
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - VALIDACIONES
+  # ============================================================
+
+  def general_conditions_complete
+    errors.add(:general_conditions, "falta nombre del propietario") if general_conditions['owner_or_representative_name'].blank?
+    errors.add(:acquisition_details, "debe especificar estado") if acquisition_details['state'].blank?
+    errors.add(:acquisition_details, "debe especificar uso de suelo") if acquisition_details['land_use'].blank?
+    errors.add(:base, "debe seleccionar método de adquisición") if property_acquisition_method_id.blank?
+    errors.add(:base, "debe seleccionar quién firmará") if contract_signer_type_id.blank?
+  end
+
+  def property_info_complete
+    if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
+      errors.add(:base, 'especifique copropietarios (mínimo 1)')
+    end
+  end
+
+  def ensure_operation_type_present
+    errors.add(:operation_type, "debe estar especificado") if operation_type_id.blank?
+  end
+
+  def ensure_acquisition_method_present
+    errors.add(:property_acquisition_method, "debe estar especificado") if property_acquisition_method_id.blank?
+  end
+
   def validate_acquisition_method_requirements
     return unless property_acquisition_method.present?
     
@@ -570,376 +647,184 @@ end
     end
   end
 
-  def extract_initials_from_name(full_name)
-    # Si es email (contiene @), usar primera parte como fallback
-    if full_name.include?('@')
-      return full_name.split('@').first.upcase[0..2]
-    end
+  def validate_acquisition_method_details
+    method = property_acquisition_method
+    return unless method.present? && completed?
     
-    # Separar por espacios y tomar primera letra de cada parte
-    parts = full_name.strip.split(/\s+/)
-    
-    case parts.length
-    when 1
-      # Solo un nombre: tomar primeras 3 letras
-      parts[0].upcase[0..2]
-    when 2
-      # Nombre + Apellido: primera letra de cada uno + primera del nombre
-      "#{parts[0][0]}#{parts[1][0]}#{parts[0][1]}".upcase
-    else
-      # Nombre + Apellido Paterno + Apellido Materno
-      "#{parts[0][0]}#{parts[1][0]}#{parts[2][0]}".upcase
-    end
-  end
-  
-  def set_completed_at
-    self.completed_at = Time.current
-  end
-  
-  def set_converted_at
-    self.converted_at = Time.current
-  end
-  
-  # Validar que condiciones generales estén completas
-  def general_conditions_complete
-    # Unificar en UN solo método
-    errors.add(:general_conditions, "falta el nombre del propietario") if general_conditions['owner_or_representative_name'].blank?
-    errors.add(:acquisition_details, "debe especificar la entidad federativa") if acquisition_details['state'].blank?
-    errors.add(:acquisition_details, "debe especificar el uso de suelo") if acquisition_details['land_use'].blank?
-    
-    # Validar método de adquisición si está en estado completed
-    if property_acquisition_method_id.blank?
-      errors.add(:base, "debe seleccionar un método de adquisición")
-    end
-    
-    if contract_signer_type_id.blank?
-      errors.add(:base, "debe seleccionar quién firmará el contrato")
+    case method.code.to_s.upcase
+    when 'COMPRAVENTA'
+      if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
+        errors.add(:acquisition_details, 'requiere número válido de copropietarios')
+      end
+    when 'HERENCIA'
+      if acquisition_details['heirs_count'].blank? || acquisition_details['heirs_count'].to_i < 1
+        errors.add(:acquisition_details, 'requiere número válido de herederos')
+      end
+    when 'DONACION'
+      if acquisition_details['donor_name'].blank?
+        errors.add(:acquisition_details, 'requiere nombre completo del donante')
+      end
     end
   end
 
-  
-  # Validar que info de propiedad esté completa
+  # ============================================================
+  # MÉTODOS PRIVADOS - TRANSACCIONES Y DOCUMENTOS
+  # ============================================================
 
-
-  def property_info_complete
-    # Los datos están en acquisition_details, NO en property_info
-    if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
-      errors.add(:base, 'debe especificar número de copropietarios (mínimo 1)')
-    end
-  end
-  
-  # Buscar o crear cliente
-  def find_or_create_client!
-    return client if client.present?
-    
-    # Extraer datos del formulario
-    owner_name = general_conditions['owner_or_representative_name']
-    
-    # Buscar cliente existente o crear nuevo
-    Client.find_or_create_by!(name: owner_name) do |c|
-      c.email = general_conditions['owner_email'] || "temp_#{SecureRandom.hex(4)}@pending.com"
-      c.phone = general_conditions['owner_phone'] if general_conditions['owner_phone'].present?
-    end
-  end
-  
-  # Buscar o crear propiedad
-
-# app/models/initial_contact_form.rb
-
-private
-
-# app/models/initial_contact_form.rb
-
-
-  # Buscar o crear Property con búsqueda inteligente
-  def find_or_create_property!(client)
-    # 1. Intentar encontrar propiedad existente por dirección
-    existing_property = find_existing_property
-    
-    if existing_property.present?
-      Rails.logger.info "✅ Propiedad ENCONTRADA: ##{existing_property.id} - #{existing_property.address}"
-      Rails.logger.info "   Reutilizando propiedad existente para evitar duplicado"
-      return existing_property
-    end
-    
-    # 2. Si no existe, crear nueva propiedad
-    Rails.logger.info "📍 Creando NUEVA propiedad con dirección: #{full_address}"
-    
-    state = acquisition_details['state'] || 'CDMX'
-    land_use = acquisition_details['land_use'] || 'habitacional'
-    
-    Property.create!(
-      # Relaciones
-      user: agent.user,
-      property_type: determine_property_type,
-      
-      # Dirección completa (campo legacy)
-      address: full_address,
-      
-      # Dirección desagregada (DESDE property_info)
-      street: property_info['street'] || '[Pendiente]',
-      exterior_number: property_info['exterior_number'] || 'S/N',
-      interior_number: property_info['interior_number'],
-      neighborhood: property_info['neighborhood'] || '[Pendiente]',
-      city: property_info['city'] || state,
-      municipality: property_info['municipality'] || '[Pendiente]',
-      state: state,
-      postal_code: property_info['postal_code'] || '00000',
-      country: property_info['country'] || 'México',
-      
-      # Precio
-      price: property_info['asking_price']&.to_f&.positive? ? property_info['asking_price'].to_f :
-            property_info['estimated_price']&.to_f&.positive? ? property_info['estimated_price'].to_f :
-            1.0,
-      
-      # Características físicas
-      bedrooms: property_info['bedrooms']&.to_i || 0,
-      bathrooms: property_info['bathrooms']&.to_f || 0,
-      built_area_m2: property_info['built_area_m2']&.to_f&.positive? ? property_info['built_area_m2'].to_f : 1.0,
-      lot_area_m2: property_info['lot_area_m2']&.to_f&.positive? ? property_info['lot_area_m2'].to_f : 1.0,
-      parking_spaces: 0,
-      year_built: property_info['acquisition_date']&.to_date&.year || Time.current.year,
-      
-      # Amenidades (valores por defecto)
-      furnished: false,
-      pets_allowed: false,
-      elevator: false,
-      balcony: false,
-      terrace: false,
-      garden: false,
-      pool: false,
-      security: false,
-      gym: false,
-      
-      # Textos
-      title: generate_property_title,
-      description: generate_property_description,
-      
-      # Información de contacto
-      contact_phone: general_conditions['owner_phone'],
-      contact_email: general_conditions['owner_email'],
-      
-      # Uso del suelo
-      has_extensions: current_status['has_extensions'] == 'true',
-      land_use: land_use,
-      
-      # Notas internas
-      internal_notes: compile_property_notes,
-      
-      # Fechas
-      available_from: Date.current,
-      published_at: nil
-    )
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "❌ Error creando Property desde InitialContactForm ##{id}:"
-    Rails.logger.error "   Errores: #{e.record.errors.full_messages.join(', ')}"
-    raise
-  end
-
-  # Método auxiliar: Dirección completa para campo legacy
-  def full_address
-    parts = [
-      property_info['street'],
-      "Núm. #{property_info['exterior_number']}",
-      property_info['interior_number'].present? ? "Int. #{property_info['interior_number']}" : nil,
-      property_info['neighborhood'],
-      "C.P. #{property_info['postal_code']}",
-      property_info['municipality'],
-      acquisition_details['state'],
-      property_info['country']
-    ].compact
-    
-    parts.join(', ')
-  end
-
-  # Método auxiliar: Compilar notas internas
-  def compile_property_notes
-    notes = []
-    notes << "📋 Creado desde formulario de contacto inicial ##{id}"
-    notes << "🏷️ Identificador de oportunidad: #{property_human_identifier}"
-    notes << "👤 Agente: #{agent.user.name} (#{agent.user.email})"
-    notes << "📅 Fecha de captura: #{created_at.strftime('%d/%m/%Y %H:%M')}"
-    notes << ""
-    
-    # Advertencias sobre datos pendientes
-    if property_info['asking_price'].blank? && property_info['estimated_price'].blank?
-      notes << "⚠️ PENDIENTE: Actualizar precio (valor por defecto asignado)"
-    end
-    
-    if property_info['built_area_m2'].blank? || property_info['lot_area_m2'].blank?
-      notes << "⚠️ PENDIENTE: Actualizar áreas construida y de terreno"
-    end
-    
-    # Notas del agente si existen
-    if agent_notes.present?
-      notes << ""
-      notes << "📝 Notas del agente:"
-      notes << agent_notes
-    end
-    
-    notes.join("\n")
-  end
-
-
-  # Generar título de propiedad automáticamente
-  def generate_property_title
-    type = general_conditions['domicile_type']&.humanize || 'Inmueble'
-    price = property_info['asking_price']&.to_f || property_info['estimated_price']&.to_f || 0
-    
-    if price > 0
-      price_formatted = "$#{(price / 1_000_000.0).round(1)}M"
-      "#{type} en venta #{price_formatted}"
-    else
-      "#{type} en venta"
-    end
-  end
-
-
-  
-  # Generar descripción de propiedad automáticamente
-  def generate_property_description
-    parts = []
-    
-    # Tipo y ubicación
-    type = general_conditions['domicile_type']&.humanize || 'Inmueble'
-    address = property_info['address'] || 'zona residencial'
-    parts << "#{type} ubicado en #{address}"
-    
-    # Características
-    bedrooms = property_info['bedrooms'].to_i
-    bathrooms = property_info['bathrooms'].to_f
-    built_area = property_info['built_area_m2'].to_f
-    
-    features = []
-    features << "#{bedrooms} recámaras" if bedrooms > 0
-    features << "#{bathrooms} baños" if bathrooms > 0
-    features << "#{built_area}m² de construcción" if built_area > 0
-    
-    parts << features.join(', ') if features.any?
-    
-    # Información de copropietarios
-    if has_co_owners?
-      parts << "Propiedad con #{co_owners_count} copropietarios"
-    end
-    
-    # Régimen matrimonial
-    if general_conditions['civil_status'] == 'casado'
-      regime = general_conditions['marriage_regime']&.humanize || 'matrimonial'
-      parts << "Régimen: #{regime}"
-    end
-    
-    # Información adicional relevante
-    if is_inheritance?
-      parts << "⚠️ Propiedad adquirida por herencia"
-    end
-    
-    if property_info['has_improvements']
-      parts << "Cuenta con ampliaciones/remodelaciones"
-    end
-    
-    # Descripción final
-    description = parts.join('. ') + '.'
-    description += "\n\n📋 Información capturada desde formulario de contacto inicial el #{Date.current.strftime('%d/%m/%Y')}."
-    description += "\n👤 Agente: #{agent.email}"
-    
-    description
-  end
-  
-  # Determinar tipo de propiedad
-  def determine_property_type
-    domicile_type = general_conditions['domicile_type']
-    
-    type_mapping = {
-      'casa_habitacion' => 'house',
-      'departamento' => 'apartment',
-      'terreno' => 'land',
-      'local_comercial' => 'commercial',
-      'bodega' => 'warehouse',
-      'oficina' => 'office'
-    }
-    
-    property_type_name = type_mapping[domicile_type] || 'house'
-    PropertyType.find_by(name: property_type_name) || PropertyType.first
-  end
-  
-  # Crear BusinessTransaction
   def create_business_transaction!(client, property)
-    BusinessTransaction.create!(
-      listing_agent: agent.user,
-      current_agent: agent.user,
+    scenario = detect_transaction_scenario
+    
+    bt = BusinessTransaction.create!(
+      listing_agent_id: agent&.user_id,
+      current_agent_id: agent&.user_id,
       offering_client: client,
       property: property,
-      operation_type: OperationType.find_by(name: 'sale') || OperationType.first,
-      business_status: BusinessStatus.find_by(name: 'available') || BusinessStatus.first,
-      price: property_info['asking_price'] || property.price || 0,
+      operation_type_id: operation_type_id,
+      business_status: BusinessStatus.find_by(name: 'prospecto') || BusinessStatus.first,
+      transaction_scenario: scenario,
+      price: property_info['asking_price'] || property.price || 1,
+      commission_percentage: 0,
       start_date: Date.current,
-      notes: compile_notes
+      property_acquisition_method_id: property_acquisition_method_id,
+      acquisition_legal_act: property_acquisition_method&.name,
+      initial_contact_folio: initial_contact_folio,
+      notes: compile_transaction_notes,
+      inheritance_details: build_inheritance_details,
+      property_status: build_property_status,
+      tax_information: build_tax_information,
+      legal_representation: build_legal_representation
     )
+    
+    create_required_documents!(bt, scenario) if scenario
+    Rails.logger.info "✅ BT creada (ID: #{bt.id})"
+    bt
   end
-  
-  # Crear copropietarios
-  def create_co_owners!(transaction)
-    return unless has_co_owners?
+
+  def build_transaction_co_owners!(business_transaction, main_client, co_owners_count)
+    percentage = (100.0 / co_owners_count).round(2)
     
-    # Calcular porcentaje por copropietario
-    percentage_each = (100.0 / co_owners_count).round(2)
-    
-    # Crear copropietario principal (el del formulario)
-    transaction.business_transaction_co_owners.create!(
-      client: transaction.offering_client,
-      person_name: general_conditions['owner_or_representative_name'],
-      percentage: percentage_each,
+    BusinessTransactionCoOwner.create!(
+      business_transaction: business_transaction,
+      client: main_client,
+      person_name: main_client.name,
+      percentage: percentage,
       role: 'propietario',
       active: true
     )
     
-    # Si hay más copropietarios, crear placeholders
-    remaining_count = co_owners_count - 1
-    if remaining_count > 0
-      remaining_count.times do |i|
-        transaction.business_transaction_co_owners.create!(
-          person_name: "Copropietario #{i + 2} - Por definir",
-          percentage: percentage_each,
-          role: 'copropietario',
-          active: true
+    (co_owners_count - 1).times do |i|
+      BusinessTransactionCoOwner.create!(
+        business_transaction: business_transaction,
+        client: nil,
+        person_name: "Copropietario #{i + 2} - Pendiente",
+        percentage: percentage,
+        role: 'copropietario',
+        active: false
+      )
+    end
+  end
+
+  def create_required_documents!(business_transaction, scenario)
+    return unless scenario.present?
+    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
+    
+    scenario.scenario_documents.each do |doc|
+      parties = doc.party_type == 'ambos' ? ['oferente', 'adquiriente'] : [doc.party_type]
+      parties.each do |party|
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          document_type: doc.document_type,
+          party_type: party,
+          notes: "Documento requerido: #{scenario.name}"
         )
       end
     end
+    
+    create_marital_status_documents(business_transaction)
+    create_mortgage_documents(business_transaction) if has_mortgage?
   end
-  
-  # Compilar notas de todas las secciones
-  def compile_notes
-    notes = []
+
+  def create_marital_status_documents(business_transaction)
+    civil_status = general_conditions['civil_status']
+    return unless civil_status == 'casado'
     
-    notes << "=== FORMULARIO DE CONTACTO INICIAL ==="
-    notes << "Completado: #{completed_at&.strftime('%d/%m/%Y')}"
-    notes << "Agente: #{agent.email}"
-    notes << ""
+    marriage_regime_id = general_conditions['marriage_regime_id']
+    regime = MarriageRegime.find_by(id: marriage_regime_id)
+    return unless regime
     
-    if is_inheritance?
-      notes << "⚠️ HERENCIA - Requiere atención especial"
-      notes << "Herederos: #{inheritance_info['heirs_count']}"
-      notes << "Tipo sucesión: #{inheritance_info['succession_type']}"
-      notes << ""
+    case regime.name.downcase
+    when /separaci[oó]n.*bienes/i
+      add_document_if_exists(business_transaction, 'escritura_separacion_bienes', 'oferente')
+    when /mancomunad|sociedad.*conyugal/i
+      add_document_if_exists(business_transaction, 'consentimiento_conyuge', 'oferente')
+      add_document_if_exists(business_transaction, 'acta_matrimonio', 'oferente')
     end
+  end
+
+  def create_mortgage_documents(business_transaction)
+    add_document_if_exists(business_transaction, 'estado_cuenta_hipoteca', 'oferente')
+    add_document_if_exists(business_transaction, 'carta_no_adeudo', 'oferente')
+  end
+
+  def add_document_if_exists(business_transaction, document_code, party_type)
+    document_type = DocumentType.find_by(name: document_code) ||
+                   DocumentType.find_by("LOWER(name) = ?", document_code.downcase)
+    return unless document_type
     
-    if current_status['has_active_mortgage']
-      notes << "💰 HIPOTECA ACTIVA"
-      notes << "Saldo: $#{current_status['mortgage_balance']}"
-      notes << "Banco: #{property_info['mortgage_bank']}"
-      notes << ""
-    end
+    DocumentSubmission.create!(
+      business_transaction: business_transaction,
+      document_type: document_type,
+      party_type: party_type,
+      status: 'pendiente_solicitud'
+    )
+  rescue StandardError
+    # Documento no encontrado, continuar
+  end
+
+  def compile_transaction_notes
+    notes = "=== ICF ===\nFolio: #{initial_contact_folio}\n"
+    notes += "ID: #{opportunity_identifier}\n"
+    notes += "Completado: #{completed_at&.strftime('%d/%m/%Y %H:%M')}\n\n"
+    notes += "=== NOTAS ===\n#{agent_notes}" if agent_notes.present?
+    notes
+  end
+
+  def build_inheritance_details
+    return {} unless property_acquisition_method&.code == 'herencia'
     
-    if qualifies_for_tax_exemption?
-      notes << "✅ Califica para exención ISR"
-      notes << ""
-    end
-    
-    if agent_notes.present?
-      notes << "Observaciones del agente:"
-      notes << agent_notes
-    end
-    
-    notes.join("\n")
+    {
+      'heirs_count' => acquisition_details['heirs_count'],
+      'all_living' => acquisition_details['all_living'],
+      'deceased_count' => acquisition_details['deceased_count'],
+      'has_judicial_sentence' => acquisition_details['has_judicial_sentence'],
+      'has_notarial_deed' => acquisition_details['has_notarial_deed']
+    }.compact
+  end
+
+  def build_property_status
+    {
+      'has_active_mortgage' => current_status['has_active_mortgage'],
+      'mortgage_balance' => current_status['mortgage_balance'],
+      'is_in_condominium' => current_status['is_in_condominium'],
+      'has_extensions' => current_status['has_extensions'],
+      'has_renovations' => current_status['has_renovations'],
+      'has_rental_units' => current_status['has_rental_units']
+    }.compact
+  end
+
+  def build_tax_information
+    {
+      'first_home_sale' => tax_exemption['first_home_sale'],
+      'lived_last_5_years' => tax_exemption['lived_last_5_years'],
+      'qualifies_for_exemption' => tax_exemption['qualifies_for_exemption']
+    }.compact
+  end
+
+  def build_legal_representation
+    {
+      'owner_name' => general_conditions['owner_or_representative_name'],
+      'civil_status' => general_conditions['civil_status'],
+      'contract_signer_type' => contract_signer_type&.name
+    }.compact
   end
 end

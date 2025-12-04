@@ -11,7 +11,7 @@
     <div>
       <h2>
         <i class="bi bi-clipboard-check"></i>
-        <%= @form.property_human_identifier || "Formulario de Contacto Inicial ##{@form.id}" %>
+        <%= @form.opportunity_identifier || "Formulario de Contacto Inicial ##{@form.id}" %>
       </h2>
       <p class="text-muted mb-0">
         <strong>Folio:</strong> <%= @form.initial_contact_folio || "Sin folio" %> |
@@ -150,14 +150,256 @@
   <% end %>
   
   <!-- Detalles de cada sección -->
-  <div class="card mb-4">
+  <div class="card mt-4">
     <div class="card-header">
-      <h5 class="mb-0">Detalles Completos</h5>
+      <h3>Detalles Completos</h3>
     </div>
     <div class="card-body">
-      <!-- Aquí mostrar todas las secciones del formulario -->
-      <!-- Similar a como las mostraste en el form, pero en modo lectura -->
+      
+      <%# ============================================================ %>
+      <%# CONDICIONES GENERALES %>
+      <%# ============================================================ %>
+      <% if @form.general_conditions.present? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">📋 Condiciones Generales</h4>
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Propietario:</dt>
+                <dd class="col-sm-7"><%= @form.general_conditions['owner_or_representative_name'] %></dd>
+                
+                <dt class="col-sm-5">Teléfono:</dt>
+                <dd class="col-sm-7"><%= @form.general_conditions['owner_phone'] %></dd>
+                
+                <dt class="col-sm-5">Email:</dt>
+                <dd class="col-sm-7"><%= @form.general_conditions['owner_email'] %></dd>
+              </dl>
+            </div>
+            
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Estado civil:</dt>
+                <dd class="col-sm-7"><%= @form.general_conditions['civil_status']&.humanize %></dd>
+                
+                <% if @form.general_conditions['marriage_regime_id'].present? %>
+                  <dt class="col-sm-5">Régimen matrimonial:</dt>
+                  <dd class="col-sm-7"><%= MarriageRegime.find_by(id: @form.general_conditions['marriage_regime_id'])&.name %></dd>
+                <% end %>
+                
+                <% if @form.general_conditions['notes'].present? %>
+                  <dt class="col-sm-5">Observaciones:</dt>
+                  <dd class="col-sm-7"><%= @form.general_conditions['notes'] %></dd>
+                <% end %>
+              </dl>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# INFORMACIÓN DE LA PROPIEDAD %>
+      <%# ============================================================ %>
+      <% if @form.property_info.present? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">🏠 Ubicación de la Propiedad</h4>
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Calle:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['street'] %></dd>
+                
+                <dt class="col-sm-5">Número exterior:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['exterior_number'] %></dd>
+                
+                <% if @form.property_info['interior_number'].present? %>
+                  <dt class="col-sm-5">Número interior:</dt>
+                  <dd class="col-sm-7"><%= @form.property_info['interior_number'] %></dd>
+                <% end %>
+                
+                <dt class="col-sm-5">Colonia:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['neighborhood'] %></dd>
+                
+                <dt class="col-sm-5">Código Postal:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['postal_code'] %></dd>
+              </dl>
+            </div>
+            
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Municipio:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['municipality'] %></dd>
+                
+                <dt class="col-sm-5">Ciudad:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['city'] %></dd>
+                
+                <dt class="col-sm-5">País:</dt>
+                <dd class="col-sm-7"><%= @form.property_info['country'] %></dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# DETALLES DE ADQUISICIÓN %>
+      <%# ============================================================ %>
+      <% if @form.acquisition_details.present? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">📝 Detalles de Adquisición</h4>
+          <div class="row">
+            <div class="col-md-6">
+              <dl class="row">
+                <dt class="col-sm-5">Estado:</dt>
+                <dd class="col-sm-7"><%= @form.acquisition_details['state'] %></dd>
+                
+                <dt class="col-sm-5">Uso de suelo:</dt>
+                <dd class="col-sm-7">
+                  <% if @form.acquisition_details['land_use'].present? %>
+                    <%= LandUseType.find_by(code: @form.acquisition_details['land_use'])&.name || @form.acquisition_details['land_use'] %>
+                  <% end %>
+                </dd>
+                
+                <dt class="col-sm-5">Copropietarios:</dt>
+                <dd class="col-sm-7"><%= @form.acquisition_details['co_owners_count'] || 1 %></dd>
+              </dl>
+            </div>
+            
+            <div class="col-md-6">
+              <% if @form.acquisition_details['relationship_type'].present? %>
+                <dl class="row">
+                  <dt class="col-sm-5">Relación entre copropietarios:</dt>
+                  <dd class="col-sm-7"><%= @form.acquisition_details['relationship_type']&.humanize %></dd>
+                </dl>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# ESTADO ACTUAL %>
+      <%# ============================================================ %>
+      <% if @form.current_status.present? && @form.current_status.any? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">🔧 Estado Actual</h4>
+          
+          <%# Hipoteca %>
+          <% if @form.current_status['has_active_mortgage'] %>
+            <h5>Hipoteca</h5>
+            <dl class="row">
+              <dt class="col-sm-3">Saldo:</dt>
+              <dd class="col-sm-9"><%= number_to_currency(@form.current_status['mortgage_balance']) rescue @form.current_status['mortgage_balance'] %></dd>
+              
+              <dt class="col-sm-3">Pagos al corriente:</dt>
+              <dd class="col-sm-9"><%= @form.current_status['mortgage_payments_current'] ? '✅ Sí' : '❌ No' %></dd>
+              
+              <% if @form.current_status['mortgage_notes'].present? %>
+                <dt class="col-sm-3">Notas:</dt>
+                <dd class="col-sm-9"><%= @form.current_status['mortgage_notes'] %></dd>
+              <% end %>
+            </dl>
+          <% end %>
+          
+          <%# Ampliaciones %>
+          <% if @form.current_status['has_extensions'] %>
+            <h5>Ampliaciones</h5>
+            <dl class="row">
+              <dt class="col-sm-3">Reportadas:</dt>
+              <dd class="col-sm-9"><%= @form.current_status['extensions_reported'] ? '✅ Sí' : '❌ No' %></dd>
+              
+              <% if @form.current_status['extensions_notes'].present? %>
+                <dt class="col-sm-3">Notas:</dt>
+                <dd class="col-sm-9"><%= @form.current_status['extensions_notes'] %></dd>
+              <% end %>
+            </dl>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# EXENCIÓN ISR %>
+      <%# ============================================================ %>
+      <% if @form.tax_exemption.present? && @form.tax_exemption.any? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">💰 Exención ISR</h4>
+          <dl class="row">
+            <% if @form.tax_exemption['first_home_sale'].present? %>
+              <dt class="col-sm-4">Primera venta de casa habitación:</dt>
+              <dd class="col-sm-8"><%= @form.tax_exemption['first_home_sale'] ? '✅ Sí' : '❌ No' %></dd>
+            <% end %>
+            
+            <% if @form.tax_exemption['lived_last_5_years'].present? %>
+              <dt class="col-sm-4">Vivió últimos 5 años:</dt>
+              <dd class="col-sm-8"><%= @form.tax_exemption['lived_last_5_years'] ? '✅ Sí' : '❌ No' %></dd>
+            <% end %>
+            
+            <% if @form.tax_exemption['estimated_capital_gain'].present? %>
+              <dt class="col-sm-4">Ganancia de capital estimada:</dt>
+              <dd class="col-sm-8"><%= number_to_currency(@form.tax_exemption['estimated_capital_gain']) rescue @form.tax_exemption['estimated_capital_gain'] %></dd>
+            <% end %>
+          </dl>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# PREFERENCIAS DE PROMOCIÓN %>
+      <%# ============================================================ %>
+      <% if @form.promotion_preferences.present? && @form.promotion_preferences.any? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">📣 Preferencias de Promoción</h4>
+          <dl class="row">
+            <dt class="col-sm-4">Método de contacto preferido:</dt>
+            <dd class="col-sm-8"><%= @form.promotion_preferences['preferred_contact_method']&.humanize %></dd>
+            
+            <dt class="col-sm-4">Horario de contacto:</dt>
+            <dd class="col-sm-8"><%= @form.promotion_preferences['contact_hours']&.humanize %></dd>
+            
+            <% if @form.promotion_preferences['special_instructions'].present? %>
+              <dt class="col-sm-4">Instrucciones especiales:</dt>
+              <dd class="col-sm-8"><%= @form.promotion_preferences['special_instructions'] %></dd>
+            <% end %>
+          </dl>
+        </div>
+      <% end %>
+
+      <%# ============================================================ %>
+      <%# NOTAS DEL AGENTE %>
+      <%# ============================================================ %>
+      <% if @form.agent_notes.present? %>
+        <div class="detail-section mb-4">
+          <h4 class="section-title">📝 Notas del Agente</h4>
+          <p class="text-muted"><%= simple_format(@form.agent_notes) %></p>
+        </div>
+      <% end %>
+
     </div>
   </div>
+
+  <style>
+    .detail-section {
+      border-left: 3px solid #007bff;
+      padding-left: 15px;
+    }
+    
+    .section-title {
+      color: #333;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    dl.row {
+      margin-bottom: 0;
+    }
+    
+    dl.row dt {
+      font-weight: 600;
+      color: #555;
+    }
+    
+    dl.row dd {
+      color: #666;
+    }
+  </style>
   
 </div>

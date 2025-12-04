@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
+ActiveRecord::Schema[8.0].define(version: 2025_12_03_024615) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -228,8 +228,38 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.boolean "active", default: true
+    t.string "client_identifier"
+    t.datetime "client_identifier_generated_at"
+    t.datetime "complete_at"
+    t.text "internal_notes"
+    t.string "first_names", comment: "Nombre(s) propios: Isabel María Luisa"
+    t.string "first_surname", comment: "Primer apellido: Calderón"
+    t.string "second_surname", comment: "Segundo apellido: Grajales (opcional)"
+    t.index ["client_identifier"], name: "index_clients_on_client_identifier", unique: true
     t.index ["email"], name: "index_clients_on_email", unique: true
+    t.index ["first_names"], name: "index_clients_on_first_names"
+    t.index ["first_surname"], name: "index_clients_on_first_surname"
+    t.index ["second_surname"], name: "index_clients_on_second_surname"
     t.index ["user_id"], name: "index_clients_on_user_id"
+  end
+
+  create_table "co_ownership_links", force: :cascade do |t|
+    t.bigint "primary_client_id", null: false
+    t.bigint "co_owner_client_id", null: false
+    t.bigint "initial_contact_form_id"
+    t.bigint "business_transaction_id"
+    t.decimal "ownership_percentage", precision: 5, scale: 2, default: "0.0"
+    t.string "co_owner_opportunity_id", null: false
+    t.string "relationship_type"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_transaction_id"], name: "index_co_ownership_links_on_business_transaction_id"
+    t.index ["co_owner_client_id"], name: "index_co_ownership_links_on_co_owner_client_id"
+    t.index ["co_owner_opportunity_id"], name: "index_co_ownership_links_on_co_owner_opportunity_id", unique: true
+    t.index ["initial_contact_form_id"], name: "index_co_ownership_links_on_initial_contact_form_id"
+    t.index ["primary_client_id", "co_owner_client_id"], name: "idx_co_ownership_unique", unique: true
+    t.index ["primary_client_id"], name: "index_co_ownership_links_on_primary_client_id"
   end
 
   create_table "co_ownership_roles", force: :cascade do |t|
@@ -486,10 +516,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.datetime "updated_at", null: false
     t.string "initial_contact_folio"
     t.bigint "property_acquisition_method_id"
-    t.string "property_human_identifier"
+    t.string "opportunity_identifier"
     t.jsonb "acquisition_details", default: {}
     t.bigint "operation_type_id"
     t.bigint "contract_signer_type_id"
+    t.datetime "opportunity_identifier_generated_at"
     t.index "((acquisition_details ->> 'state'::text))", name: "idx_icf_state"
     t.index "((general_conditions ->> 'owner_or_representative_name'::text))", name: "idx_icf_owner_name"
     t.index ["acquisition_details"], name: "index_initial_contact_forms_on_acquisition_details", using: :gin
@@ -504,6 +535,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.index ["general_conditions"], name: "index_initial_contact_forms_on_general_conditions", using: :gin
     t.index ["initial_contact_folio"], name: "index_initial_contact_forms_on_initial_contact_folio", unique: true
     t.index ["operation_type_id"], name: "index_initial_contact_forms_on_operation_type_id"
+    t.index ["opportunity_identifier"], name: "index_initial_contact_forms_on_opportunity_identifier", unique: true
     t.index ["property_acquisition_method_id"], name: "index_initial_contact_forms_on_property_acquisition_method_id"
     t.index ["property_id"], name: "index_initial_contact_forms_on_property_id"
     t.index ["status"], name: "index_initial_contact_forms_on_status"
@@ -534,6 +566,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.integer "sort_order", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "property_category", null: false
     t.index ["category"], name: "index_land_use_types_on_category"
     t.index ["code"], name: "index_land_use_types_on_code", unique: true
     t.index ["parent_id", "active"], name: "index_land_use_types_on_parent_id_and_active"
@@ -705,6 +738,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.string "land_use"
     t.string "human_readable_identifier"
     t.bigint "land_use_type_id"
+    t.string "detailed_land_use"
+    t.string "property_id", null: false
+    t.datetime "property_id_generated_at"
     t.index ["available_from"], name: "index_properties_on_available_from"
     t.index ["city", "state", "municipality"], name: "index_properties_location"
     t.index ["co_ownership_type_id"], name: "index_properties_on_co_ownership_type_id"
@@ -716,6 +752,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
     t.index ["neighborhood"], name: "index_properties_on_neighborhood"
     t.index ["parking_spaces"], name: "index_properties_on_parking_spaces"
     t.index ["price"], name: "index_properties_on_price"
+    t.index ["property_id"], name: "index_properties_on_property_id", unique: true
     t.index ["property_type_id"], name: "index_properties_on_property_type_id"
     t.index ["published_at"], name: "index_properties_on_published_at"
     t.index ["street"], name: "index_properties_on_street"
@@ -977,6 +1014,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
   add_foreign_key "business_transactions", "users", column: "listing_agent_id"
   add_foreign_key "business_transactions", "users", column: "selling_agent_id"
   add_foreign_key "clients", "users"
+  add_foreign_key "co_ownership_links", "business_transactions"
+  add_foreign_key "co_ownership_links", "clients", column: "co_owner_client_id"
+  add_foreign_key "co_ownership_links", "clients", column: "primary_client_id"
+  add_foreign_key "co_ownership_links", "initial_contact_forms"
   add_foreign_key "commissions", "agents"
   add_foreign_key "commissions", "properties"
   add_foreign_key "contracts", "clients"
@@ -991,13 +1032,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_23_024915) do
   add_foreign_key "document_submissions", "users", column: "uploaded_by_id"
   add_foreign_key "document_submissions", "users", column: "validated_by_id"
   add_foreign_key "document_validity_rules", "document_types"
+  add_foreign_key "initial_contact_forms", "agents"
   add_foreign_key "initial_contact_forms", "business_transactions"
   add_foreign_key "initial_contact_forms", "clients"
   add_foreign_key "initial_contact_forms", "contract_signer_types"
   add_foreign_key "initial_contact_forms", "operation_types"
   add_foreign_key "initial_contact_forms", "properties"
   add_foreign_key "initial_contact_forms", "property_acquisition_methods"
-  add_foreign_key "initial_contact_forms", "users", column: "agent_id"
   add_foreign_key "land_use_types", "land_use_types", column: "parent_id"
   add_foreign_key "menu_items", "menu_items", column: "parent_id"
   add_foreign_key "offers", "business_transactions"

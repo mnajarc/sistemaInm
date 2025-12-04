@@ -1,0 +1,182 @@
+<turbo-stream action="update" target="modal">
+  <template>
+    <div class="modal modal-lg" id="propertyModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-house-fill"></i> Editar Datos de Propiedad
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          
+          <form action="<%= update_property_from_modal_initial_contact_form_path(@form) %>" 
+                method="POST"
+                class="needs-validation"
+                id="propertyForm">
+            
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            
+            <div class="modal-body">
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Importante:</strong> La dirección se usa para generar el Property ID único 
+                que identifica esta propiedad geográficamente de forma permanente.
+              </div>
+              
+              <!-- CALLE Y NÚMERO -->
+              <div class="row mb-3">
+                <div class="col-md-8">
+                  <label class="form-label fw-bold">Calle/Avenida *</label>
+                  <input type="text" 
+                         name="property_info[street]" 
+                         class="form-control" 
+                         placeholder="Ej: Av. Insurgentes Sur"
+                         value="<%= @street %>"
+                         required>
+                  <small class="text-muted">Nombre completo de la calle o avenida</small>
+                </div>
+                
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Número Exterior *</label>
+                  <input type="text" 
+                         name="property_info[exterior_number]" 
+                         class="form-control" 
+                         placeholder="1500"
+                         value="<%= @exterior_number %>"
+                         required>
+                </div>
+              </div>
+              
+              <!-- INTERIOR, COLONIA, POSTAL -->
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label">Número Interior</label>
+                  <input type="text" 
+                         name="property_info[interior_number]" 
+                         class="form-control" 
+                         placeholder="Ej: 301, Depto A"
+                         value="<%= @interior_number %>">
+                  <small class="text-muted">Opcional</small>
+                </div>
+                
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Colonia/Barrio *</label>
+                  <input type="text" 
+                         name="property_info[neighborhood]" 
+                         class="form-control" 
+                         placeholder="Del Valle"
+                         value="<%= @neighborhood %>"
+                         required>
+                </div>
+                
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Código Postal *</label>
+                  <input type="text" 
+                         name="property_info[postal_code]" 
+                         class="form-control" 
+                         placeholder="03100"
+                         value="<%= @postal_code %>"
+                         pattern="[0-9]{5}"
+                         maxlength="5"
+                         required>
+                </div>
+              </div>
+              
+              <!-- MUNICIPIO Y CIUDAD -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Municipio/Alcaldía *</label>
+                  <input type="text" 
+                         name="property_info[municipality]" 
+                         class="form-control" 
+                         placeholder="Benito Juárez"
+                         value="<%= @municipality %>"
+                         required>
+                </div>
+                
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Ciudad *</label>
+                  <input type="text" 
+                         name="property_info[city]" 
+                         class="form-control" 
+                         placeholder="Ciudad de México"
+                         value="<%= @city %>"
+                         required>
+                </div>
+              </div>
+              
+              <!-- ESTADO Y USO DE SUELO -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Estado *</label>
+                  <select name="acquisition_details[state]" 
+                          class="form-select"
+                          required>
+                    <option value="">Selecciona un estado...</option>
+                    <% MexicanState.active.order(:sort_order).each do |state| %>
+                      <option value="<%= state.name %>" 
+                              <%= 'selected' if @state == state.name %>>
+                        <%= state.name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+                
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Uso de Suelo *</label>
+                  <select name="acquisition_details[land_use]" 
+                          class="form-select"
+                          required>
+                    <option value="">Selecciona uso de suelo...</option>
+                    <% LandUseType.active.order(:sort_order).each do |land_use| %>
+                      <option value="<%= land_use.code %>" 
+                              <%= 'selected' if @land_use == land_use.code %>>
+                        <%= land_use.name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- PREVIEW DE PROPERTY ID -->
+              <div class="alert alert-success mt-4">
+                <strong>🗺️ Identificador de Propiedad (automático):</strong>
+                <div class="font-monospace mt-2 fs-5">
+                  <% street_norm = @street.to_s.downcase.gsub(/[^a-z0-9]/, '').slice(0, 15) %>
+                  <% ext_norm = @exterior_number.to_s.gsub(/[^a-z0-9]/, '').upcase.slice(0, 6) %>
+                  <% municipality_norm = @municipality.to_s.downcase.gsub(/[^a-z0-9]/, '').slice(0, 8) %>
+                  <%= "#{street_norm.upcase}-#{ext_norm}-#{municipality_norm.upcase}-..." %>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                  Este ID es permanente y no cambia aunque cambien clientes o propietarios
+                </small>
+              </div>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Guardar Propiedad
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      document.addEventListener('turbo:load', function() {
+        const modal = new bootstrap.Modal(document.getElementById('propertyModal'), {
+          backdrop: 'static',
+          keyboard: false
+        });
+        modal.show();
+        
+        document.getElementById('propertyModal').addEventListener('hidden.bs.modal', function() {
+          Turbo.visit(location);
+        });
+      });
+    </script>
+  </template>
+</turbo-stream>

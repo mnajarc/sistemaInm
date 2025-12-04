@@ -1,11 +1,12 @@
+# app/models/property.rb
 class Property < ApplicationRecord
-  # Relaciones existentes
+  # ═══════════════════════════════════════════════════════════════════════════
+  # RELACIONES EXISTENTES (TODO LO QUE TENÍAS)
+  # ═══════════════════════════════════════════════════════════════════════════
   belongs_to :user
   belongs_to :property_type, optional: true
   belongs_to :co_ownership_type, optional: true
   belongs_to :land_use_type, optional: true
-
-  before_validation :generate_full_address
 
   has_many :exclusivities, class_name: "PropertyExclusivity", dependent: :destroy
   has_many :commissions, dependent: :nullify
@@ -14,16 +15,28 @@ class Property < ApplicationRecord
           -> { where(business_statuses: { name: [ "available", "reserved" ] }).joins(:business_status) },
           class_name: "BusinessTransaction"
 
-
-  # NUEVAS RELACIONES - AGREGAR ESTAS LÍNEAS:
-
-  # Relaciones a través de business_transactions
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVAS RELACIONES - PARA IDENTIFICADORES
+  # ═══════════════════════════════════════════════════════════════════════════
+  has_many :initial_contact_forms, dependent: :nullify
   has_many :offering_clients, through: :business_transactions
   has_many :acquiring_clients, through: :business_transactions
 
-  # Callback para generar address automáticamente
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CALLBACKS EXISTENTES
+  # ═══════════════════════════════════════════════════════════════════════════
 
-  # Validaciones existentes...
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVO CALLBACK - PARA GENERAR PROPERTY ID
+  # ═══════════════════════════════════════════════════════════════════════════
+  before_validation :default_interior_number
+  before_validation :generate_full_address
+  before_validation :generate_property_id_on_create
+  before_save :sanitize_input
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # VALIDACIONES EXISTENTES (TODO LO QUE TENÍAS)
+  # ═══════════════════════════════════════════════════════════════════════════
   validates :price, :address, :city, :state, :postal_code,
             :built_area_m2, :lot_area_m2, presence: true
   validates :built_area_m2, :lot_area_m2, numericality: { greater_than: 0 }
@@ -35,26 +48,29 @@ class Property < ApplicationRecord
   validates :description, presence: true, length: { maximum: 10000 }
 
   validates :street, :exterior_number, :neighborhood, :municipality, :country,
-          presence: true, if: -> { street.present? }
+            presence: true, if: -> { street.present? }
 
   validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
-  
   validates :human_readable_identifier, uniqueness: true, allow_blank: true
-  
-
-
-
-  before_save :sanitize_input
   validates :property_type_id, presence: true
 
-  validates :street, :exterior_number, :neighborhood, :municipality, :country, presence: true, if: -> { street.present? }
-  validates :land_use, inclusion: { in: %w[habitacional comercial mixto industrial otros], allow_blank: true }
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVAS VALIDACIONES - PARA PROPERTY ID Y DEDUPLICACIÓN
+  # ═══════════════════════════════════════════════════════════════════════════
+  # validates :property_id, presence: true, uniqueness: true
 
-  # NUEVOS SCOPES - AGREGAR ESTOS:
+  # Validar ubicación única - PREVENIR DUPLICADOS GEOGRÁFICOS
+  validates :street, :exterior_number, :neighborhood, :municipality, :state, presence: true
+  # ✅ ÚNICA validación de uniqueness - el property_id lo contiene TODO
+  validates :property_id, presence: true, uniqueness: { message: "Ya existe una propiedad con esta ubicación exacta" }
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SCOPES EXISTENTES (TODO LO QUE TENÍAS)
+  # ═══════════════════════════════════════════════════════════════════════════
   scope :by_type, ->(type) { joins(:property_type).where(property_types: { name: type }) }
   scope :published, -> { where.not(published_at: nil) }
-
   scope :with_active_business, -> { joins(:business_transactions).merge(BusinessTransaction.active) }
+  
   scope :available_for_sale, -> { joins(business_transactions: :operation_type)
                                     .where(operation_types: { name: "sale" })
                                     .merge(BusinessTransaction.active) }
@@ -62,34 +78,20 @@ class Property < ApplicationRecord
                                      .where(operation_types: { name: "rent" })
                                      .merge(BusinessTransaction.active) }
 
-
   scope :with_extensions, -> { where(has_extensions: true) }
   scope :by_municipality, ->(mun) { where(municipality: mun) }
   scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
   scope :residential, -> { where(land_use: 'habitacional') }
 
-  # ✅ SCOPES NUEVOS
-  scope :residential, -> { where(land_use: 'habitacional') }
-  scope :with_extensions, -> { where(has_extensions: true) }
-  scope :by_municipality, ->(mun) { where(municipality: mun) }
-  scope :by_neighborhood, ->(neigh) { where(neighborhood: neigh) }
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVO SCOPE - PARA BUSCAR POR PROPERTY ID
+  # ═══════════════════════════════════════════════════════════════════════════
+  scope :by_property_id, ->(id) { where(property_id: id) }
   scope :by_identifier, ->(id) { where(human_readable_identifier: id) }
 
-  # ✅ MÉTODOS NUEVOS
-  def full_address
-    # Generar dirección completa si tiene datos desglosados
-    if street.present? || exterior_number.present?
-      self.address = [
-        "#{street} #{exterior_number}".strip,
-        interior_number.presence,
-        neighborhood,
-        municipality,
-        state,
-        country
-      ].compact.join(', ')
-    end
-  end
-
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MÉTODOS PÚBLICOS EXISTENTES (TODO LO QUE TENÍAS)
+  # ═══════════════════════════════════════════════════════════════════════════
 
   def land_use_display
     case land_use
@@ -111,7 +113,6 @@ class Property < ApplicationRecord
     current_business_transaction&.current_agent
   end
 
-  # Métodos de conveniencia
   def current_status
     primary_business_transaction&.business_status&.display_name || "Sin estado"
   end
@@ -123,8 +124,6 @@ class Property < ApplicationRecord
   def available_operations
     business_transactions.active.joins(:operation_type).pluck("operation_types.display_name")
   end
-
-
 
   def land_use_human
     case land_use
@@ -157,7 +156,6 @@ class Property < ApplicationRecord
                                :start_date, :price)
   end
 
-  # ✅ MÉTODOS DE ESTADO POR OPERACIÓN
   def available_for_operation?(operation_type)
     !has_active_transaction_for?(operation_type)
   end
@@ -181,14 +179,13 @@ class Property < ApplicationRecord
   def has_co_ownership?
     co_ownership_type.present?
   end
-  
+
   def co_ownership_display
     return "Propietario único" unless has_co_ownership?
     
     details = co_owners_details.present? ? " - #{co_owners_details}" : ""
     "#{co_ownership_type.display_name}#{details}"
   end
-
 
   def current_agent_for_operation(operation_type)
     transaction = business_transactions
@@ -200,7 +197,6 @@ class Property < ApplicationRecord
     transaction&.current_agent
   end
 
-  # Información para mostrar en vistas
   def operation_status_summary
     summary = {}
 
@@ -229,10 +225,112 @@ class Property < ApplicationRecord
     summary
   end
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVOS MÉTODOS - PARA PROPERTY ID
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Generar PROPERTY ID en callback al crear
+  def generate_property_id_on_create
+    return if property_id.present?
+    self.interior_number = "0" if interior_number.blank?
+
+
+    self.property_id = self.class.generate_geographic_id(
+      street,
+      exterior_number,
+      interior_number,
+      municipality,
+      state,
+      property_type&.name
+    )
+    self.property_id_generated_at = Time.current
+
+    Rails.logger.info "🗺️ Property ID generado: #{property_id}"
+  end
+
+  # Método estático: Generar ID geográfico (SOLO ubicación + tipo)
+  def self.generate_geographic_id(street, ext_num, interior_num, municipality, state, property_type = nil)
+    # 1. Normalizar calle
+    street_norm = I18n.transliterate(street.to_s)
+      .downcase
+      .gsub(/[^a-z0-9]/, '')
+      .slice(0, 15)
+
+    # 2. Normalizar número exterior
+    ext_norm = ext_num.to_s
+      .gsub(/[^a-z0-9]/, '')
+      .upcase
+      .slice(0, 6)
+
+    # 3. Normalizar número interior
+    interior_norm = interior_num.to_s
+      .gsub(/[^a-z0-9]/, '')
+      .upcase
+      .slice(0, 6)
+
+    # 4. Normalizar municipio
+    municipality_norm = I18n.transliterate(municipality.to_s)
+      .downcase
+      .gsub(/[^a-z0-9]/, '')
+      .slice(0, 8)
+
+    # 5. Código de estado
+    state_obj = MexicanState.find_by(name: state)
+    state_code = state_obj&.code || state.to_s.slice(0, 3).upcase
+
+    # 5. Código de tipo de propiedad
+    type_code = case property_type&.downcase
+                when /casa|vivienda|habitacion|unifamiliar/ then 'C'
+                when /departamento|apartamento|piso/ then 'D'
+                when /comercial|local|tienda/ then 'L'
+                when /bodega|industrial|nave/ then 'B'
+                when /terreno|lote/ then 'T'
+                when /oficina|consultorio/ then 'O'
+                else 'X'
+                end
+
+    # 7. Formato final: CALLE-NUMERO-MUNICIPIO-ESTADO-TIPO
+    "#{street_norm.upcase}-#{ext_norm}-#{interior_norm}-#{municipality_norm.upcase}-#{state_code}-#{type_code}"
+  end
+
+  # Búsqueda por UBICACIÓN EXACTA (para deduplicación)
+  def self.find_by_location(street, ext_num, neighborhood, municipality, state)
+    find_by(
+      street: street,
+      exterior_number: ext_num,
+      interior_number: int_num,
+      neighborhood: neighborhood,
+      municipality: municipality,
+      state: state,
+      country: 'México'
+    )
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # HELPERS EXISTENTES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  def full_address
+    "#{street} #{exterior_number}#{interior_number.present? ? " Int. #{interior_number}" : ""}, #{neighborhood}, #{postal_code} #{municipality}, #{state}, #{country}"
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ✅ NUEVO HELPER
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  def address_compact
+    "#{street} #{exterior_number}, #{municipality}, #{state}"
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MÉTODOS PRIVADOS (TODO LO QUE TENÍAS)
+  # ═══════════════════════════════════════════════════════════════════════════
   private
 
+  def default_interior_number
+    self.interior_number = "0" if interior_number.blank?
+  end
 
-  
   def generate_full_address
     # Generar dirección completa si tiene datos desglosados
     if street.present? || exterior_number.present?
@@ -245,7 +343,6 @@ class Property < ApplicationRecord
     end
   end
 
-
   def sanitize_input
     self.title = Rails::Html::FullSanitizer.new.sanitize(title) if title.present?
     self.description = Rails::Html::WhiteListSanitizer.new.sanitize(
@@ -255,3 +352,4 @@ class Property < ApplicationRecord
     ) if description.present?
   end
 end
+

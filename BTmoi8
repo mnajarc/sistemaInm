@@ -1,0 +1,1186 @@
++++++++++++++++++++++++++++++++++++++++++++++++\n_co_owner_fields.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<div class="co-owner-item border rounded p-3 mb-3" data-co-owners-target="item">
+  <div class="row align-items-center">
+    <div class="col-md-4">
+      <%= f.label :client_id, "Cliente", class: "form-label" %>
+      <%= f.select :client_id,
+                   options_from_collection_for_select(@clients, :id, :display_name),
+                   { prompt: "Seleccionar cliente..." },
+                   { class: "form-select",
+                     data: { action: "change->co-owners#updateClientName" } } %>
+    </div>
+
+    <div class="col-md-3">
+      <%= f.label :person_name, "O escribir nombre", class: "form-label" %>
+      <%= f.text_field :person_name,
+                       placeholder: "Nombre completo",
+                       class: "form-control" %>
+    </div>
+
+    <div class="col-md-2">
+      <%= f.label :percentage, "Porcentaje", class: "form-label" %>
+      <div class="input-group">
+        <%= f.number_field :percentage,
+                           class: "form-control",
+                           step: 0.01,
+                           min: 0,
+                           max: 100,
+                           value: f.object.percentage || 100,
+                           data: { action: "input->co-owners#updatePercentages" } %>
+        <span class="input-group-text">%</span>
+      </div>
+    </div>
+
+    <div class="col-md-2">
+      <%= f.label :role, "Rol", class: "form-label" %>
+      <%= f.select :role, @roles, { prompt: "Seleccionar..." }, { class: "form-select" } %>
+    </div>
+
+    <div class="col-md-1">
+      <label class="form-label">&nbsp;</label>
+      <button type="button"
+              class="btn btn-outline-danger btn-sm d-block"
+              data-action="click->co-owners#removeCoOwner"
+              title="Eliminar">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>
+  </div>
+</div>
++++++++++++++++++++++++++++++++++++++++++++++++\n_form.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<!-- app/views/business_transactions/_form.html.erb -->
+<%= form_with model: transaction, 
+             local: true,
+             class: "needs-validation",
+             data: { turbo: false } do |form| %>
+
+  <% if transaction.errors.any? %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <h6 class="alert-heading">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <%= pluralize(transaction.errors.count, "error") %> impidieron guardar la transacción:
+      </h6>
+      <ul class="mb-0">
+        <% transaction.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% end %>
+
+  <!-- SECCIÓN 1: DATOS BÁSICOS -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>1. Datos de la Transacción</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <%= form.label :operation_type_id, "Tipo de Operación", class: "form-label required" %>
+          <%= form.select :operation_type_id, 
+                         options_from_collection_for_select(@operation_types, :id, :display_name, transaction.operation_type_id), 
+                         { prompt: "Seleccione tipo de operación..." }, 
+                         { class: "form-select", required: true } %>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <%= form.label :start_date, "Fecha de Inicio", class: "form-label required" %>
+          <%= form.date_field :start_date, 
+                             class: "form-control", 
+                             required: true %>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <%= form.label :business_status_id, "Estado", class: "form-label" %>
+          <%= form.select :business_status_id, 
+                         options_from_collection_for_select(@business_statuses, :id, :display_name, transaction.business_status_id), 
+                         {}, { class: "form-select" } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: PROPIEDAD -->
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0"><i class="fas fa-home me-2"></i>2. Propiedad</h5>
+    </div>
+    <div class="card-body">
+      <%= form.label :property_id, "Seleccionar Propiedad", class: "form-label required" %>
+      <%= form.select :property_id, 
+                     options_from_collection_for_select(@properties, :id, :address, transaction.property_id), 
+                     { prompt: "Buscar por dirección..." },
+                     { class: "form-select", required: true } %>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3: CLIENTES -->
+  <div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+      <h5 class="mb-0"><i class="fas fa-users me-2"></i>3. Clientes de la Transacción</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= form.label :offering_client_id, "Cliente Ofertante (Vendedor)", class: "form-label required" %>
+          <%= form.select :offering_client_id, 
+                         options_from_collection_for_select(@clients, :id, :display_name, transaction.offering_client_id), 
+                         { prompt: "Seleccione cliente..." },
+                         { class: "form-select", required: true } %>
+          <small class="text-muted">Cliente que ofrece/vende la propiedad</small>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= form.label :acquiring_client_id, "Cliente Adquiriente (Comprador)", class: "form-label" %>
+          <%= form.select :acquiring_client_id, 
+                         options_from_collection_for_select(@clients, :id, :display_name, transaction.acquiring_client_id), 
+                         { prompt: "Seleccione cliente (opcional)..." },
+                         { class: "form-select" } %>
+          <small class="text-muted">Cliente que compra/adquiere (dejar vacío si aún no existe)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4: COPROPIEDAD -->
+  <div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0"><i class="fas fa-users me-2"></i>4. Propietarios/Copropietarios</h5>
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <%= form.label :co_ownership_type_id, "Tipo de Copropiedad", class: "form-label required" %>
+          <%= form.select :co_ownership_type_id, 
+                         options_from_collection_for_select(@co_ownership_types, :id, :display_name, transaction.co_ownership_type_id),
+                         { prompt: "Seleccione tipo de copropiedad..." },
+                         { class: "form-select", required: true } %>
+        </div>
+      </div>
+
+      <!-- Lista de copropietarios existentes -->
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Cliente/Nombre</th>
+              <th>Porcentaje</th>
+              <th>Rol</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if transaction.business_transaction_co_owners.any? %>
+              <% transaction.business_transaction_co_owners.each do |co_owner| %>
+                <tr>
+                  <td><%= co_owner.display_name %></td>
+                  <td><%= co_owner.percentage %>%</td>
+                  <td><span class="badge bg-secondary"><%= co_owner.role&.humanize %></span></td>
+                  <td>
+                    <%= link_to "Editar", "#", class: "btn btn-sm btn-outline-primary" %>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td colspan="4" class="text-center text-muted">
+                  <em>No hay copropietarios registrados</em>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 5: DETALLES FINANCIEROS -->
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>5. Detalles Financieros</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= form.label :price, "Precio de Operación", class: "form-label required" %>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <%= form.number_field :price, 
+                                 class: "form-control", 
+                                 step: 0.01, 
+                                 min: 0,
+                                 required: true %>
+          </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= form.label :commission_percentage, "Comisión (%)", class: "form-label" %>
+          <div class="input-group">
+            <%= form.number_field :commission_percentage, 
+                                 class: "form-control", 
+                                 step: 0.01, 
+                                 min: 0, 
+                                 max: 100 %>
+            <span class="input-group-text">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <%= form.label :notes, "Notas", class: "form-label" %>
+          <%= form.text_area :notes, 
+                            class: "form-control", 
+                            rows: 3,
+                            placeholder: "Notas adicionales sobre la transacción..." %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTONES DE ACCIÓN -->
+  <div class="d-flex justify-content-between mb-4">
+    <%= link_to "Cancelar", transaction.persisted? ? business_transaction_path(transaction) : business_transactions_path, 
+               class: "btn btn-secondary btn-lg" %>
+    
+    <%= form.submit transaction.persisted? ? "Actualizar Transacción" : "Crear Transacción", 
+                   class: "btn btn-primary btn-lg px-5" %>
+  </div>
+
+<% end %>+++++++++++++++++++++++++++++++++++++++++++++++\nedit.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>
+    <i class="bi bi-pencil"></i>
+    Editar Transacción #<%= @transaction.id %>
+  </h2>
+  <%= link_to @transaction, class: "btn btn-outline-secondary" do %>
+    <i class="bi bi-arrow-left"></i> Volver
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <%= render 'form', transaction: @transaction %>
+  </div>
+</div>
++++++++++++++++++++++++++++++++++++++++++++++++\nindex.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">
+    <i class="bi bi-briefcase"></i>
+    Transacciones de Negocio
+  </h2>
+
+  <% if policy(BusinessTransaction).new? %>
+    <%= link_to new_business_transaction_path, class: "btn btn-primary" do %>
+      <i class="bi bi-plus-circle"></i>
+      Nueva Transacción
+    <% end %>
+  <% end %>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">
+          Lista de Transacciones
+          <span class="badge bg-secondary ms-2"><%= @transactions.count %></span>
+        </h5>
+      </div>
+      <div class="card-body">
+        <% if @transactions.any? %>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Propiedad</th>
+                  <th>Tipo</th>
+                  <th>Estado</th>
+                  <th>Cliente Ofertante</th>
+                  <th>Precio</th>
+                  <th>Creado por</th>
+                  <th>Agente</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @transactions.each do |transaction| %>
+                  <tr>
+                    <td>
+                      <strong><%= transaction.property.title %></strong><br>
+                      <small class="text-muted"><%= transaction.property.address %></small>
+                    </td>
+                    <td>
+                      <span class="badge bg-info">
+                        <%= transaction.operation_type.display_name %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge bg-<%= transaction.business_status.color %>">
+                        <%= transaction.business_status.display_name %>
+                      </span>
+                    </td>
+                    <td><%= transaction.offering_client.name %></td>
+                    <td>
+                      <strong>$<%= number_with_delimiter(transaction.price) %></strong>
+                    </td>
+                    <td>
+                      <small>
+                        <%= transaction.listing_agent.email %><br>
+                        <span class="badge bg-secondary">
+                          <%= transaction.listing_agent.role.display_name %>
+                        </span>
+                      </small>
+                    </td>
+                    <td>
+                      <small>
+                        <%= transaction.current_agent.email %><br>
+                        <span class="text-muted">Actual</span>
+                      </small>
+                    </td>
+                    <td>
+                      <%= transaction.start_date.strftime("%d/%m/%Y") %>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <% if policy(transaction).show? %>
+                          <%= link_to transaction, class: "btn btn-outline-primary btn-sm" do %>
+                            <i class="bi bi-eye"></i>
+                          <% end %>
+                        <% end %>
+                        
+                        <% if policy(transaction).edit? %>
+                          <%= link_to edit_business_transaction_path(transaction), class: "btn btn-outline-secondary btn-sm" do %>
+                            <i class="bi bi-pencil"></i>
+                          <% end %>
+                        <% end %>
+                        
+                        <% if policy(transaction).destroy? %>
+                          <%= link_to transaction, method: :delete, 
+                              data: { confirm: '¿Estás seguro?' }, 
+                              class: "btn btn-outline-danger btn-sm" do %>
+                            <i class="bi bi-trash"></i>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center py-5">
+            <i class="bi bi-briefcase display-1 text-muted"></i>
+            <h4 class="mt-3">No hay transacciones</h4>
+            <p class="text-muted">
+              <% if policy(BusinessTransaction).new? %>
+                Crea tu primera transacción de negocio.
+              <% else %>
+                No tienes transacciones asignadas.
+              <% end %>
+            </p>
+            <% if policy(BusinessTransaction).new? %>
+              <%= link_to new_business_transaction_path, class: "btn btn-primary" do %>
+                <i class="bi bi-plus-circle"></i>
+                Nueva Transacción
+              <% end %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
++++++++++++++++++++++++++++++++++++++++++++++++\nnew.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="mb-1">Nueva Transacción de Negocio</h2>
+          <p class="text-muted mb-0">Complete todos los datos para crear la transacción</p>
+        </div>
+        <%= link_to "← Volver", business_transactions_path, class: "btn btn-outline-secondary" %>
+      </div>
+
+      <!-- FORM HTML PURO - SIN TURBO -->
+      <form action="<%= business_transactions_path %>" method="POST" class="needs-validation" novalidate data-turbo="false">
+        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <input type="hidden" name="utf8" value="✓">
+        
+        <div data-controller="co-owners">
+
+        <!-- SECCIÓN 1: DATOS BÁSICOS -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>1. Datos de la Transacción</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <label for="operation_type_id" class="form-label required">Tipo de Operación</label>
+                <select name="business_transaction[operation_type_id]" id="operation_type_id" class="form-select" required>
+                  <option value="">Seleccione tipo de operación...</option>
+                  <% @operation_types.each do |op| %>
+                    <option value="<%= op.id %>"><%= op.display_name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="start_date" class="form-label required">Fecha de Inicio</label>
+                <input type="date" name="business_transaction[start_date]" id="start_date" class="form-control" value="<%= Date.current %>" required>
+              </div>
+              <div class="col-md-4">
+                <label for="business_status_id" class="form-label">Estado</label>
+                <select name="business_transaction[business_status_id]" id="business_status_id" class="form-select">
+                  <option value="">Seleccione estado...</option>
+                  <% @business_statuses.each do |status| %>
+                    <option value="<%= status.id %>" <%= "selected" if status.name == 'available' %>>
+                      <%= status.display_name %>
+                    </option>
+                  <% end %>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: PROPIEDAD -->
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-home me-2"></i>2. Propiedad</h5>
+          </div>
+          <div class="card-body">
+            <label for="property_id" class="form-label required">Seleccionar Propiedad</label>
+            <div class="input-group">
+              <select name="business_transaction[property_id]" id="property_id" class="form-select" required>
+                <option value="">Buscar por dirección...</option>
+                <% @properties.each do |prop| %>
+                  <option value="<%= prop.id %>"><%= prop.address %></option>
+                <% end %>
+              </select>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newPropertyModal">
+                <i class="bi bi-plus-circle"></i> Nueva
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2.5: CLIENTES -->
+        <div class="card mb-4">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>2.5. Clientes de la Transacción</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <!-- Cliente Ofertante -->
+              <div class="col-md-6">
+                <label for="offering_client_id" class="form-label required">Cliente Ofertante (Vendedor)</label>
+                <div class="input-group">
+                  <select name="business_transaction[offering_client_id]" id="offering_client_id" class="form-select" required>
+                    <option value="">Seleccione cliente...</option>
+                    <% @clients.each do |client| %>
+                      <option value="<%= client.id %>"><%= client.display_name %></option>
+                    <% end %>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newClientModal">
+                    <i class="bi bi-plus-circle"></i> Nuevo
+                  </button>
+                </div>
+                <small class="text-muted">Cliente que ofrece/vende la propiedad</small>
+              </div>
+
+              <!-- Cliente Adquiriente -->
+              <div class="col-md-6">
+                <label for="acquiring_client_id" class="form-label">Cliente Adquiriente (Comprador)</label>
+                <div class="input-group">
+                  <select name="business_transaction[acquiring_client_id]" id="acquiring_client_id" class="form-select">
+                    <option value="">Seleccione cliente (opcional)...</option>
+                    <% @clients.each do |client| %>
+                      <option value="<%= client.id %>"><%= client.display_name %></option>
+                    <% end %>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newClientModal">
+                    <i class="bi bi-plus-circle"></i> Nuevo
+                  </button>
+                </div>
+                <small class="text-muted">Cliente que compra/adquiere (dejar vacío si aún no existe)</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: COPROPIEDAD -->
+        <div class="card mb-4">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>3. Propietarios/Copropietarios</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="co_ownership_type_id" class="form-label required">Tipo de Copropiedad</label>
+                <select name="business_transaction[co_ownership_type_id]" id="co_ownership_type_id" class="form-select" required data-action="change->co-owners#updateCoOwnershipType">
+                  <option value="">Seleccione tipo de copropiedad...</option>
+                  <% @co_ownership_types.each do |type| %>
+                    <option value="<%= type.id %>"><%= type.display_name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-success me-2" data-action="click->co-owners#autoSetup">
+                  <i class="fas fa-magic me-1"></i> Setup Automático
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-action="click->co-owners#addCoOwner">
+                  <i class="fas fa-plus me-1"></i> Agregar
+                </button>
+              </div>
+            </div>
+
+            <!-- Lista de copropietarios -->
+            <div id="co-owners-section" data-co-owners-target="container">
+              <!-- Los co-owners se renderizan aquí -->
+              <div class="co-owner-item border rounded p-3 mb-3" data-co-owners-target="item">
+                <div class="row align-items-center">
+                  <div class="col-md-4">
+                    <label class="form-label">Cliente</label>
+                    <select name="business_transaction[business_transaction_co_owners_attributes][][client_id]" class="form-select">
+                      <option value="">Seleccionar cliente...</option>
+                      <% @clients.each do |client| %>
+                        <option value="<%= client.id %>"><%= client.display_name %></option>
+                      <% end %>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">O escribir nombre</label>
+                    <input type="text" name="business_transaction[business_transaction_co_owners_attributes][][person_name]" placeholder="Nombre completo" class="form-control">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Porcentaje</label>
+                    <div class="input-group">
+                      <input type="number" name="business_transaction[business_transaction_co_owners_attributes][][percentage]" class="form-control" step="0.01" min="0" max="100" value="100" data-action="input->co-owners#updatePercentages">
+                      <span class="input-group-text">%</span>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Rol</label>
+                    <select name="business_transaction[business_transaction_co_owners_attributes][][role]" class="form-select">
+                      <option value="propietario">Propietario</option>
+                      <option value="vendedor">Vendedor</option>
+                      <option value="conyuge">Cónyuge</option>
+                      <option value="heredero">Heredero</option>
+                    </select>
+                  </div>
+                  <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-danger btn-sm d-block" data-action="click->co-owners#removeCoOwner">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Info de porcentajes -->
+            <div class="mt-3 p-3 bg-light rounded">
+              <div class="row text-center">
+                <div class="col-md-4">
+                  <small class="text-muted">Total Asignado:</small>
+                  <div class="fw-bold" data-co-owners-target="totalPercentage">0%</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Disponible:</small>
+                  <div class="fw-bold" data-co-owners-target="remainingPercentage">100%</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Copropietarios:</small>
+                  <div class="fw-bold" data-co-owners-target="totalCount">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 4: DETALLES FINANCIEROS -->
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>4. Detalles Financieros</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <label for="price" class="form-label required">Precio de Operación</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" name="business_transaction[price]" id="price" class="form-control" step="0.01" min="0" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="commission_percentage" class="form-label">Comisión (%)</label>
+                <div class="input-group">
+                  <input type="number" name="business_transaction[commission_percentage]" id="commission_percentage" class="form-control" step="0.01" min="0" max="100">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="d-flex justify-content-between mb-4">
+          <%= link_to "Cancelar", business_transactions_path, class: "btn btn-secondary btn-lg" %>
+          <button type="submit" class="btn btn-primary btn-lg px-5">Crear Transacción</button>
+        </div>
+
+        </div> <!-- cierre data-controller -->
+      </form> <!-- cierre form HTML puro -->
+
+      <!-- MODAL: Crear Nueva Propiedad -->
+      <div class="modal fade" id="newPropertyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-house-add"></i> Crear Nueva Propiedad</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="newPropertyForm">
+                <div class="mb-3">
+                  <label for="prop_title" class="form-label">Título</label>
+                  <input type="text" id="prop_title" class="form-control" placeholder="Ej: Casa moderna">
+                </div>
+                <div class="mb-3">
+                  <label for="prop_type" class="form-label">Tipo de Propiedad</label>
+                  <select id="prop_type" class="form-select">
+                    <option value="">Selecciona tipo</option>
+                    <% @property_types.each do |type| %>
+                      <option value="<%= type.id %>"><%= type.display_name %></option>
+                    <% end %>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="prop_description" class="form-label">Descripción</label>
+                  <textarea id="prop_description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prop_price" class="form-label">Precio</label>
+                      <input type="number" id="prop_price" class="form-control" step="0.01" min="0">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prop_built" class="form-label">Área Construida (m²)</label>
+                      <input type="number" id="prop_built" class="form-control" step="0.01" min="0">
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prop_lot" class="form-label">Área Terreno (m²)</label>
+                      <input type="number" id="prop_lot" class="form-control" step="0.01" min="0">
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="mb-3">
+                      <label for="prop_beds" class="form-label">Recámaras</label>
+                      <input type="number" id="prop_beds" class="form-control" min="0">
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="mb-3">
+                      <label for="prop_baths" class="form-label">Baños</label>
+                      <input type="number" id="prop_baths" class="form-control" min="0">
+                    </div>
+                  </div>
+                </div>
+                <hr>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label for="prop_street" class="form-label">Calle</label>
+                      <input type="text" id="prop_street" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="mb-3">
+                      <label for="prop_ext" class="form-label">No. Ext</label>
+                      <input type="text" id="prop_ext" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="mb-3">
+                      <label for="prop_int" class="form-label">No. Int</label>
+                      <input type="text" id="prop_int" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label for="prop_cp" class="form-label">CP</label>
+                      <input type="text" id="prop_cp" class="form-control">
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label for="prop_neighborhood" class="form-label">Colonia</label>
+                      <input type="text" id="prop_neighborhood" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label for="prop_municipality" class="form-label">Municipio</label>
+                      <input type="text" id="prop_municipality" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label for="prop_state" class="form-label">Estado</label>
+                      <input type="text" id="prop_state" class="form-control">
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prop_city" class="form-label">Ciudad</label>
+                      <input type="text" id="prop_city" class="form-control">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="prop_country" class="form-label">País</label>
+                      <input type="text" id="prop_country" class="form-control">
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="savePropertyBtn">
+                <i class="bi bi-check"></i> Crear Propiedad
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Crear Nuevo Cliente -->
+      <div class="modal fade" id="newClientModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-person-plus"></i> Crear Nuevo Cliente</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="newClientForm">
+                <div class="mb-3">
+                  <label for="client_name" class="form-label">Nombre Completo</label>
+                  <input type="text" id="client_name" class="form-control" placeholder="Juan Pérez García" required>
+                </div>
+                <div class="mb-3">
+                  <label for="client_email" class="form-label">Email</label>
+                  <input type="email" id="client_email" class="form-control" placeholder="cliente@email.com" required>
+                </div>
+                <div class="mb-3">
+                  <label for="client_phone" class="form-label">Teléfono</label>
+                  <input type="tel" id="client_phone" class="form-control" placeholder="+52 5512345678">
+                </div>
+                <div class="mb-3">
+                  <label for="client_address" class="form-label">Domicilio</label>
+                  <input type="text" id="client_address" class="form-control" placeholder="Calle Principal 123">
+                </div>
+                <div class="mb-3">
+                  <input type="checkbox" id="client_active" class="form-check-input" checked>
+                  <label for="client_active" class="form-check-label">Cliente Activo</label>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="saveClientBtn">
+                <i class="bi bi-check"></i> Crear Cliente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JAVASCRIPT PARA LOS MODALES -->
+      <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ Script de modales cargado - FORM HTML PURO');
+
+        // GUARDAR NUEVA PROPIEDAD
+        document.getElementById('savePropertyBtn')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.append('property[title]', document.getElementById('prop_title').value);
+          formData.append('property[property_type_id]', document.getElementById('prop_type').value);
+          formData.append('property[description]', document.getElementById('prop_description').value);
+          formData.append('property[price]', document.getElementById('prop_price').value);
+          formData.append('property[built_area_m2]', document.getElementById('prop_built').value);
+          formData.append('property[lot_area_m2]', document.getElementById('prop_lot').value);
+          formData.append('property[bedrooms]', document.getElementById('prop_beds').value);
+          formData.append('property[bathrooms]', document.getElementById('prop_baths').value);
+          formData.append('property[street]', document.getElementById('prop_street').value);
+          formData.append('property[exterior_number]', document.getElementById('prop_ext').value);
+          formData.append('property[interior_number]', document.getElementById('prop_int').value);
+          formData.append('property[postal_code]', document.getElementById('prop_cp').value);
+          formData.append('property[neighborhood]', document.getElementById('prop_neighborhood').value);
+          formData.append('property[municipality]', document.getElementById('prop_municipality').value);
+          formData.append('property[state]', document.getElementById('prop_state').value);
+          formData.append('property[city]', document.getElementById('prop_city').value);
+          formData.append('property[country]', document.getElementById('prop_country').value);
+
+          fetch('<%= properties_path %>', {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json'
+            },
+            body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.id) {
+              const select = document.getElementById('property_id');
+              const option = new Option(data.title || data.address, data.id, true, true);
+              select.add(option);
+              bootstrap.Modal.getInstance(document.getElementById('newPropertyModal')).hide();
+              document.getElementById('newPropertyForm').reset();
+              alert('✅ Propiedad creada');
+            } else {
+              alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
+            }
+          })
+          .catch(e => alert('❌ Error de conexión'));
+        });
+
+        // GUARDAR NUEVO CLIENTE
+        document.getElementById('saveClientBtn')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.append('client[name]', document.getElementById('client_name').value);
+          formData.append('client[email]', document.getElementById('client_email').value);
+          formData.append('client[phone]', document.getElementById('client_phone').value);
+          formData.append('client[address]', document.getElementById('client_address').value);
+          formData.append('client[active]', document.getElementById('client_active').checked);
+
+          fetch('<%= clients_path %>', {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json'
+            },
+            body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.id) {
+              const name = data.display_name || data.name;
+              document.getElementById('offering_client_id').add(new Option(name, data.id, true, true));
+              document.getElementById('acquiring_client_id').add(new Option(name, data.id));
+              bootstrap.Modal.getInstance(document.getElementById('newClientModal')).hide();
+              document.getElementById('newClientForm').reset();
+              alert('✅ Cliente creado');
+            } else {
+              alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
+            }
+          })
+          .catch(e => alert('❌ Error de conexión'));
+        });
+      });
+      </script>
+
+    </div>
+  </div>
+</div>
++++++++++++++++++++++++++++++++++++++++++++++++\nshow.html.erb+++++++++++++++++++++++++++++++++++++++++++++++++++++
+<!-- app/views/business_transactions/show.html.erb -->
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="mb-1">
+            <i class="bi bi-briefcase-fill"></i>
+            Transacción #<%= @transaction.id %>
+          </h2>
+          <p class="text-muted mb-0">
+            <%= @transaction.operation_type&.display_name %> • 
+            <span class="badge bg-<%= @transaction.business_status&.name == 'available' ? 'success' : 'warning' %>">
+              <%= @transaction.business_status&.display_name %>
+            </span>
+          </p>
+        </div>
+        <div>
+          <%= link_to "Editar", edit_business_transaction_path(@transaction), class: "btn btn-primary me-2" %>
+          <%= link_to "Volver", business_transactions_path, class: "btn btn-secondary" %>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 1: INFORMACIÓN BÁSICA -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-4">Tipo de Operación:</dt>
+            <dd class="col-sm-8"><strong><%= @transaction.operation_type&.display_name %></strong></dd>
+
+            <dt class="col-sm-4">Estado:</dt>
+            <dd class="col-sm-8">
+              <span class="badge bg-<%= @transaction.business_status&.name == 'available' ? 'success' : 'warning' %>">
+                <%= @transaction.business_status&.display_name %>
+              </span>
+            </dd>
+
+            <dt class="col-sm-4">Fecha Inicio:</dt>
+            <dd class="col-sm-8"><%= @transaction.start_date&.strftime('%d/%m/%Y') %></dd>
+
+            <dt class="col-sm-4">Precio:</dt>
+            <dd class="col-sm-8">
+              <strong class="text-success">
+                $<%= number_with_delimiter(@transaction.price, delimiter: ',') %>
+              </strong>
+            </dd>
+
+            <dt class="col-sm-4">Comisión:</dt>
+            <dd class="col-sm-8"><%= @transaction.commission_percentage %>%</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 2: PROPIEDAD -->
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-home me-2"></i>Propiedad</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-4">Dirección:</dt>
+            <dd class="col-sm-8">
+              <strong><%= @transaction.property&.address %></strong>
+            </dd>
+
+            <dt class="col-sm-4">Tipo:</dt>
+            <dd class="col-sm-8"><%= @transaction.property&.property_type&.display_name %></dd>
+
+            <dt class="col-sm-4">Área Construida:</dt>
+            <dd class="col-sm-8"><%= @transaction.property&.built_area_m2 %> m²</dd>
+
+            <dt class="col-sm-4">Área Terreno:</dt>
+            <dd class="col-sm-8"><%= @transaction.property&.lot_area_m2 %> m²</dd>
+
+            <dt class="col-sm-4">Recámaras:</dt>
+            <dd class="col-sm-8"><%= @transaction.property&.bedrooms %></dd>
+
+            <dt class="col-sm-4">Baños:</dt>
+            <dd class="col-sm-8"><%= @transaction.property&.bathrooms %></dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: CLIENTES -->
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0"><i class="fas fa-users me-2"></i>Clientes</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-4">Cliente Ofertante:</dt>
+            <dd class="col-sm-8">
+              <strong><%= @transaction.offering_client&.display_name %></strong>
+              <br>
+              <small class="text-muted">
+                <%= @transaction.offering_client&.email %>
+              </small>
+            </dd>
+
+            <% if @transaction.acquiring_client.present? %>
+              <dt class="col-sm-4">Cliente Adquiriente:</dt>
+              <dd class="col-sm-8">
+                <strong><%= @transaction.acquiring_client&.display_name %></strong>
+                <br>
+                <small class="text-muted">
+                  <%= @transaction.acquiring_client&.email %>
+                </small>
+              </dd>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 4: COPROPIETARIOS -->
+      <% if @transaction.business_transaction_co_owners.any? %>
+        <div class="card mb-4">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Propietarios/Copropietarios</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Porcentaje</th>
+                    <th>Rol</th>
+                    <th>Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @transaction.business_transaction_co_owners.each do |co_owner| %>
+                    <tr>
+                      <td>
+                        <strong><%= co_owner.display_name %></strong>
+                      </td>
+                      <td>
+                        <span class="badge bg-info"><%= co_owner.percentage %>%</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary"><%= co_owner.role&.humanize %></span>
+                      </td>
+                      <td>
+                        <% if co_owner.is_primary? %>
+                          <span class="badge bg-success">Principal</span>
+                        <% else %>
+                          <span class="badge bg-secondary">Secundario</span>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Resumen de Porcentajes -->
+            <div class="alert alert-info mt-3">
+              <small>
+                <strong>Total Asignado:</strong> 
+                <%= @transaction.business_transaction_co_owners.sum(:percentage) %>%
+              </small>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- SECCIÓN 5: AGENTES -->
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-user-tie me-2"></i>Agentes</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-4">Agente Listador:</dt>
+            <dd class="col-sm-8">
+              <strong><%= @transaction.listing_agent&.email %></strong>
+            </dd>
+
+            <dt class="col-sm-4">Agente Actual:</dt>
+            <dd class="col-sm-8">
+              <strong><%= @transaction.current_agent&.email %></strong>
+            </dd>
+
+            <% if @transaction.selling_agent.present? %>
+              <dt class="col-sm-4">Agente Vendedor:</dt>
+              <dd class="col-sm-8">
+                <strong><%= @transaction.selling_agent&.email %></strong>
+              </dd>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 6: ACCIONES -->
+      <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Acciones</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2">
+            
+            <!-- Editar -->
+            <% if policy(@transaction).edit? %>
+              <%= link_to edit_business_transaction_path(@transaction), 
+                          class: "btn btn-primary" do %>
+                <i class="bi bi-pencil-square"></i> Editar
+              <% end %>
+            <% end %>
+            
+            <!-- Ver Documentos -->
+            <%= link_to business_transaction_document_submissions_path(@transaction), 
+                        class: "btn btn-info" do %>
+              <i class="bi bi-file-earmark-text"></i> Documentos
+            <% end %>
+            
+            <!-- Exportar Documentos -->
+            <% if policy(@transaction).export_documents? %>
+              <%= button_to export_documents_business_transaction_path(@transaction), 
+                            method: :post,
+                            class: "btn btn-success",
+                            form: { data: { turbo: false } },
+                            data: { 
+                              turbo_confirm: "¿Exportar todos los documentos de esta transacción?" 
+                            } do %>
+                <i class="bi bi-download"></i> Exportar Documentos
+              <% end %>
+            <% end %>
+            
+            <!-- Transferir Agente (solo admin) -->
+            <% if policy(@transaction).transfer_agent? %>
+              <%= link_to transfer_agent_business_transaction_path(@transaction), 
+                          class: "btn btn-warning",
+                          data: { turbo: false } do %>
+                <i class="bi bi-arrow-left-right"></i> Transferir Agente
+              <% end %>
+            <% end %>
+            
+            <!-- Eliminar -->
+            <% if policy(@transaction).destroy? %>
+              <%= button_to business_transaction_path(@transaction), 
+                            method: :delete,
+                            class: "btn btn-danger",
+                            form: { data: { turbo: false } },
+                            data: { 
+                              turbo_confirm: "¿Estás seguro de eliminar esta transacción? Esta acción no se puede deshacer." 
+                            } do %>
+                <i class="bi bi-trash"></i> Eliminar
+              <% end %>
+            <% end %>
+            
+            <!-- Volver -->
+            <%= link_to business_transactions_path, 
+                        class: "btn btn-secondary" do %>
+              <i class="bi bi-arrow-left"></i> Volver
+            <% end %>
+            
+          </div>
+          
+          <!-- DEBUG: Info de agentes (remover en producción) -->
+          <% if Rails.env.development? %>
+            <div class="mt-3 p-2 bg-light border rounded">
+              <small class="text-muted">
+                <strong>Debug:</strong> 
+                Agente asignado: <%= @transaction.assigned_agent_name %> |
+                Puede exportar: <%= policy(@transaction).export_documents? ? '✅' : '❌' %>
+              </small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</div>

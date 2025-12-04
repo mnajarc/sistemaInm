@@ -1,9 +1,11 @@
 # app/controllers/initial_contact_forms_controller.rb
 class InitialContactFormsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_form, only: [:show, :edit, :update, :destroy, :convert_to_transaction, :suggest_acquisition_method]
+  before_action :set_form, only: [:show, :edit, :update, :destroy, :convert_to_transaction, :suggest_acquisition_method, 
+                                    :edit_property_modal, :update_property_from_modal,
+                                    :edit_client_modal, :update_client_from_modal,
+                                    :edit_co_owners_modal, :create_co_owner]
   before_action :authorize_form, except: [:index, :new, :create]
- 
 
   def index
     # Base query con eager loading
@@ -48,24 +50,24 @@ class InitialContactFormsController < ApplicationController
       @forms = @forms.where(operation_type_id: params[:operation_type_id])
     end
     
-    # ═══════════════════════════════════════════════════════════════
-    # NUEVO: Filtro por periodo
-    # ═══════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════
+    # Filtro por periodo - CORREGIDO
+    # ═══════════════════════════════════════════════════════════
     if params[:period].present?
-      @forms = case params[:period]
+      @forms = @forms.where('created_at >= ?', case params[:period]
       when 'today'
-        @forms.where('created_at >= ?', Time.current.beginning_of_day)
+        Time.current.beginning_of_day
       when 'week'
-        @forms.where('created_at >= ?', Time.current.beginning_of_week)
+        Time.current.beginning_of_week
       when 'month'
-        @forms.where('created_at >= ?', Time.current.beginning_of_month)
+        Time.current.beginning_of_month
       when 'quarter'
-        @forms.where('created_at >= ?', 3.months.ago)
+        3.months.ago
       when 'year'
-        @forms.where('created_at >= ?', Time.current.beginning_of_year)
+        Time.current.beginning_of_year
       else
-        @forms
-      end
+        0.years.ago
+      end)
     end
     
     # Búsqueda por nombre de propietario
@@ -79,7 +81,7 @@ class InitialContactFormsController < ApplicationController
     # Búsqueda por identificador
     if params[:property_identifier].present?
       @forms = @forms.where(
-        "property_human_identifier ILIKE ?", 
+        "opportunity_identifier ILIKE ?", 
         "%#{params[:property_identifier]}%"
       )
     end
@@ -96,83 +98,88 @@ class InitialContactFormsController < ApplicationController
     @operation_types = OperationType.order(:name)
   end
 
-
   def new
-    @form = InitialContactForm.new(agent: current_user.agent)
-    @acquisition_methods = PropertyAcquisitionMethod.active.ordered
-    @contract_signers = ContractSignerType.active.ordered
-    @marriage_regimes = MarriageRegime.active.ordered
-    @operation_types = OperationType.active.order(:sort_order)
-    @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+    @initial_contact_form = InitialContactForm.new(agent: current_user.agent)
+    load_form_data
   end
   
-
-
-
   def create
-    @form = InitialContactForm.new(form_params.merge(agent: current_user.agent))
+    @form = InitialContactForm.new(form_params)
+    @form.agent ||= current_user.agent
     
-    @form.status = params[:save_draft] ? :draft : :completed
+    unless @form.agent.present?
+      redirect_to root_path, alert: '❌ No tienes un agente asignado. Contacta al administrador.'
+      return
+    end    
+    
+    # Detectar qué botón se presionó
+    @form.status = case params.keys
+                   when -> k { k.include?('save_draft') } then :draft
+                   when -> k { k.include?('complete') } then :completed
+                   else :draft
+                   end
     
     if @form.save
-      
-      
-      # Mensaje de éxito con aviso si fue auto-generado
-      notice_message = if @form.auto_generated_identifier
-                        '✅ Formulario creado exitosamente. ⚠️ Identificador de oportunidad generado automáticamente por falta de este.'
-                      else
+      notice_message = @form.auto_generated_identifier ? 
+                        '✅ Formulario creado. ⚠️ Identificador generado automáticamente.' :
                         '✅ Formulario creado exitosamente'
-                      end
-      
       redirect_to @form, notice: notice_message
     else
-      @acquisition_methods = PropertyAcquisitionMethod.active.ordered
-      @contract_signers = ContractSignerType.active.ordered
-      @marriage_regimes = MarriageRegime.active.ordered
-      @operation_types = OperationType.active.by_sort_order
-      @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+      load_form_data
       render :new, status: :unprocessable_entity
     end
   end
 
-  def update
-    if @form.update(form_params)
-      # Actualizar status si se cambió
-      if params[:save_draft]
-        @form.update(status: :draft)
-      elsif params[:complete]
-        @form.update(status: :completed)
-      end
-      
-      # Mensaje de éxito con aviso si fue auto-generado
-      notice_message = if @form.auto_generated_identifier
-                        '✅ Formulario actualizado exitosamente. ⚠️ Identificador de oportunidad generado automáticamente por falta de este.'
-                      else
-                        '✅ Formulario actualizado exitosamente'
-                      end
-      
-      redirect_to @form, notice: notice_message
+  def edit
+    @initial_contact_form = InitialContactForm.find(params[:id])
+    load_form_data
+  end
+
+def update
+  @initial_contact_form = InitialContactForm.find(params[:id])
+  
+  # 🔧 AUTO-VINCULAR PROPIEDAD SI NO TIENE
+  if @initial_contact_form.property_id.blank? && @initial_contact_form.property_info.present?
+    street = @initial_contact_form.property_info['street']
+    ext_num = @initial_contact_form.property_info['exterior_number']
+    int_num = @initial_contact_form.property_info['interior_number']
+    neighborhood = @initial_contact_form.property_info['neighborhood']
+    municipality = @initial_contact_form.property_info['municipality']
+    state = @initial_contact_form.property_info['state']
+    
+    # Buscar propiedad por ubicación
+    property = Property.find_by_location(street, ext_num, int_num, neighborhood, municipality, state)
+    
+    if property.present?
+      @initial_contact_form.property_id = property.id
+      Rails.logger.info "✓ Propiedad vinculada automáticamente: #{property.property_id}"
     else
-      @acquisition_methods = PropertyAcquisitionMethod.active.ordered
-      @contract_signers = ContractSignerType.active.ordered
-      @marriage_regimes = MarriageRegime.active.ordered
-      @operation_types = OperationType.active.by_sort_order
-      @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
-      render :edit, status: :unprocessable_entity
+      Rails.logger.warn "⚠ No se encontró propiedad para: #{street} #{ext_num} #{int_num}"
     end
   end
-
   
-  def edit
-    @acquisition_methods = PropertyAcquisitionMethod.active.ordered
-    @contract_signers = ContractSignerType.active.ordered
-    @marriage_regimes = MarriageRegime.active.ordered
-    @operation_types = OperationType.active.order(:sort_order)
-    @acquisition_method_codes = PropertyAcquisitionMethod.active.pluck(:id, :code).to_h.to_json.html_safe
+  # 🔘 DETECTAR QUÉ BOTÓN SE PRESIONÓ
+  @initial_contact_form.assign_attributes(initial_contact_form_params)
+  @initial_contact_form.status = case
+                                  when params[:save_draft].present? then :draft
+                                  when params[:complete].present? then :completed
+                                  else @initial_contact_form.status
+                                  end
+  
+  # 💾 GUARDAR
+  if @initial_contact_form.save
+    notice_message = @initial_contact_form.auto_generated_identifier ? 
+                      '✅ Formulario actualizado. ⚠️ Identificador generado automáticamente.' :
+                      '✅ Formulario actualizado exitosamente'
+    redirect_to @initial_contact_form, notice: notice_message
+  else
+    load_form_data
+    render :edit, status: :unprocessable_entity
   end
-  
+end
 
-  
+
+
   def destroy
     @form.destroy
     redirect_to initial_contact_forms_url, notice: '✅ Formulario eliminado'
@@ -199,39 +206,159 @@ class InitialContactFormsController < ApplicationController
   rescue StandardError => e
     render json: { status: 'error', message: e.message }, status: :unprocessable_entity
   end
+
+  # ═══════════════════════════════════════════════════════════
+  # MODALES - MÉTODOS PÚBLICOS
+  # ═══════════════════════════════════════════════════════════
   
+  def edit_property_modal
+    @form_id = params[:id]
+    respond_to do |format|
+      format.turbo_stream
+      format.html { render :edit_property_modal }
+    end
+  end
+  
+  def update_property_from_modal
+    # Actualizar property_info
+    @form.property_info = {
+      'street' => params.dig(:property_info, :street),
+      'exterior_number' => params.dig(:property_info, :exterior_number),
+      'interior_number' => params.dig(:property_info, :interior_number),
+      'neighborhood' => params.dig(:property_info, :neighborhood),
+      'municipality' => params.dig(:property_info, :municipality),
+      'city' => params.dig(:property_info, :city),
+      'postal_code' => params.dig(:property_info, :postal_code),
+      'country' => 'México'
+    }
+    
+    # Actualizar acquisition_details
+    @form.acquisition_details = (@form.acquisition_details || {}).merge({
+      'state' => params.dig(:acquisition_details, :state),
+      'land_use' => params.dig(:acquisition_details, :land_use)
+    })
+    
+    if @form.save
+      redirect_to @form, notice: "✅ Datos de propiedad actualizados"
+    else
+      render :edit_property_modal, status: :unprocessable_entity
+    end
+  end
+  
+  def edit_client_modal
+    @form_id = params[:id]
+    respond_to do |format|
+      format.turbo_stream
+      format.html { render :edit_client_modal }
+    end
+  end
+  
+  def update_client_from_modal
+    # Actualizar general_conditions
+    @form.general_conditions = {
+      'owner_or_representative_name' => params.dig(:general_conditions, :owner_or_representative_name),
+      'owner_phone' => params.dig(:general_conditions, :owner_phone),
+      'owner_email' => params.dig(:general_conditions, :owner_email),
+      'civil_status' => params.dig(:general_conditions, :civil_status),
+      'marriage_regime_id' => params.dig(:general_conditions, :marriage_regime_id),
+      'notes' => params.dig(:general_conditions, :notes)
+    }
+    
+    if @form.save
+      redirect_to @form, notice: "✅ Datos de cliente actualizados"
+    else
+      render :edit_client_modal, status: :unprocessable_entity
+    end
+  end
+  
+  def edit_co_owners_modal
+    @form_id = params[:id]
+    @co_owners_count = @form.acquisition_details&.dig('co_owners_count')&.to_i || 1
+    @co_ownership_links = @form.business_transaction&.co_ownership_links || []
+    
+    respond_to do |format|
+      format.turbo_stream
+      format.html { render :edit_co_owners_modal }
+    end
+  end
+  
+  def create_co_owner
+    # Validar entrada
+    unless params[:co_owner_name].present? && params[:co_owner_email].present?
+      return render json: { 
+        errors: { base: 'Nombre y email del copropietario son requeridos' } 
+      }, status: :unprocessable_entity
+    end
+    
+    # Crear o encontrar cliente copropietario
+    co_owner = Client.find_or_create_by(
+      email: params[:co_owner_email]
+    ) do |client|
+      client.name = params[:co_owner_name]
+      client.phone = params[:co_owner_phone]
+      client.address = params[:co_owner_address]
+      client.city = params[:co_owner_city]
+      client.state = params[:co_owner_state]
+    end
+    
+    if co_owner.save
+      # Crear vínculo de copropiedad
+      link = CoOwnershipLink.new(
+        primary_client: @form.client,
+        co_owner_client: co_owner,
+        initial_contact_form: @form,
+        ownership_percentage: params[:ownership_percentage],
+        relationship_type: params[:relationship_type],
+        notes: params[:notes]
+      )
+      
+      if link.save
+        render json: { 
+          id: link.id, 
+          opportunity_id: link.co_owner_opportunity_id,
+          status: 'success'
+        }
+      else
+        render json: { 
+          errors: link.errors.full_messages 
+        }, status: :unprocessable_entity
+      end
+    else
+      render json: { 
+        errors: co_owner.errors.full_messages 
+      }, status: :unprocessable_entity
+    end
+  end
 
   private
 
-  
   def set_form
     @form = InitialContactForm.find(params[:id])
   end
   
-  def ensure_agent!
-    return if current_user.superadmin? || current_user.admin?  # ← EXENTOS
-    
-    if current_user.agent.nil?
-      redirect_to root_path, alert: '⚠️ No tienes un agente asignado.'
-    end
-  end
-
   def authorize_form
-    return if current_user.superadmin? || current_user.admin?  # ← PUEDEN VER TODO
+    return if current_user.superadmin? || current_user.admin?
     
-    # Agente normal solo ve sus formularios
     unless @form.agent.user == current_user
       redirect_to root_path, alert: '❌ No tienes permiso para acceder'
     end
   end
 
-  
+  def load_form_data
+    @acquisition_methods = PropertyAcquisitionMethod.active.order(:name)
+    @contract_signers = ContractSignerType.active.order(:name)
+    @marriage_regimes = MarriageRegime.active.order(:name)
+    @operation_types = OperationType.active.order(:sort_order)
+    
+    # JSON seguro - escapar correctamente
+    @acquisition_method_codes = JSON.generate(
+      PropertyAcquisitionMethod.active.pluck(:id, :code).to_h
+    )
+  end
 
   def form_params
     params.require(:initial_contact_form).permit(
-      # ============================================================
-      # CAMPOS PRINCIPALES (NIVEL RAÍZ)
-      # ============================================================
+      :agent_id,
       :property_acquisition_method_id,
       :contract_signer_type_id,
       :operation_type_id,
@@ -241,11 +368,8 @@ class InitialContactFormsController < ApplicationController
       :agent_notes,
       :form_source,
       :acquisition_clarification,
-      :property_human_identifier,  # ✅ CAMPO CRÍTICO
+      :opportunity_identifier,
       
-      # ============================================================
-      # GENERAL_CONDITIONS (JSONB)
-      # ============================================================
       general_conditions: [
         :owner_or_representative_name,
         :owner_phone,
@@ -257,40 +381,24 @@ class InitialContactFormsController < ApplicationController
         :notes
       ],
       
-      # ============================================================
-      # ACQUISITION_DETAILS (JSONB)
-      # ============================================================
       acquisition_details: [
-        # Copropietarios
         :co_owners_count,
         :has_co_owners,
-        
-        # Ubicación y uso
         :state,
         :land_use,
-        
-        # Relaciones entre copropietarios
         :has_relationship,
         :relationship_type,
-        
-        # Adquisición temporal
         :acquired_pre_2014,
-        
-        # Herencia - Herederos
         :heirs_count,
         :all_living,
         :deceased_count,
         :all_married,
         :single_heirs_count,
         :deceased_civil_status,
-        
-        # Herencia - Causante
         :inheritance_from,
         :inheritance_from_other,
         :parents_were_married,
         :parents_marriage_regime,
-        
-        # Sucesión
         :has_testamentary_succession,
         :succession_planned_date,
         :succession_authority,
@@ -298,17 +406,12 @@ class InitialContactFormsController < ApplicationController
         :has_judicial_sentence,
         :has_notarial_deed,
         :document_type,
-        
-        # Donación
         :donor_name,
         :donor_relationship,
         :donor_relationship_other,
         :beneficiaries_count
       ],
       
-      # ============================================================
-      # PROPERTY_INFO (JSONB) - Si aplica
-      # ============================================================
       property_info: [
         :address,
         :asking_price,
@@ -331,41 +434,27 @@ class InitialContactFormsController < ApplicationController
         :country
       ],
       
-      # ============================================================
-      # CURRENT_STATUS (JSONB)
-      # ============================================================
       current_status: [
-        # Hipoteca
         :has_active_mortgage,
         :mortgage_balance,
         :monthly_payment,
         :mortgage_payments_current,
         :in_collection_agency,
         :mortgage_notes,
-        
-        # Ampliaciones
         :has_extensions,
         :extensions_reported,
         :extensions_notes,
-        
-        # Adiciones
         :has_additions,
         :additions_registered,
         :additions_notes,
-        
-        # Remodelaciones
         :has_renovations,
         :knows_renovation_cost,
         :renovation_cost,
         :renovation_notes,
-        
-        # Condominio
         :is_in_condominium,
         :condominium_regime,
         :has_condominium_rules,
         :has_maintenance_clearance,
-        
-        # Unidades rentables
         :has_rental_units,
         :rental_units_count,
         :apartment_units_count,
@@ -380,9 +469,6 @@ class InitialContactFormsController < ApplicationController
         :rental_units_notes
       ],
       
-      # ============================================================
-      # TAX_EXEMPTION (JSONB)
-      # ============================================================
       tax_exemption: [
         :first_home_sale,
         :lived_last_5_years,
@@ -393,9 +479,6 @@ class InitialContactFormsController < ApplicationController
         :qualifies_for_exemption
       ],
       
-      # ============================================================
-      # PROMOTION_PREFERENCES (JSONB)
-      # ============================================================
       promotion_preferences: [
         :allows_signage,
         :allows_flyers_with_address,
@@ -403,11 +486,8 @@ class InitialContactFormsController < ApplicationController
         :preferred_contact_method,
         :contact_hours,
         :special_instructions,
-        signage_types: []  # Array de strings
+        signage_types: []
       ]
     )
   end
-
-
-
 end

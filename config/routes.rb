@@ -11,12 +11,22 @@ Rails.application.routes.draw do
   root "properties#index"
   resources :properties
   
-resources :initial_contact_forms do
-  member do
-    post :convert_to_transaction
+  resources :initial_contact_forms do
+    member do
+      post :convert_to_transaction
+      # ✅ NUEVAS RUTAS
+      get :edit_property_modal
+      patch :update_property_from_modal
+      post :update_property_from_modal  # También POST
+      
+      get :edit_client_modal
+      patch :update_client_from_modal
+      post :update_client_from_modal
+      
+      get :edit_co_owners_modal
+      post :create_co_owner
+    end
   end
-end
-
 
 
   resources :business_transactions do

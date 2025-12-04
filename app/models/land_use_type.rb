@@ -4,8 +4,13 @@ class LandUseType < ApplicationRecord
     has_many :properties
     
     validates :name, :code, :category, presence: true
-    validates :code, uniqueness: true
-    
+    validates :code, uniqueness: true, presence: true
+    validates :property_category, presence: true, 
+              inclusion: { 
+                in: %w[habitacional comercial mixto industrial otros],
+                message: "%{value} no es una categoría válida de Property" 
+              }
+        
     scope :active, -> { where(active: true) }
     scope :main_categories, -> { where(parent_id: nil) }
     scope :ordered, -> { order(:sort_order, :name) }

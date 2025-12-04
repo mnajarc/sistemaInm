@@ -1,0 +1,155 @@
+<turbo-stream action="update" target="modal">
+  <template>
+    <div class="modal modal-lg" id="clientModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-person-fill"></i> Editar Datos del Cliente/Propietario
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          
+          <form action="<%= update_client_from_modal_initial_contact_form_path(@form) %>" 
+                method="POST"
+                class="needs-validation"
+                id="clientForm">
+            
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            
+            <div class="modal-body">
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Nota:</strong> Esta información identifica al propietario/cliente.
+                El Opportunity ID se genera con su apellido + fecha.
+              </div>
+              
+              <!-- NOMBRE COMPLETO -->
+              <div class="mb-3">
+                <label class="form-label fw-bold">Nombre Completo del Propietario *</label>
+                <input type="text" 
+                       name="general_conditions[owner_or_representative_name]" 
+                       class="form-control form-control-lg" 
+                       placeholder="Juan Pérez García"
+                       value="<%= @general_conditions['owner_or_representative_name'] %>"
+                       required>
+                <small class="text-muted">Formato: Nombre Apellido1 Apellido2</small>
+              </div>
+              
+              <!-- TELÉFONO Y EMAIL -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Teléfono de Contacto</label>
+                  <input type="tel" 
+                         name="general_conditions[owner_phone]" 
+                         class="form-control" 
+                         placeholder="(55) 1234-5678"
+                         value="<%= @general_conditions['owner_phone'] %>">
+                </div>
+                
+                <div class="col-md-6">
+                  <label class="form-label">Email de Contacto</label>
+                  <input type="email" 
+                         name="general_conditions[owner_email]" 
+                         class="form-control" 
+                         placeholder="cliente@email.com"
+                         value="<%= @general_conditions['owner_email'] %>">
+                </div>
+              </div>
+              
+              <!-- ESTADO CIVIL -->
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Estado Civil *</label>
+                  <select name="general_conditions[civil_status]" 
+                          class="form-select"
+                          id="civilStatusField"
+                          required>
+                    <option value="">Selecciona...</option>
+                    <% CivilStatus.active.order(:sort_order).each do |status| %>
+                      <option value="<%= status.name %>" 
+                              <%= 'selected' if @general_conditions['civil_status'] == status.name %>>
+                        <%= status.display_name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+                
+                <!-- RÉGIMEN MATRIMONIAL (condicional) -->
+                <div class="col-md-6" id="marriageRegimeField" 
+                     style="display: <%= @general_conditions['civil_status'] == 'casado' ? 'block' : 'none' %>;">
+                  <label class="form-label">Régimen Matrimonial</label>
+                  <select name="general_conditions[marriage_regime_id]" 
+                          class="form-select">
+                    <option value="">Selecciona...</option>
+                    <% MarriageRegime.active.ordered.each do |regime| %>
+                      <option value="<%= regime.id %>" 
+                              <%= 'selected' if @general_conditions['marriage_regime_id'].to_i == regime.id %>>
+                        <%= regime.display_name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- NOTAS -->
+              <div class="mb-3">
+                <label class="form-label">Observaciones Adicionales</label>
+                <textarea name="general_conditions[notes]" 
+                          class="form-control" 
+                          rows="3"
+                          placeholder="Información adicional relevante..."><%= @general_conditions['notes'] %></textarea>
+              </div>
+              
+              <!-- PREVIEW DE OPPORTUNITY ID -->
+              <div class="alert alert-success mt-4">
+                <strong>🏷️ Identificador de Oportunidad (automático):</strong>
+                <div class="font-monospace mt-2 fs-5">
+                  <% name_parts = @general_conditions['owner_or_representative_name'].to_s.split(/\s+/) %>
+                  <% last_name = name_parts.length >= 2 ? name_parts[1] : name_parts[0] %>
+                  <% last_name_clean = last_name.to_s.upcase.slice(0, 10) %>
+                  V-<%= last_name_clean %>-<%= Date.current.strftime('%Y%m%d') %>-001
+                </div>
+                <small class="text-muted mt-2 d-block">
+                  Este ID es temporal y cambia si el propietario o la fecha cambian
+                </small>
+              </div>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-lg"></i> Guardar Cliente
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      document.addEventListener('turbo:load', function() {
+        const modal = new bootstrap.Modal(document.getElementById('clientModal'), {
+          backdrop: 'static',
+          keyboard: false
+        });
+        modal.show();
+        
+        // Mostrar/ocultar régimen matrimonial según estado civil
+        const civilStatusField = document.getElementById('civilStatusField');
+        const marriageRegimeField = document.getElementById('marriageRegimeField');
+        
+        if (civilStatusField) {
+          civilStatusField.addEventListener('change', function() {
+            marriageRegimeField.style.display = this.value === 'casado' ? 'block' : 'none';
+          });
+        }
+        
+        document.getElementById('clientModal').addEventListener('hidden.bs.modal', function() {
+          Turbo.visit(location);
+        });
+      });
+    </script>
+  </template>
+</turbo-stream>
+

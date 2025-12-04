@@ -1,0 +1,225 @@
+<turbo-stream action="update" target="modal">
+  <template>
+    <div class="modal modal-xl" id="coOwnersModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title">
+              <i class="bi bi-people-fill"></i> Gestionar Copropietarios
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle"></i> 
+              <strong>Importante:</strong> Este formulario tiene <strong><%= @co_owners_count %></strong> copropietarios.
+              <br>
+              Cada copropietario es un CLIENTE también y necesita:
+              <ul class="mb-0 mt-2">
+                <li>Datos personales completos (nombre, teléfono, email)</li>
+                <li>Porcentaje de propiedad</li>
+                <li>Identificador de Oportunidad (automático: CP-APELLIDO-FECHA)</li>
+              </ul>
+            </div>
+            
+            <!-- TABS PARA CADA COPROPIETARIO -->
+            <ul class="nav nav-tabs mb-4" id="coOwnersTabs" role="tablist">
+              <% (1..@co_owners_count).each do |index| %>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link <%= 'active' if index == 1 %>" 
+                          id="coowner-<%= index %>-tab" 
+                          data-bs-toggle="tab" 
+                          data-bs-target="#coowner-<%= index %>" 
+                          type="button">
+                    Copropietario <%= index %>
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+            
+            <div class="tab-content" id="coOwnersContent">
+              <% (1..@co_owners_count).each do |index| %>
+                <div class="tab-pane fade <%= 'show active' if index == 1 %>" 
+                     id="coowner-<%= index %>" 
+                     role="tabpanel">
+                  
+                  <form action="<%= create_co_owner_initial_contact_form_path(@form) %>" 
+                        method="POST"
+                        class="coowner-form"
+                        data-coowner-index="<%= index %>">
+                    
+                    <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+                    <%= hidden_field_tag :initial_contact_form_id, @form.id %>
+                    <%= hidden_field_tag :coowner_index, index %>
+                    
+                    <div class="alert alert-info mb-4">
+                      <strong>Copropietario <%= index %> de <%= @co_owners_count %></strong>
+                      <br>
+                      <small>Introduce los datos de este copropietario. El identificador se generará automáticamente.</small>
+                    </div>
+                    
+                    <!-- NOMBRE -->
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">Nombre Completo *</label>
+                      <input type="text" 
+                             name="co_owner_name" 
+                             class="form-control" 
+                             placeholder="Ej: María García López"
+                             required>
+                    </div>
+                    
+                    <!-- TELÉFONO Y EMAIL -->
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label">Teléfono</label>
+                        <input type="tel" 
+                               name="co_owner_phone" 
+                               class="form-control" 
+                               placeholder="(55) 1234-5678">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input type="email" 
+                               name="co_owner_email" 
+                               class="form-control" 
+                               placeholder="cliente@email.com">
+                      </div>
+                    </div>
+                    
+                    <!-- PORCENTAJE DE PROPIEDAD -->
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label fw-bold">Porcentaje de Propiedad (%) *</label>
+                        <div class="input-group">
+                          <input type="number" 
+                                 name="ownership_percentage" 
+                                 class="form-control" 
+                                 min="0.01" 
+                                 max="100" 
+                                 step="0.01"
+                                 placeholder="50.00"
+                                 required>
+                          <span class="input-group-text">%</span>
+                        </div>
+                        <small class="text-muted">Debe sumar 100% entre todos los copropietarios</small>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <label class="form-label">Relación/Parentesco</label>
+                        <select name="relationship_type" class="form-select">
+                          <option value="">Selecciona...</option>
+                          <% RelationshipType.active.where(category: 'copropietario').ordered.each do |rel| %>
+                            <option value="<%= rel.name %>"><%= rel.display_name %></option>
+                          <% end %>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <!-- UBICACIÓN -->
+                    <div class="row mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" 
+                               name="co_owner_address" 
+                               class="form-control" 
+                               placeholder="Calle Principal 123">
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Ciudad</label>
+                        <input type="text" 
+                               name="co_owner_city" 
+                               class="form-control" 
+                               placeholder="Ciudad de México">
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Estado</label>
+                        <select name="co_owner_state" class="form-select">
+                          <option value="">Selecciona...</option>
+                          <% MexicanState.active.order(:sort_order).each do |state| %>
+                            <option value="<%= state.name %>"><%= state.name %></option>
+                          <% end %>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <!-- NOTAS -->
+                    <div class="mb-3">
+                      <label class="form-label">Notas Adicionales</label>
+                      <textarea name="notes" 
+                                class="form-control" 
+                                rows="2"
+                                placeholder="Información adicional de este copropietario..."></textarea>
+                    </div>
+                    
+                    <!-- PREVIEW OPPORTUNITY ID -->
+                    <div class="alert alert-success">
+                      <strong>👥 Identificador de Oportunidad Copropietario:</strong>
+                      <div class="font-monospace mt-2">
+                        CP-[APELLIDO]-<%= Date.current.strftime('%Y%m%d') %>-<%= (index.to_s.rjust(3, '0')) %>
+                      </div>
+                      <small class="text-muted d-block mt-2">
+                        Este ID identifica ESTA RELACIÓN de copropiedad específica
+                      </small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                      <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-plus-lg"></i> Guardar Copropietario <%= index %>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          
+          <div class="modal-footer bg-light">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <small class="text-muted">
+              Completa los datos de todos los copropietarios para poder generar los documentos necesarios
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      document.addEventListener('turbo:load', function() {
+        const modal = new bootstrap.Modal(document.getElementById('coOwnersModal'), {
+          backdrop: 'static'
+        });
+        modal.show();
+        
+        // Manejar envío de formularios
+        document.querySelectorAll('.coowner-form').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            fetch(this.action, {
+              method: 'POST',
+              headers: {
+                'X-CSRF-Token': document.querySelector('[name=authenticity_token]').value,
+                'Accept': 'text/vnd.turbo-stream.html, text/html, application/xhtml+xml'
+              },
+              body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+              if (html.includes('turbo-stream')) {
+                Turbo.renderStreamMessage(html);
+              }
+              this.reset();
+            });
+          });
+        });
+        
+        document.getElementById('coOwnersModal').addEventListener('hidden.bs.modal', function() {
+          Turbo.visit(location);
+        });
+      });
+    </script>
+  </template>
+</turbo-stream>
+

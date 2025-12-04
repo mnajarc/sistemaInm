@@ -372,6 +372,8 @@ require_relative 'seeds/menu_items'
 # db/seeds/01_catalogs_base.rb
 # Seeds para poblar catálogos básicos del sistema inmobiliario
 
+load Rails.root.join('db', 'seeds', '07_co_ownership_types.rb')
+
 puts "🌱 Poblando catálogos básicos del sistema..."
 
 # Estados de la República Mexicana
@@ -754,4 +756,5 @@ end
 
 puts "✅ #{SuccessionAuthority.count} SuccessionAuthorities creadas"
 
+load Rails.root.join('db', 'seeds', '99_sample_data.rb')
 puts "🎉 Todas las tablas de catálogos completadas"

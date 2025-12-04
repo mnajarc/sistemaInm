@@ -1,0 +1,5 @@
+class AddDetailedLandUseToProperties < ActiveRecord::Migration[8.0]
+  def change
+    add_column :properties, :detailed_land_use, :string
+  end
+end
