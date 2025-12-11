@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_12_03_024615) do
+ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -220,7 +220,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_03_024615) do
   end
 
   create_table "clients", force: :cascade do |t|
-    t.string "name"
+    t.string "full_name"
     t.string "email"
     t.string "phone"
     t.text "address"
@@ -235,6 +235,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_03_024615) do
     t.string "first_names", comment: "Nombre(s) propios: Isabel María Luisa"
     t.string "first_surname", comment: "Primer apellido: Calderón"
     t.string "second_surname", comment: "Segundo apellido: Grajales (opcional)"
+    t.string "civil_status"
+    t.integer "marriage_regime_id"
+    t.text "notes"
     t.index ["client_identifier"], name: "index_clients_on_client_identifier", unique: true
     t.index ["email"], name: "index_clients_on_email", unique: true
     t.index ["first_names"], name: "index_clients_on_first_names"

@@ -25,14 +25,6 @@
 
   <!-- Tabs por parte (oferente/adquiriente/copropietarios) -->
   <ul class="nav nav-tabs mb-4" id="partyTabs" role="tablist">
-    <!-- Tab Oferente -->
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="oferente-tab" data-bs-toggle="tab" 
-              data-bs-target="#oferente" type="button" role="tab">
-        <i class="bi bi-person-badge"></i>
-        Oferente (<%= @checklist[:oferente][:total] %>)
-      </button>
-    </li>
     
     <!-- Tabs Copropietarios -->
     <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
@@ -63,12 +55,6 @@
   <!-- Contenido de tabs -->
   <div class="tab-content" id="partyTabsContent">
     <!-- Tab Oferente -->
-    <div class="tab-pane fade show active" id="oferente" role="tabpanel">
-      <%= render 'shared/document_checklist_party', 
-                 party: 'oferente', 
-                 documents: @checklist[:oferente][:documents],
-                 business_transaction: @business_transaction %>
-    </div>
 
     <!-- Tabs Copropietarios -->
     <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>

@@ -103,80 +103,102 @@ class InitialContactFormsController < ApplicationController
     load_form_data
   end
   
-  def create
-    @form = InitialContactForm.new(form_params)
-    @form.agent ||= current_user.agent
-    
-    unless @form.agent.present?
-      redirect_to root_path, alert: '❌ No tienes un agente asignado. Contacta al administrador.'
-      return
-    end    
-    
-    # Detectar qué botón se presionó
-    @form.status = case params.keys
-                   when -> k { k.include?('save_draft') } then :draft
-                   when -> k { k.include?('complete') } then :completed
-                   else :draft
-                   end
-    
-    if @form.save
-      notice_message = @form.auto_generated_identifier ? 
-                        '✅ Formulario creado. ⚠️ Identificador generado automáticamente.' :
-                        '✅ Formulario creado exitosamente'
-      redirect_to @form, notice: notice_message
-    else
-      load_form_data
-      render :new, status: :unprocessable_entity
-    end
+def create
+  @initial_contact_form = InitialContactForm.new(form_params)
+  @initial_contact_form.agent = current_user.agent unless @initial_contact_form.agent.present?
+
+  unless @initial_contact_form.agent.present?
+    redirect_to root_path, alert: "No tienes un agente asignado. Contacta al administrador."
+    return
   end
+
+  # Detectar qué botón se presionó
+  @initial_contact_form.status = case
+                                   when params[:save_draft].present? then :draft
+                                   when params[:complete].present? then :completed
+                                   else :draft
+                                   end
+
+
+  # 🔴 DEBUG: Ver qué está pasando
+  puts "=" * 80
+  puts "🔍 DEBUG: Initial Contact Form Data"
+  puts "=" * 80
+  puts "general_conditions: #{@initial_contact_form.general_conditions.inspect}"
+  puts "property_info: #{@initial_contact_form.property_info.inspect}"
+  puts "acquisition_details: #{@initial_contact_form.acquisition_details.inspect}"
+  puts "=" * 80
+
+
+
+  if @initial_contact_form.save
+    notice_message = @initial_contact_form.auto_generated_identifier ? 
+                     "✅ Formulario creado. Identificador: #{@initial_contact_form.opportunity_identifier}" :
+                     "✅ Formulario creado exitosamente"
+    
+    redirect_to @initial_contact_form, notice: notice_message
+  else
+
+    # 🔴 DEBUG: Ver errores
+    puts "=" * 80
+    puts "❌ ERRORES DE VALIDACIÓN:"
+    puts @initial_contact_form.errors.full_messages.inspect
+    puts "=" * 80
+
+
+    # ✅ AQUÍ: Pasar la variable de instancia a la vista
+    load_form_data
+    render :new, status: :unprocessable_entity
+  end
+end
 
   def edit
     @initial_contact_form = InitialContactForm.find(params[:id])
     load_form_data
   end
 
-def update
-  @initial_contact_form = InitialContactForm.find(params[:id])
-  
-  # 🔧 AUTO-VINCULAR PROPIEDAD SI NO TIENE
-  if @initial_contact_form.property_id.blank? && @initial_contact_form.property_info.present?
-    street = @initial_contact_form.property_info['street']
-    ext_num = @initial_contact_form.property_info['exterior_number']
-    int_num = @initial_contact_form.property_info['interior_number']
-    neighborhood = @initial_contact_form.property_info['neighborhood']
-    municipality = @initial_contact_form.property_info['municipality']
-    state = @initial_contact_form.property_info['state']
+  def update
+    @initial_contact_form = InitialContactForm.find(params[:id])
     
-    # Buscar propiedad por ubicación
-    property = Property.find_by_location(street, ext_num, int_num, neighborhood, municipality, state)
+    # 🔧 AUTO-VINCULAR PROPIEDAD SI NO TIENE
+    if @initial_contact_form.property_id.blank? && @initial_contact_form.property_info.present?
+      street = @initial_contact_form.property_info['street']
+      ext_num = @initial_contact_form.property_info['exterior_number']
+      int_num = @initial_contact_form.property_info['interior_number']
+      neighborhood = @initial_contact_form.property_info['neighborhood']
+      municipality = @initial_contact_form.property_info['municipality']
+      state = @initial_contact_form.property_info['state']
+      
+      # Buscar propiedad por ubicación
+      property = Property.find_by_location(street, ext_num, int_num, neighborhood, municipality, state)
+      
+      if property.present?
+        @initial_contact_form.property_id = property.id
+        Rails.logger.info "✓ Propiedad vinculada automáticamente: #{property.property_id}"
+      else
+        Rails.logger.warn "⚠ No se encontró propiedad para: #{street} #{ext_num} #{int_num}"
+      end
+    end
     
-    if property.present?
-      @initial_contact_form.property_id = property.id
-      Rails.logger.info "✓ Propiedad vinculada automáticamente: #{property.property_id}"
+    # 🔘 DETECTAR QUÉ BOTÓN SE PRESIONÓ
+    @initial_contact_form.assign_attributes(form_params)
+    @initial_contact_form.status = case
+                                    when params[:save_draft].present? then :draft
+                                    when params[:complete].present? then :completed
+                                    else @initial_contact_form.status
+                                    end
+    
+    # 💾 GUARDAR
+    if @initial_contact_form.save
+      notice_message = @initial_contact_form.auto_generated_identifier ? 
+                        '✅ Formulario actualizado. ⚠️ Identificador generado automáticamente.' :
+                        '✅ Formulario actualizado exitosamente'
+      redirect_to @initial_contact_form, notice: notice_message
     else
-      Rails.logger.warn "⚠ No se encontró propiedad para: #{street} #{ext_num} #{int_num}"
+      load_form_data
+      render :edit, status: :unprocessable_entity
     end
   end
-  
-  # 🔘 DETECTAR QUÉ BOTÓN SE PRESIONÓ
-  @initial_contact_form.assign_attributes(initial_contact_form_params)
-  @initial_contact_form.status = case
-                                  when params[:save_draft].present? then :draft
-                                  when params[:complete].present? then :completed
-                                  else @initial_contact_form.status
-                                  end
-  
-  # 💾 GUARDAR
-  if @initial_contact_form.save
-    notice_message = @initial_contact_form.auto_generated_identifier ? 
-                      '✅ Formulario actualizado. ⚠️ Identificador generado automáticamente.' :
-                      '✅ Formulario actualizado exitosamente'
-    redirect_to @initial_contact_form, notice: notice_message
-  else
-    load_form_data
-    render :edit, status: :unprocessable_entity
-  end
-end
 
 
 
@@ -185,14 +207,100 @@ end
     redirect_to initial_contact_forms_url, notice: '✅ Formulario eliminado'
   end
   
+
+
   def convert_to_transaction
-    if @form.convert_to_transaction!
-      redirect_to business_transaction_path(@form.business_transaction), 
-                  notice: '✅ Convertido a Transacción de Negocio'
-    else
-      redirect_to @form, alert: '❌ Error al convertir: ' + @form.errors.full_messages.join(', ')
+    @form = InitialContactForm.find(params[:id])
+    
+    begin
+      ActiveRecord::Base.transaction do
+        # ========================================
+        # 1. CREAR O ACTUALIZAR CLIENTE
+        # ========================================
+        @client = Client.from_initial_contact_form(@form)
+        
+        unless @client.save
+          raise ActiveRecord::RecordInvalid, @client
+        end
+
+        @form.update!(client_id: @client.id)
+
+        # ========================================
+        # 2. CALCULAR PRECIO (FUERA DEL HASH)
+        # ========================================
+        asking_price = @form.property_info&.dig('asking_price').to_f || 1.0
+        final_price = asking_price.positive? ? asking_price : 1.0
+
+        # ========================================
+        # 3. CREAR TRANSACCIÓN COMERCIAL
+        # ========================================
+        @transaction = BusinessTransaction.create!(
+          offering_client_id: @client.id,
+          property_id: @form.property_id,
+          listing_agent_id: current_user.id,
+          current_agent_id: current_user.id,
+          operation_type_id: @form.operation_type_id,
+          business_status_id: BusinessStatus.find_by(name: 'prospecto')&.id || BusinessStatus.first&.id,
+          price: final_price,
+          commission_percentage: 0,
+          start_date: Date.current,
+          property_acquisition_method_id: @form.property_acquisition_method_id
+        )
+
+        # ========================================
+        # 4. CREAR CO-PROPIETARIOS
+        # ========================================
+
+        raw_count = @form.acquisition_details&.dig('coowners_count').to_i
+        coowners_count = raw_count > 0 ? raw_count : 1  # Evita división por cero
+
+        percentage_per_owner = (100.0 / coowners_count).round(2)
+
+        
+        # coowners_count = @form.acquisition_details&.dig('coowners_count').to_i || 1
+        # percentage_per_owner = (100.0 / coowners_count).round(2)
+
+        BusinessTransactionCoOwner.create!(
+          business_transaction_id: @transaction.id,
+          client_id: @client.id,
+          person_name: @client.display_name,
+          percentage: percentage_per_owner,
+          role: 'propietario',
+          active: true
+        )
+
+        (coowners_count - 1).times do |i|
+          BusinessTransactionCoOwner.create!(
+            business_transaction_id: @transaction.id,
+            client_id: nil,
+            person_name: "Copropietario #{i + 2} - Pendiente",
+            percentage: percentage_per_owner,
+            role: 'copropietario',
+            active: false
+          )
+        end
+
+        # ========================================
+        # 5. ACTUALIZAR ESTADO DEL FORMULARIO
+        # ========================================
+        @form.update!(
+          business_transaction_id: @transaction.id,
+          status: :converted,
+          converted_at: Time.current
+        )
+
+        redirect_to business_transaction_path(@transaction), 
+                    notice: '✅ Convertido a Transacción de Negocio exitosamente'
+      end
+    rescue ActiveRecord::RecordInvalid => e
+      redirect_to @form, alert: "❌ Error al convertir: #{e.message}"
+    rescue StandardError => e
+      Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
+      redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
     end
   end
+
+
   
   def suggest_acquisition_method
     suggestion = AcquisitionMethodSuggestion.create!(
@@ -245,31 +353,21 @@ end
     end
   end
   
-  def edit_client_modal
-    @form_id = params[:id]
-    respond_to do |format|
-      format.turbo_stream
-      format.html { render :edit_client_modal }
-    end
-  end
+
+def edit_client_modal
+  @form = InitialContactForm.find(params[:id])
   
-  def update_client_from_modal
-    # Actualizar general_conditions
-    @form.general_conditions = {
-      'owner_or_representative_name' => params.dig(:general_conditions, :owner_or_representative_name),
-      'owner_phone' => params.dig(:general_conditions, :owner_phone),
-      'owner_email' => params.dig(:general_conditions, :owner_email),
-      'civil_status' => params.dig(:general_conditions, :civil_status),
-      'marriage_regime_id' => params.dig(:general_conditions, :marriage_regime_id),
-      'notes' => params.dig(:general_conditions, :notes)
-    }
-    
-    if @form.save
-      redirect_to @form, notice: "✅ Datos de cliente actualizados"
-    else
-      render :edit_client_modal, status: :unprocessable_entity
-    end
-  end
+  # En lugar de renderizar un modal, redirigir al CRUD de clientes
+  redirect_to edit_client_path(@form.id), notice: 'Editar datos del cliente'
+end
+
+
+
+
+
+
+
+
   
   def edit_co_owners_modal
     @form_id = params[:id]
@@ -330,6 +428,65 @@ end
     end
   end
 
+
+
+  # Redirigir a CRUD de cliente
+  def new_client_for_form
+    @form = InitialContactForm.find(params[:id])
+    
+    # Crear un cliente asociado a este formulario
+    # Por ahora, solo redirigir a nueva página de cliente
+    # Luego se puede mejorar para pre-llenar datos
+    
+    redirect_to new_client_path(form_id: @form.id), notice: 'Edita los datos del cliente'
+  end
+
+  # Redirigir a CRUD de propiedad
+  def new_property_for_form
+    @form = InitialContactForm.find(params[:id])
+    
+    # Crear una propiedad asociada a este formulario
+    # Por ahora, solo redirigir a nueva página de propiedad
+    
+    redirect_to new_property_path(form_id: @form.id), notice: 'Edita los datos de la propiedad'
+  end
+
+  # Método antiguo para compatibilidad (opcional, puede eliminarse después)
+  def edit_client_modal
+    @form = InitialContactForm.find(params[:id])
+    @general_conditions = @form.general_conditions || {}
+    
+    respond_to do |format|
+      format.turbo_stream
+      format.html { render :edit_client_modal, layout: false }
+    end
+  end
+
+
+
+
+  def update_client_from_modal
+    @form = InitialContactForm.find(params[:id])
+    general_conditions = @form.general_conditions || {}
+    
+    general_conditions['owner_or_representative_name'] = params.dig(:general_conditions, :owner_or_representative_name) || general_conditions['owner_or_representative_name']
+    general_conditions['owner_phone'] = params.dig(:general_conditions, :owner_phone) || general_conditions['owner_phone']
+    general_conditions['owner_email'] = params.dig(:general_conditions, :owner_email) || general_conditions['owner_email']
+    general_conditions['civil_status'] = params.dig(:general_conditions, :civil_status) || general_conditions['civil_status']
+    general_conditions['marriage_regime_id'] = params.dig(:general_conditions, :marriage_regime_id) || general_conditions['marriage_regime_id']
+    general_conditions['notes'] = params.dig(:general_conditions, :notes) || general_conditions['notes']
+    
+    if @form.update(general_conditions: general_conditions)
+      respond_to do |format|
+        format.json { render json: { success: true, message: 'Cliente actualizado' } }
+      end
+    else
+      respond_to do |format|
+        format.json { render json: { success: false, errors: @form.errors }, status: :unprocessable_entity }
+      end
+    end
+  end
+
   private
 
   def set_form
@@ -371,6 +528,9 @@ end
       :opportunity_identifier,
       
       general_conditions: [
+        :first_names,
+        :first_surname,
+        :second_surname,
         :owner_or_representative_name,
         :owner_phone,
         :owner_email,
@@ -378,6 +538,8 @@ end
         :domicile_type,
         :civil_status,
         :marriage_regime_id,
+        :current_civil_status,
+        :current_marriage_regime_id,
         :notes
       ],
       
@@ -490,4 +652,5 @@ end
       ]
     )
   end
+
 end

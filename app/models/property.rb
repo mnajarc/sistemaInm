@@ -294,7 +294,7 @@ class Property < ApplicationRecord
   end
 
   # Búsqueda por UBICACIÓN EXACTA (para deduplicación)
-  def self.find_by_location(street, ext_num, neighborhood, municipality, state)
+  def self.find_by_location(street, ext_num, int_num, neighborhood, municipality, state)
     find_by(
       street: street,
       exterior_number: ext_num,

@@ -59,8 +59,11 @@ class InitialContactForm < ApplicationRecord
   before_validation :generate_opportunity_identifier
   before_validation :generate_opportunity_identifier_if_blank
   before_validation :validate_acquisition_method_details
+  before_validation :build_owner_or_representative_name
   before_save :set_completed_at, if: -> { status_changed? && completed? }
   before_save :set_converted_at, if: -> { status_changed? && converted? }
+  before_save :auto_generate_opportunity_identifier
+  before_save :auto_generate_property_id
 
   # ============================================================
   # MÉTODOS PÚBLICOS - HELPERS PARA VISTAS
@@ -341,6 +344,77 @@ class InitialContactForm < ApplicationRecord
     Rails.logger.info "   Ubicación: #{full_address}"
   end
 
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # NUEVO: Construir nombre completo desde componentes
+  # ═══════════════════════════════════════════════════════════════════════
+  def build_owner_or_representative_name
+    return unless general_conditions.present?
+
+    # Construir nombre completo si no existe
+    if general_conditions['owner_or_representative_name'].blank?
+      first_names = general_conditions['first_names'].to_s.strip
+      first_surname = general_conditions['first_surname'].to_s.strip
+      second_surname = general_conditions['second_surname'].to_s.strip
+
+      full_name = [first_names, first_surname, second_surname]
+        .compact
+        .reject(&:empty?)
+        .join(' ')
+        .strip
+
+      if full_name.present?
+        general_conditions['owner_or_representative_name'] = full_name
+      end
+    end
+  end
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # MÉTODO: Auto-generar identificador de oportunidad
+  # ════════════════════════════════════════════════════════════════════════════
+  def auto_generate_opportunity_identifier
+    # Solo generar si:
+    # 1. No existe identificador manual (o está vacío)
+    # 2. Tenemos los datos necesarios
+
+    return if self.opportunity_identifier.present? && self.opportunity_identifier.strip.length > 0
+
+    # Validar que tenemos datos mínimos
+    return unless self.general_conditions.present? && self.property_info.present?
+
+    first_surname = self.general_conditions['first_surname'].to_s.strip
+    street = self.property_info['street'].to_s.strip
+    exterior = self.property_info['exterior_number'].to_s.strip
+
+    # Solo generar si tenemos estos 3 campos como mínimo
+    return unless first_surname.present? && street.present? && exterior.present?
+
+    # Obtener código de operación
+    op_code = extract_operation_code
+
+    # Limpiar y procesar datos
+    last_name_clean = clean_for_identifier(first_surname).upcase[0..10]  # Max 10 chars
+    street_clean = clean_for_identifier(street).upcase[0..15]  # Max 15 chars
+    exterior_clean = exterior[0..5]  # Max 5 chars
+    interior_clean = self.property_info['interior_number'].to_s.strip[0..3]  # Max 3 chars
+    date_str = Date.today.strftime('%Y%m%d')
+
+    # Construir identificador
+    # Formato: V-CALDERON-INSURGENTES-1500-301-20251204
+    identifier = "#{op_code}-#{last_name_clean}-#{street_clean}-#{exterior_clean}"
+    identifier += "-#{interior_clean}" if interior_clean.present?
+    identifier += "-#{date_str}"
+
+    self.opportunity_identifier = identifier
+    self.auto_generated_identifier = true
+
+    Rails.logger.info "✅ AUTO-GENERATED IDENTIFIER: #{identifier}"
+  end
+
+
+
+
+
   def extract_full_street_code
     street = property_info['street'].to_s.strip
     return 'STREET' if street.blank?
@@ -400,19 +474,40 @@ class InitialContactForm < ApplicationRecord
     generate_opportunity_identifier             # ← LLAMAR AL GENERADOR
   end
 
+  
+  # ════════════════════════════════════════════════════════════════════════════
+  # HELPER: Extraer código de operación (V, R, T, P, X)
+  # ════════════════════════════════════════════════════════════════════════════
+
   def extract_operation_code
-    return 'X' if operation_type_id.blank?
-    op_type = OperationType.find_by(id: operation_type_id)
-    return 'X' unless op_type
-    
-    case op_type.name.to_s.downcase
-    when /venta/i, /sale/i then 'V'
-    when /renta/i, /rent/i then 'R'
-    when /traspaso/i then 'T'
-    when /permuta/i then 'P'
-    when /arrendamiento/i then 'A'
-    else 'X'
+    return 'X' unless self.operation_type.present?
+
+    case self.operation_type.name.to_s.downcase
+    when /venta|sale/
+      'V'
+    when /renta|rental|rent/
+      'R'
+    when /traspaso/
+      'T'
+    when /permuta|exchange/
+      'P'
+    else
+      'X'
     end
+  rescue
+    'X'
+  end
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # HELPER: Limpiar texto para identificadores (sin acentos, sin especiales)
+  # ════════════════════════════════════════════════════════════════════════════
+  def clean_for_identifier(text)
+    text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/, '')
+      .gsub(/[^a-zA-Z0-9]/, '')
+  rescue
+    'UNKNOWN'
   end
 
   def extract_client_code
@@ -547,6 +642,116 @@ class InitialContactForm < ApplicationRecord
     self.converted_at = Time.current
   end
 
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# MÉTODO: Auto-generar y vincular Property ID
+# ════════════════════════════════════════════════════════════════════════════
+def auto_generate_property_id
+  return if property_id.present?  # Si ya está vinculada, no hacer nada
+  return unless property_info.present? && acquisition_details.present?
+
+  # Extraer datos de ubicación
+  street = property_info['street'].to_s.strip
+  exterior = property_info['exterior_number'].to_s.strip
+  interior = property_info['interior_number'].to_s.strip
+  neighborhood = property_info['neighborhood'].to_s.strip
+  municipality = property_info['municipality'].to_s.strip
+  state = acquisition_details['state'].to_s.strip
+
+  # Validar mínimo de datos
+  return unless street.present? && exterior.present? && municipality.present?
+
+  Rails.logger.info "🔍 BUSCANDO PROPIEDAD: #{street} #{exterior}, #{interior}, #{municipality}"
+
+  # ✅ PASO 1: BUSCAR si ya existe la propiedad
+  existing_property = Property.where(
+    street: street,
+    exterior_number: exterior,
+    interior_number: interior,
+    neighborhood: neighborhood,
+    municipality: municipality
+  ).first
+
+  if existing_property.present?
+    # ✅ VINCULAR a propiedad existente
+    self.property_id = existing_property.id
+    Rails.logger.info "✅ PROPERTY LINKED (EXISTENTE): #{existing_property.id} - #{existing_property.address}"
+    return
+  end
+
+  # ✅ PASO 2: CREAR nueva propiedad si no existe
+  begin
+    Rails.logger.info "➕ CREANDO NUEVA PROPIEDAD..."
+
+    # ✅ PASO CRÍTICO: Convertir STRING a OBJETO PropertyType
+    property_type_name = determine_property_type  # Ej: 'casa', 'otros', etc (STRING)
+    
+    # Buscar el OBJETO PropertyType correspondiente
+    # Si no existe, usar el primer PropertyType disponible como fallback
+    property_type_obj = PropertyType.find_by(name: property_type_name) || PropertyType.first
+    
+    # Si no hay PropertyType en la BD, crear uno temporalmente
+    unless property_type_obj
+      Rails.logger.warn "⚠️ No hay PropertyType en BD. Creando 'otros'..."
+      property_type_obj = PropertyType.create!(name: 'otros', description: 'Otros tipos')
+    end
+    
+    # ✅ DEFINIR VALORES POR DEFECTO PARA CAMPOS OBLIGATORIOS
+    default_price = 1.0
+    default_area = 1.0
+    default_land_use = acquisition_details['land_use'].to_s.presence || 'HAB'
+
+    # ✅ Ahora sí, pasar el OBJETO a Property.create!
+    new_property = Property.create!(
+      user_id: agent&.user_id,
+      property_type: property_type_obj,  # ✅ OBJETO PropertyType, NO STRING
+      address: build_property_address(street, exterior, interior, neighborhood, municipality),
+      street: street,
+      exterior_number: exterior,
+      interior_number: interior,
+      neighborhood: neighborhood,
+      city: property_info['city'].to_s,
+      municipality: municipality,
+      state: state,
+      postal_code: property_info['postal_code'].to_s,
+      country: property_info['country'].to_s || 'México',
+      
+      price: default_price,
+      built_area_m2: default_area,
+      lot_area_m2: default_area,
+      bedrooms: 0,
+      bathrooms: 0,
+      
+      # ✅ Título y Descripción obligatorios
+      title: "Propiedad en #{street} #{exterior}",
+      description: "Propiedad capturada desde Formulario de Contacto Inicial #{self.opportunity_identifier}",
+
+      land_use: LandUseType.find_by(code: acquisition_details['land_use'].to_s.presence || 'HAB')&.property_category || 'habitacional',
+      contact_email: general_conditions['owner_email'].to_s,
+      contact_phone: general_conditions['owner_phone'].to_s
+    )
+
+    self.property_id = new_property.id
+    Rails.logger.info "✅ PROPERTY CREATED (NUEVA): #{new_property.id} - #{new_property.address}"
+
+  rescue ActiveRecord::RecordInvalid => e
+    # 🚨 Capturar error de validación específico
+    Rails.logger.error "❌ ERROR VALIDACIÓN PROPIEDAD: #{e.message}"
+    Rails.logger.error e.record.errors.full_messages.inspect
+
+  rescue StandardError => e
+    # ⚠️ NO fallar si hay error al crear propiedad
+    Rails.logger.error "⚠️ ERROR CREANDO PROPIEDAD: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.first(5).join("\n")
+    # Continuar sin propiedad (no es crítico)
+  end
+end
+
+
+
+  ############################################
+
   def determine_property_type
     land_use = acquisition_details['land_use']
     case land_use
@@ -561,6 +766,23 @@ class InitialContactForm < ApplicationRecord
     else 'otros'
     end
   end
+
+
+
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # HELPER: Construir dirección completa
+  # ════════════════════════════════════════════════════════════════════════════
+  def build_property_address(street, exterior, interior, neighborhood, municipality)
+    parts = [street, exterior]
+    parts << "Apt/Int: #{interior}" if interior.present?
+    parts << neighborhood if neighborhood.present?
+    parts << municipality if municipality.present?
+
+    parts.compact.join(', ')
+  end
+
+
 
   def generate_property_title
     street = property_info['street'].to_s

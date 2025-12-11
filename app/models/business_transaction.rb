@@ -13,6 +13,8 @@ class BusinessTransaction < ApplicationRecord
  
   after_create :assign_transaction_scenario_by_category
   after_create :setup_required_documents
+  before_destroy :check_active_offers  
+  before_destroy :reset_initial_contact_form  
 
   has_one :initial_contact_form, dependent: :nullify
 
@@ -117,6 +119,31 @@ end
   end
  
   private
+
+  # ============================================================
+  # VALIDACIÓN: No borrar si hay ofertas activas
+  # ============================================================
+  def check_active_offers
+    if offers.active.exists?
+      errors.add(:base, "No se puede borrar: hay ofertas activas en progreso. Rechaza o cancela todas las ofertas primero.")
+      throw :abort
+    end
+  end
+
+
+  # ============================================================
+  # CALLBACK: Reestablecer InitialContactForm cuando se borra BT
+  # ============================================================
+  def reset_initial_contact_form
+    return unless initial_contact_form.present?
+    
+    initial_contact_form.update!(
+      status: :completed,
+      business_transaction_id: nil
+    )
+    
+    Rails.logger.info "✅ InitialContactForm #{initial_contact_form.id} reestablecida a estado 'completed'"
+  end
   
   def validate_acquisition_method_requirements
     return unless property_acquisition_method.present?

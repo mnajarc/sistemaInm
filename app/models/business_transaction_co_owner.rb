@@ -8,6 +8,9 @@ class BusinessTransactionCoOwner < ApplicationRecord
   validates :person_name, presence: true, if: -> { client_id.blank? }
   validates :role, presence: true
 
+  before_save :ensure_person_name  # ← AGREGAR ESTA LÍNEA
+
+
   scope :active, -> { where(active: true) }
 
   def is_primary?
@@ -21,4 +24,27 @@ class BusinessTransactionCoOwner < ApplicationRecord
   def display_info
     "#{display_name} (#{percentage}%)"
   end
+
+
+  private
+
+  # ============================================================
+  # Asegurar que person_name siempre tenga valor
+  # ============================================================
+  def ensure_person_name
+    return if person_name.present?  # Si ya tiene valor, no hacer nada
+    
+    # Si tiene cliente vinculado, usa su nombre
+    if client.present?
+      self.person_name = client.display_name || 
+                         [client.first_names, client.first_surname, client.second_surname]
+                           .compact.join(' ').strip ||
+                         client.email ||
+                         "Cliente #{client.id}"
+    end
+    
+    # Si no tiene cliente, mantener person_name como fue asignado
+  end
+
+
 end

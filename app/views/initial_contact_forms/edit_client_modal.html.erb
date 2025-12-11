@@ -1,0 +1,119 @@
+<div class="offcanvas offcanvas-end" tabindex="-1" id="clientOffcanvas" aria-labelledby="clientOffcanvasLabel" data-controller="client-offcanvas">
+  <div class="offcanvas-header bg-success text-white">
+    <h5 class="offcanvas-title" id="clientOffcanvasLabel">
+      <i class="bi bi-person-fill"></i> Editar Datos del Cliente/Propietario
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+
+  <div class="offcanvas-body p-4">
+    <form id="clientForm" class="needs-validation">
+      
+      <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle"></i>
+        <strong>Nota:</strong> Esta información identifica al propietario/cliente.
+        El Opportunity ID se genera con su apellido + fecha.
+      </div>
+
+      <!-- NOMBRE COMPLETO -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">Nombre Completo del Propietario *</label>
+        <input type="text"
+               id="ownerName"
+               class="form-control form-control-lg"
+               placeholder="Juan Pérez García"
+               value="<%= @general_conditions['owner_or_representative_name'] %>"
+               required>
+        <small class="text-muted">Formato: Nombre Apellido1 Apellido2</small>
+      </div>
+
+      <!-- TELÉFONO Y EMAIL -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Teléfono de Contacto</label>
+          <input type="tel"
+                 id="ownerPhone"
+                 class="form-control"
+                 placeholder="(55) 1234-5678"
+                 value="<%= @general_conditions['owner_phone'] %>">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Email de Contacto</label>
+          <input type="email"
+                 id="ownerEmail"
+                 class="form-control"
+                 placeholder="cliente@email.com"
+                 value="<%= @general_conditions['owner_email'] %>">
+        </div>
+      </div>
+
+      <!-- ESTADO CIVIL -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Estado Civil *</label>
+          <select id="civilStatusField"
+                  class="form-select"
+                  required>
+            <option value="">Selecciona...</option>
+            <% CivilStatus.active.order(:sort_order).each do |status| %>
+              <option value="<%= status.name %>"
+                      <%= 'selected' if @general_conditions['civil_status'] == status.name %>>
+                <%= status.display_name %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+
+        <!-- RÉGIMEN MATRIMONIAL (condicional) -->
+        <div class="col-md-6" id="marriageRegimeField"
+             style="display: <%= @general_conditions['civil_status'] == 'casado' ? 'block' : 'none' %>;">
+          <label class="form-label">Régimen Matrimonial</label>
+          <select id="marriageRegimeSelect"
+                  class="form-select">
+            <option value="">Selecciona...</option>
+            <% MarriageRegime.active.ordered.each do |regime| %>
+              <option value="<%= regime.id %>"
+                      <%= 'selected' if @general_conditions['marriage_regime_id'].to_i == regime.id %>>
+                <%= regime.display_name %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+
+      <!-- NOTAS -->
+      <div class="mb-3">
+        <label class="form-label">Observaciones Adicionales</label>
+        <textarea id="clientNotes"
+                  class="form-control"
+                  rows="3"
+                  placeholder="Información adicional relevante..."><%= @general_conditions['notes'] %></textarea>
+      </div>
+
+      <!-- PREVIEW DE OPPORTUNITY ID -->
+      <div class="alert alert-success mt-4">
+        <strong>🏷️ Identificador de Oportunidad (automático):</strong>
+        <div class="font-monospace mt-2 fs-6" id="opportunityPreview">
+          <% name_parts = @general_conditions['owner_or_representative_name'].to_s.split(/\s+/) %>
+          <% last_name = name_parts.length >= 2 ? name_parts : name_parts %>
+          <% last_name_clean = last_name.to_s.upcase.slice(0, 10) %>
+          V-<%= last_name_clean %>-<%= Date.current.strftime('%Y%m%d') %>-001
+        </div>
+        <small class="text-muted mt-2 d-block">
+          Este ID es temporal y cambia si el propietario o la fecha cambian
+        </small>
+      </div>
+
+      <!-- BOTONES -->
+      <div class="d-flex gap-2 mt-4 pt-3 border-top">
+        <button type="button" class="btn btn-secondary flex-grow-1" data-bs-dismiss="offcanvas">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-success flex-grow-1" id="saveClientBtn">
+          <i class="bi bi-check-lg"></i> Guardar Cliente
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,79 @@
+<div class="card">
+  <div class="card-body">
+    <%= form_with model: client, local: true do |f| %>
+      
+      <% if client.errors.any? %>
+        <div class="alert alert-danger">
+          <h5><%= pluralize(client.errors.count, "error") %> en el formulario:</h5>
+          <ul>
+            <% client.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <!-- Nombre Completo -->
+      <div class="mb-3">
+        <%= f.label :full_name, "Nombre Completo *", class: 'form-label fw-bold' %>
+        <%= f.text_field :full_name, 
+                          class: 'form-control form-control-lg',
+                          placeholder: 'Juan Pérez García',
+                          required: true %>
+        <small class="text-muted">Nombre y apellidos (tal como aparecerá en documentos)</small>
+      </div>
+
+      <!-- Teléfono y Email -->
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <%= f.label :phone, "Teléfono", class: 'form-label' %>
+          <%= f.telephone_field :phone,
+                                class: 'form-control',
+                                placeholder: '(55) 1234-5678' %>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <%= f.label :email, "Email", class: 'form-label' %>
+          <%= f.email_field :email,
+                            class: 'form-control',
+                            placeholder: 'cliente@email.com' %>
+        </div>
+      </div>
+
+      <!-- Estado Civil -->
+      <div class="mb-3">
+        <%= f.label :civil_status, "Estado Civil", class: 'form-label' %>
+        <%= f.select :civil_status,
+                    CivilStatus.active.order(:sort_order).map { |s| [s.display_name, s.name] },
+                    { include_blank: 'Selecciona...' },
+                    class: 'form-select' %>
+      </div>
+
+      <!-- Notas -->
+      <div class="mb-3">
+        <%= f.label :notes, "Observaciones", class: 'form-label' %>
+        <%= f.text_area :notes,
+                        class: 'form-control',
+                        rows: 3,
+                        placeholder: 'Información adicional relevante...' %>
+      </div>
+
+      <!-- Botones -->
+      <div class="d-flex gap-2 mt-4">
+        <% if form.present? %>
+          <%= f.submit "Guardar y volver al formulario", class: 'btn btn-success flex-grow-1' %>
+          <%= link_to "Cancelar", form, class: 'btn btn-secondary flex-grow-1' %>
+        <% else %>
+          <%= f.submit "Guardar Cliente", class: 'btn btn-success flex-grow-1' %>
+          <%= link_to "Cancelar", clients_path, class: 'btn btn-secondary flex-grow-1' %>
+        <% end %>
+      </div>
+
+      <!-- Campo oculto para form_id -->
+      <% if form.present? %>
+        <%= hidden_field_tag :form_id, form.id %>
+      <% end %>
+
+    <% end %>
+  </div>
+</div>

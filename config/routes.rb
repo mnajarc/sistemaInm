@@ -5,8 +5,8 @@ Rails.application.routes.draw do
     root "dashboard#index"
     resources :transactions, only: [:index, :show]
   end
-  
-  resources :clients, only: [:index, :create, :show]
+
+  resources :clients, only: [:index, :new, :create, :edit, :update, :show, :destroy]
 
   root "properties#index"
   resources :properties
@@ -14,10 +14,13 @@ Rails.application.routes.draw do
   resources :initial_contact_forms do
     member do
       post :convert_to_transaction
-      # ✅ NUEVAS RUTAS
       get :edit_property_modal
       patch :update_property_from_modal
-      post :update_property_from_modal  # También POST
+      post :update_property_from_modal  
+      
+      get :new_client_for_form     
+      get :new_property_for_form   
+
       
       get :edit_client_modal
       patch :update_client_from_modal

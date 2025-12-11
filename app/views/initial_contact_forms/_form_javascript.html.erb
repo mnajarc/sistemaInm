@@ -244,32 +244,150 @@ function clearHiddenSectionFields(exceptSectionId) {
     console.error('❌ Method select not found: acquisition_method_select');
   }
 
+
+
   // ========================================================================
-  // SECCIÓN 1: CONDICIONES GENERALES - Estado civil
+  // SECCIÓN 1: CONDICIONES GENERALES - Estado civil y Nombre Legal
   // ========================================================================
-  
-  const civilStatusField = document.getElementById('civil_status_field');
-  const marriageField = document.querySelector('.marriage-regime-field');
-  
-  if (civilStatusField && marriageField) {
-    function updateMarriageRegimeVisibility() {
-      const isVisible = civilStatusField.value === 'casado';
-      marriageField.style.display = isVisible ? 'block' : 'none';
-      
-      const regimeSelect = marriageField.querySelector('select');
-      if (regimeSelect) {
-        if (isVisible) {
-          regimeSelect.setAttribute('required', 'required');
-        } else {
-          regimeSelect.removeAttribute('required');
-          regimeSelect.selectedIndex = 0;
-        }
-      }
+
+  const firstNamesField = document.querySelector('input[name="initial_contact_form[general_conditions][first_names]"]');
+  const firstSurnameField = document.querySelector('input[name="initial_contact_form[general_conditions][first_surname]"]');
+  const secondSurnameField = document.querySelector('input[name="initial_contact_form[general_conditions][second_surname]"]');
+  const fullNamePreview = document.getElementById('full_name_preview');
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SELECTORES DE ESTADO CIVIL (AL MOMENTO DE COMPRA)
+  // ════════════════════════════════════════════════════════════════════════
+
+  const civilStatusField = document.getElementById('civil-status-field');
+  const marriageRegimeField = document.querySelector('.marriage-regime-field');
+  const marriageRegimeSelect = marriageRegimeField?.querySelector('select');
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SELECTORES DE ESTADO CIVIL ACTUAL (NUEVO)
+  // ════════════════════════════════════════════════════════════════════════
+
+  const currentCivilStatusField = document.getElementById('current-civil-status-field');
+  const currentMarriageField = document.querySelector('.current-marriage-regime-field');
+  const currentMarriageSelect = currentMarriageField?.querySelector('select');
+
+  // ════════════════════════════════════════════════════════════════════════
+  // FUNCIÓN: Actualizar Preview de Nombre Legal
+  // ════════════════════════════════════════════════════════════════════════
+
+  function updateFullNamePreview() {
+    if (!fullNamePreview) return;
+    
+    const firstName = firstNamesField?.value?.trim() || '';
+    const firstSurname = firstSurnameField?.value?.trim() || '';
+    const secondSurname = secondSurnameField?.value?.trim() || '';
+    
+    // Validar que haya al menos nombre y primer apellido
+    if (!firstName || !firstSurname) {
+      fullNamePreview.innerHTML = '<em class="text-muted">(Se completa al rellenar arriba)</em>';
+      return;
     }
     
-    civilStatusField.addEventListener('change', updateMarriageRegimeVisibility);
-    updateMarriageRegimeVisibility();
+    // Construir el nombre legal
+    let fullName = `${firstName} ${firstSurname}`;
+    if (secondSurname) {
+      fullName += ` ${secondSurname}`;
+    }
+    
+    // Mostrar el nombre en el preview
+    fullNamePreview.innerHTML = `<strong>${fullName.trim()}</strong>`;
+    console.log('✅ Full name updated:', fullName.trim());
   }
+
+  // Event listeners para el nombre legal
+  if (firstNamesField) firstNamesField.addEventListener('input', updateFullNamePreview);
+  if (firstSurnameField) firstSurnameField.addEventListener('input', updateFullNamePreview);
+  if (secondSurnameField) secondSurnameField.addEventListener('input', updateFullNamePreview);
+
+  // Trigger inicial
+  setTimeout(() => updateFullNamePreview(), 100);
+
+  // ════════════════════════════════════════════════════════════════════════
+  // FUNCIÓN: Manejar visibilidad de régimen matrimonial (AL MOMENTO DE COMPRA)
+  // ════════════════════════════════════════════════════════════════════════
+
+  function updateMarriageRegimeVisibility() {
+    if (!civilStatusField || !marriageRegimeField) {
+      console.warn('⚠️ Marriage regime elements not found');
+      return;
+    }
+    
+    const civilStatus = civilStatusField.value;
+    console.log('🔍 Civil Status changed to:', civilStatus);
+    
+    const isMarried = civilStatus === 'casado';
+    
+    // Mostrar/ocultar el campo de régimen matrimonial
+    marriageRegimeField.style.display = isMarried ? 'block' : 'none';
+    
+    // Si está casado, hacer el select required; si no, hacerlo optional
+    if (marriageRegimeSelect) {
+      if (isMarried) {
+        marriageRegimeSelect.setAttribute('required', 'required');
+        console.log('✅ Marriage regime field shown (required)');
+      } else {
+        marriageRegimeSelect.removeAttribute('required');
+        marriageRegimeSelect.selectedIndex = 0;
+        console.log('✅ Marriage regime field hidden (not required)');
+      }
+    }
+  }
+
+  if (civilStatusField) {
+    civilStatusField.addEventListener('change', updateMarriageRegimeVisibility);
+    // Ejecutar inmediatamente al cargar para mostrar estado inicial correcto
+    updateMarriageRegimeVisibility();
+    console.log('✅ Civil status field listener attached (immediate execution)');
+  } else {
+    console.warn('⚠️ civil-status-field not found');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // FUNCIÓN: Manejar visibilidad de régimen matrimonial ACTUAL (NUEVO)
+  // ════════════════════════════════════════════════════════════════════════
+
+  function updateCurrentMarriageRegimeVisibility() {
+    if (!currentCivilStatusField || !currentMarriageField) {
+      console.warn('⚠️ Current marriage regime elements not found');
+      return;
+    }
+    
+    const currentCivilStatus = currentCivilStatusField.value;
+    console.log('🔍 Current Civil Status changed to:', currentCivilStatus);
+    
+    const isMarried = currentCivilStatus === 'casado';
+    
+    // Mostrar/ocultar el campo de régimen matrimonial actual
+    currentMarriageField.style.display = isMarried ? 'block' : 'none';
+    
+    // Si está casado, hacer el select required; si no, hacerlo optional
+    if (currentMarriageSelect) {
+      if (isMarried) {
+        currentMarriageSelect.setAttribute('required', 'required');
+        console.log('✅ Current marriage regime field shown (required)');
+      } else {
+        currentMarriageSelect.removeAttribute('required');
+        currentMarriageSelect.selectedIndex = 0;
+        console.log('✅ Current marriage regime field hidden (not required)');
+      }
+    }
+  }
+
+  if (currentCivilStatusField) {
+    currentCivilStatusField.addEventListener('change', updateCurrentMarriageRegimeVisibility);
+    // Ejecutar al cargar para mostrar estado inicial correcto
+    setTimeout(() => updateCurrentMarriageRegimeVisibility(), 100);
+    console.log('✅ Current civil status field listener attached');
+  } else {
+    console.warn('⚠️ current-civil-status-field not found');
+  }
+
+
 
   // ========================================================================
   // SECCIÓN 2: ESTATUS ACTUAL

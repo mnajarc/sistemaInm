@@ -48,34 +48,41 @@
     </div>
     <div class="card-body">
       <div class="row">
+
         <div class="col-md-12 mb-3">
           <%= f.label :opportunity_identifier, 'Nombre de la oportunidad *', class: 'form-label fw-bold' %>
-          <%= f.text_field :opportunity_identifier, 
-                           class: 'form-control form-control-lg', 
-                           required: true,
-                           placeholder: 'Ej: Casa Lomas de Chapultepec - Familia García' %>
+          
+          <%# Campo visible que muestra el identificador generado automáticamente %>
+          <div class="input-group">
+            <span class="input-group-text" id="identifier-prefix">
+              <i class="bi bi-tag"></i>
+            </span>
+            <% if form.opportunity_identifier.present? %>
+              <%= f.text_field :opportunity_identifier,
+                               class: 'form-control form-control-lg',
+                               value: form.opportunity_identifier,
+                               readonly: true %>
+            <% else %>
+              <%= f.text_field :opportunity_identifier,
+                               class: 'form-control form-control-lg',
+                               placeholder: 'Se generará automáticamente al completar los datos',
+                               readonly: false %>
+            <% end %>
+          </div>
+          
           <small class="text-muted mt-2 d-block">
-            <i class="bi bi-info-circle"></i> 
-            <strong>Importante:</strong> Este nombre te ayudará a identificar rápidamente esta oportunidad.
+            <i class="bi bi-lightbulb"></i>
+            <strong>Importante:</strong> Este identificador se genera automáticamente a partir de:
             <br>
-            <strong>Se recomienda usar:</strong> [Tipo de propiedad] [Ubicación] - [Propietario]
+            <strong>Operación</strong> (V=Venta, R=Renta) + <strong>Apellido</strong> + <strong>Calle</strong> + <strong>Número</strong> + <strong>Fecha</strong>
+            <br>
+            <strong>Ejemplo:</strong> V-CALDERON-INSURGENTES-1500-301-20251204
           </small>
         </div>
+
+
       </div>
       
-      <div class="alert alert-success mt-3">
-        <i class="bi bi-lightbulb"></i> 
-        <strong>Sugerencia:</strong> Un buen identificador facilita el seguimiento de la operación.
-        <br><br>
-        <strong>Ejemplos:</strong>
-        <ul class="mb-0">
-          <li>Casa Lomas de Chapultepec - Familia Gómez</li>
-          <li>Departamento Reforma - Roberto Martínez</li>
-          <li>Terreno Industrial Vallejo - Constructora ABC</li>
-        </ul>
-      </div>
-    </div>
-  </div>
 
   <!-- IDENTIFICADORES Y BOTONES DE EDICIÓN -->
   <div class="card mb-4 border-primary">
@@ -119,83 +126,84 @@
       
       <hr class="my-4">
       
-      <!-- SECTION 2: PROPIEDAD CON BOTÓN -->
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <h6 class="text-info mb-3">
-            <i class="bi bi-house-fill"></i> Datos de la Propiedad
-          </h6>
-          
-          <% if form.property_info.present? %>
-            <div class="alert alert-success">
-              <strong>✓ Completado</strong>
-              <br>
-              <small>
-                <%= form.property_info['street'] %> <%= form.property_info['exterior_number'] %>
+      
+        <!-- SECTION 2: PROPIEDAD CON BOTÓN -->
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <h6 class="text-info mb-3">
+              <i class="bi bi-house-fill"></i> Datos de la Propiedad
+            </h6>
+            
+            <% if form.property_info.present? %>
+              <div class="alert alert-success">
+                <strong>✓ Completado</strong>
                 <br>
-                <%= form.property_info['neighborhood'] %>, <%= form.property_info['municipality'] %>
-              </small>
-            </div>
-          <% else %>
-            <div class="alert alert-warning">
-              <strong>⚠️ Pendiente</strong>
-              <br>
-              <small>No hay datos de propiedad</small>
-            </div>
-          <% end %>
-
-          <% if form.persisted? %>
-            <%= button_to "Editar Propiedad", 
-                edit_property_modal_initial_contact_form_path(form),
-                method: :get,
-                class: 'btn btn-primary btn-sm w-100',
-                data: { turbo_frame: 'modal' } %>
-          <% else %>
-            <button class="btn btn-primary btn-sm w-100" disabled>
-              Guardar primero para editar propiedad
-            </button>
-          <% end %>
-
-          
-        </div>
-        
-        <!-- SECTION 3: CLIENTE CON BOTÓN -->
-        <div class="col-md-6">
-          <h6 class="text-info mb-3">
-            <i class="bi bi-person-fill"></i> Datos del Cliente/Propietario
-          </h6>
-          
-          <% if form.general_conditions['owner_or_representative_name'].present? %>
-            <div class="alert alert-success">
-              <strong>✓ Completado</strong>
-              <br>
-              <small>
-                <%= form.general_conditions['owner_or_representative_name'] %>
+                <small>
+                  <%= form.property_info['street'] %> <%= form.property_info['exterior_number'] %>
+                  <br>
+                  <%= form.property_info['neighborhood'] %>, <%= form.property_info['municipality'] %>
+                </small>
+              </div>
+            <% else %>
+              <div class="alert alert-warning">
+                <strong>⚠️ Pendiente</strong>
                 <br>
-                <%= form.general_conditions['owner_email'] %>
-              </small>
-            </div>
-          <% else %>
-            <div class="alert alert-warning">
-              <strong>⚠️ Pendiente</strong>
-              <br>
-              <small>No hay datos del cliente</small>
-            </div>
-          <% end %>
+                <small>No hay datos de propiedad</small>
+              </div>
+            <% end %>
+
+            <% if form.persisted? %>
+              <%= button_to "Editar Propiedad", 
+                  new_property_for_form_initial_contact_form_path(form),
+                  method: :get,
+                  class: 'btn btn-primary btn-sm w-100' %>
+            <% else %>
+              <button class="btn btn-primary btn-sm w-100" disabled>
+                Guardar primero para editar propiedad
+              </button>
+            <% end %>
+          </div>
           
-          <% if form.persisted? %>
-            <%= button_to "Editar Cliente", 
-                edit_client_modal_initial_contact_form_path(form),
-                method: :get,
-                class: 'btn btn-primary btn-sm w-100',
-                data: { turbo_frame: 'modal' } %>
-          <% else %>
-            <button class="btn btn-primary btn-sm w-100" disabled>
-              Guardar primero para editar cliente
-            </button>
-          <% end %>
+          <!-- SECTION 3: CLIENTE CON BOTÓN -->
+          <div class="col-md-6">
+            <h6 class="text-info mb-3">
+              <i class="bi bi-person-fill"></i> Datos del Cliente/Propietario
+            </h6>
+            
+            <% if form.general_conditions['owner_or_representative_name'].present? %>
+              <div class="alert alert-success">
+                <strong>✓ Completado</strong>
+                <br>
+                <small>
+                  <%= form.general_conditions['owner_or_representative_name'] %>
+                  <br>
+                  <%= form.general_conditions['owner_email'] %>
+                </small>
+              </div>
+            <% else %>
+              <div class="alert alert-warning">
+                <strong>⚠️ Pendiente</strong>
+                <br>
+                <small>No hay datos del cliente</small>
+              </div>
+            <% end %>
+            
+            <% if form.persisted? %>
+              <%= button_to "Editar Cliente", 
+                  new_client_for_form_initial_contact_form_path(form),
+                  method: :get,
+                  class: 'btn btn-primary btn-sm w-100' %>
+            <% else %>
+              <button class="btn btn-primary btn-sm w-100" disabled>
+                Guardar primero para editar cliente
+              </button>
+            <% end %>
+          </div>
         </div>
-      </div>
+
+        <hr class="my-4">
+
+
       
       <hr class="my-4">
       
@@ -367,15 +375,6 @@
                 </h5>
               </div>
               <div class="card-body">
-                <div class="alert alert-info">
-                  <strong>Importante:</strong> Por favor, ingresa los nombres y apellidos de forma separada para documentos legales.
-                  <br><strong>Ejemplo:</strong> 
-                  <ul class="mb-0">
-                    <li><strong>Nombre(s):</strong> Isabel María Luisa</li>
-                    <li><strong>Primer Apellido:</strong> Calderón</li>
-                    <li><strong>Segundo Apellido:</strong> Grajales</li>
-                  </ul>
-                </div>
                 
                 <!-- Nombre(s) propio(s) -->
                 <div class="col-md-6 mb-3">
@@ -459,33 +458,72 @@
           
           
           <div class="row">
-            <div class="col-md-6 mb-3">
-              <%= label_tag 'general_conditions[civil_status]', 'Estado civil al momento de la adquisición *', class: 'form-label' %>
+          
+          <div class="col-md-6 mb-3">
+            <label for="civil_status_field" class="form-label">Estado civil al momento de la adquisición *</label>
+            <%= select_tag 'initial_contact_form[general_conditions][civil_status]',
+                options_from_collection_for_select(
+                  CivilStatus.active.order(:sort_order),
+                  :name,
+                  :display_name,
+                  form.general_conditions['civil_status']
+                ),
+                prompt: 'Seleccione...',
+                class: 'form-select',
+                id: 'civil-status-field',
+                required: true %>
+            <small class="text-muted">Estado civil del propietario</small>
+          </div>
 
-              <%= select_tag 'initial_contact_form[general_conditions][civil_status]',
+          <div class="col-md-6 mb-3 marriage-regime-field">
+            <%= label_tag 'general_conditions_marriage_regime_id', 'Régimen matrimonial', class: 'form-label' %>
+            <%= collection_select 'initial_contact_form[general_conditions]', :marriage_regime_id,
+                                  MarriageRegime.active.ordered,
+                                  :id, :display_name,
+                                  { selected: form.general_conditions['marriage_regime_id'], prompt: 'Seleccione...' },
+                                  { class: 'form-select' } %>
+          </div>
+
+
+
+
+
+          </div>
+          
+
+
+
+          <!-- ESTADO CIVIL ACTUAL (NUEVO) -->
+          <div class="row mt-4">
+            <div class="col-md-6 mb-3">
+              <%= label_tag 'general_conditions[current_civil_status]', 'Estado civil actual *', class: 'form-label' %>
+
+              <%= select_tag 'initial_contact_form[general_conditions][current_civil_status]',
                   options_from_collection_for_select(
                     CivilStatus.active.order(:sort_order),
-                    :name,          # Guardar name (que debe ser: soltero, casado, etc)
-                    :display_name,  # Mostrar display_name (Soltero(a), Casado(a), etc)
-                    form.general_conditions['civil_status']
+                    :name,
+                    :display_name,
+                    form.general_conditions['current_civil_status']
                   ),
                   prompt: 'Seleccione...',
                   class: 'form-select',
-                  id: 'civil-status-field',
+                  id: 'current-civil-status-field',
                   required: true %>
-              <small class="text-muted">Estado civil del propietario</small>
+              <small class="text-muted">Estado civil ACTUAL del propietario</small>
             </div>
 
-            <div class="col-md-6 mb-3 marriage-regime-field" style="<%= 'display:none;' unless form.general_conditions['civil_status'] == 'casado' %>">
-              <%= label_tag 'general_conditions_marriage_regime_id', 'Régimen matrimonial', class: 'form-label' %>
-              <%= collection_select 'initial_contact_form[general_conditions]', :marriage_regime_id,
-                                   MarriageRegime.active.ordered,
-                                   :id, :display_name,
-                                   { prompt: 'Seleccione...' },
-                                   { class: 'form-select' } %>
+            <div class="col-md-6 mb-3 current-marriage-regime-field" style="<%= 'display:none;' unless form.general_conditions['current_civil_status'] == 'casado' %>">
+              <%= label_tag 'general_conditions_current_marriage_regime_id', 'Régimen matrimonial actual', class: 'form-label' %>
+              <%= collection_select 'initial_contact_form[general_conditions]', :current_marriage_regime_id,
+                                    MarriageRegime.active.ordered,
+                                    :id, :display_name,
+                                    { selected: form.general_conditions['current_marriage_regime_id'], prompt: 'Seleccione...' },
+                                    { class: 'form-select' } %>
             </div>
           </div>
-          
+
+
+
           <div class="mb-3">
             <%= label_tag 'general_conditions_notes', 'Observaciones adicionales', class: 'form-label' %>
             <%= text_area_tag 'initial_contact_form[general_conditions][notes]',
@@ -737,120 +775,104 @@
   </div>
   <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Elementos del formulario
     const operationTypeSelect = document.querySelector('select[name="initial_contact_form[operation_type_id]"]');
+    const firstSurnameField = document.querySelector('input[name="initial_contact_form[general_conditions][first_surname]"]');
     const streetField = document.getElementById('property-street-field');
     const exteriorField = document.getElementById('property-exterior-field');
     const interiorField = document.getElementById('property-interior-field');
+    const identifierField = document.querySelector('input[name="initial_contact_form[opportunity_identifier]"]');
     const previewDiv = document.getElementById('opportunity-identifier-preview');
 
-    // Función para generar preview del identificador MIXTO
     function updateIdentifierPreview() {
-      // Obtener valores
       const operationTypeId = operationTypeSelect?.value || '';
-      const ownerName = document.querySelector('input[name="initial_contact_form[general_conditions][owner_or_representative_name]"]')?.value || '';
+      const firstSurname = firstSurnameField?.value || '';
       const street = streetField?.value || '';
       const exterior = exteriorField?.value || '';
       const interior = interiorField?.value || '';
 
-      // Validar que tengamos todos los campos necesarios
-      if (!operationTypeId || !ownerName || !street || !exterior || !interior) {
-        previewDiv.innerHTML = '<em class="text-muted">Completa: operación, nombre propietario, calle y número Exterior e interior (en su caso)</em>';
+      // Validar campos mínimos
+      if (!operationTypeId || !firstSurname || !street || !exterior) {
+        if (previewDiv) {
+          previewDiv.innerHTML = '<em class="text-muted">Completa: operación, apellido, calle y número exterior</em>';
+        }
+        if (identifierField) {
+          identifierField.value = '';
+        }
         return;
       }
 
-      // 1. OPERACIÓN - Obtener código
-      const selectedOption = operationTypeSelect.options[operationTypeSelect.selectedIndex];
+      // Extraer código de operación
+      const selectedOption = operationTypeSelect?.options[operationTypeSelect.selectedIndex];
       const operationType = selectedOption ? selectedOption.text.toLowerCase() : '';
-      
       let opCode = 'X';
+
       if (operationType.includes('venta') || operationType.includes('sale')) {
         opCode = 'V';
       } else if (operationType.includes('renta') || operationType.includes('rent')) {
         opCode = 'R';
       } else if (operationType.includes('traspaso')) {
         opCode = 'T';
-      } else if (operationType.includes('permuta')) {
-        opCode = 'P';
       }
-      
-           // 2. CLIENTE - Extraer primer apellido
-      const nameParts = ownerName.trim().split(/\s+/);
-      let lastName = nameParts;
-      
-      // if (nameParts.length >= 2) {
-        // lastName = nameParts;  // ✅ Segundo elemento = primer apellido
-      // } else {
-        // lastName = nameParts;  // ✅ Primer elemento si solo hay uno
-      // }
-      
-      // Limpiar apellido (sin acentos, sin caracteres especiales, uppercase, max 10 chars)
-      const lastNameClean = lastName;
-      
-      // 3. PROPIEDAD - Limpiar calle (NOMBRE COMPLETO - sin límite)
+
+      // Limpiar apellido (sin acentos, sin caracteres especiales, uppercase)
+      const lastNameClean = firstSurname
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 10);
+
+      // Limpiar calle
       const streetClean = street
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9]/g, '');
-        // ✅ SIN substring - mantiene nombre completo
- 
-      // 4. FECHA - Fecha actual YYYYMMDD
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 15);
+
+      // Generar fecha
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const day = String(today.getDate()).padStart(2, '0');
       const dateStr = `${year}${month}${day}`;
 
-      // 5. GENERAR IDENTIFICADOR MIXTO
-      // Formato: V-PEREZ-Insurgentes-1500-20251123
-      const identifier = `${opCode}-${lastNameClean}-${streetClean}-${exterior}-${interior}-${dateStr}`;
-      
-      // 6. MOSTRAR con desglose
-      previewDiv.innerHTML = `
-        <code class="text-success fs-5">${identifier}</code>
-        <small class="d-block text-muted mt-2">
-          <strong>Desglose:</strong><br>
-          ${opCode} = Operación | 
-          ${lastNameClean} = Cliente | 
-          ${streetClean}-${exterior}-${interior} = Propiedad | 
-          ${dateStr} = Fecha
-        </small>
-      `;
+      // Construir identificador (igual lógica que Rails)
+      let identifier = `${opCode}-${lastNameClean}-${streetClean}-${exterior}`;
+      if (interior && interior.trim()) {
+        identifier += `-${interior.slice(0, 3)}`;
+      }
+      identifier += `-${dateStr}`;
+
+      // IMPORTANTE: Actualizar AMBOS: preview y campo hidden
+      if (previewDiv) {
+        previewDiv.innerHTML = `
+          <code class="text-success fs-5">${identifier}</code>
+          <small class="d-block text-muted mt-2">
+            <strong>Desglose:</strong> ${opCode} (operación) | ${lastNameClean} (cliente) | ${streetClean}-${exterior}${interior ? `-${interior}` : ''} (propiedad) | ${dateStr} (fecha)
+          </small>
+        `;
+      }
+
+      // ✅ ACTUALIZAR EL CAMPO HIDDEN (esto es lo CRÍTICO)
+      if (identifierField) {
+        identifierField.value = identifier;
+      }
+
+      console.log('✅ Identifier updated:', identifier);
     }
 
+    // Event listeners
+    if (operationTypeSelect) operationTypeSelect.addEventListener('change', updateIdentifierPreview);
+    if (firstSurnameField) firstSurnameField.addEventListener('input', updateIdentifierPreview);
+    if (streetField) streetField.addEventListener('input', updateIdentifierPreview);
+    if (exteriorField) exteriorField.addEventListener('input', updateIdentifierPreview);
+    if (interiorField) interiorField.addEventListener('input', updateIdentifierPreview);
 
-      // Event listeners para actualización en tiempo real
-      if (operationTypeSelect) {
-        operationTypeSelect.addEventListener('change', updateIdentifierPreview);
-      }
-      
-      const ownerNameField = document.querySelector('input[name="initial_contact_form[general_conditions][owner_or_representative_name]"]');
-      if (ownerNameField) {
-        ownerNameField.addEventListener('input', updateIdentifierPreview);
-      }
-      
-      if (streetField) {
-        streetField.addEventListener('input', updateIdentifierPreview);
-      }
-      
-      if (exteriorField) {
-        exteriorField.addEventListener('input', updateIdentifierPreview);
-      }
-      
-      if (interiorField) {
-        interiorField.addEventListener('input', updateIdentifierPreview);
-      }
-
-
-        
-        
-        
-        
-
-        // Ejecutar al cargar (por si hay datos pre-cargados)
-        updateIdentifierPreview();
-      });
-      </script>
+    // Trigger inicial
+    setTimeout(() => updateIdentifierPreview(), 100);
+  });
+  </script>
 
     <% end %>
 
