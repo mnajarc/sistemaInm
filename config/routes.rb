@@ -43,8 +43,15 @@ Rails.application.routes.draw do
         post :validate_document
         post :reject_document
         get :download
+        post :approve
+        post :reject
+        post :mark_expired
+        post :add_note
+        delete :delete_note
       end
     end
+
+
   end
 
   namespace :admin do

@@ -1,0 +1,32 @@
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.badge-pendiente_solicitud {
+  background-color: #ffeaa7;
+  color: #d63031;  // Rojo oscuro, NO blanco
+}
+
+.badge-pendiente_validacion {
+  background-color: #74b9ff;
+  color: #0984e3;  // Azul oscuro
+}
+
+.badge-validado {
+  background-color: #55efc4;
+  color: #00b894;  // Verde oscuro
+}
+
+.badge-rechazado {
+  background-color: #ff7675;
+  color: #d63031;  // Rojo oscuro
+}
+
+.badge-expirado {
+  background-color: #fdcb6e;
+  color: #e17055;  // Naranja oscuro
+}

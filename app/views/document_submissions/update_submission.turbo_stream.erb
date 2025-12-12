@@ -1,0 +1,16 @@
+<!-- app/views/document_submissions/update_submission.turbo_stream.erb -->
+
+<%= turbo_stream.update "document-row-#{@submission.id}" do %>
+  <tr data-document-id="<%= @submission.id %>">
+    <!-- Rerender la fila completa -->
+    <%= render 'document_row', doc: @submission, co_data: @co_data %>
+  </tr>
+<% end %>
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle"></i> 
+    Documento actualizado correctamente
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>

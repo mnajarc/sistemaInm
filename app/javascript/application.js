@@ -2,6 +2,7 @@
 import "@hotwired/turbo-rails"
 import "./controllers"
 import * as bootstrap from "bootstrap"
+import './form_validation';
 import "./document_preview"
 
 window.bootstrap = bootstrap

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
+ActiveRecord::Schema[8.0].define(version: 2025_12_11_031114) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -339,6 +339,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
     t.index ["property_id"], name: "index_contracts_on_property_id"
   end
 
+  create_table "document_notes", force: :cascade do |t|
+    t.bigint "document_submission_id", null: false
+    t.bigint "user_id", null: false
+    t.text "content", null: false
+    t.string "note_type", default: "comment"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["document_submission_id", "created_at"], name: "index_document_notes_on_document_submission_id_and_created_at"
+    t.index ["document_submission_id"], name: "index_document_notes_on_document_submission_id"
+    t.index ["user_id"], name: "index_document_notes_on_user_id"
+  end
+
   create_table "document_requirements", force: :cascade do |t|
     t.bigint "document_type_id", null: false
     t.string "property_type", null: false
@@ -408,6 +420,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
     t.datetime "analyzed_at"
     t.bigint "uploaded_by_id"
     t.bigint "business_transaction_co_owner_id"
+    t.string "validation_status", default: "pending_review"
+    t.text "validated_notes"
+    t.datetime "last_note_at"
     t.index ["analysis_status"], name: "index_document_submissions_on_analysis_status"
     t.index ["auto_validated"], name: "index_document_submissions_on_auto_validated"
     t.index ["business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_co_owner_id"
@@ -424,6 +439,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
     t.index ["submitted_by_type", "submitted_by_id"], name: "index_document_submissions_on_submitted_by"
     t.index ["uploaded_by_id"], name: "index_document_submissions_on_uploaded_by_id"
     t.index ["validated_by_id"], name: "index_document_submissions_on_validated_by_id"
+    t.index ["validation_status"], name: "index_document_submissions_on_validation_status"
   end
 
   create_table "document_types", force: :cascade do |t|
@@ -1025,6 +1041,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_09_164641) do
   add_foreign_key "commissions", "properties"
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "properties"
+  add_foreign_key "document_notes", "document_submissions"
+  add_foreign_key "document_notes", "users"
   add_foreign_key "document_requirements", "document_types"
   add_foreign_key "document_reviews", "document_submissions"
   add_foreign_key "document_reviews", "users"

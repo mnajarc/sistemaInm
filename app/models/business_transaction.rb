@@ -12,7 +12,8 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :property_acquisition_method, optional: true
  
   after_create :assign_transaction_scenario_by_category
-  after_create :setup_required_documents
+  after_commit :setup_documents_on_creation, on: :create
+  # after_create :setup_required_documents
   before_destroy :check_active_offers  
   before_destroy :reset_initial_contact_form  
 
@@ -208,6 +209,17 @@ end
 # ============================================================
 # CALLBACK 2: Crear DocumentSubmissions requeridos
 # ============================================================
+
+
+    def setup_documents_on_creation
+      return unless transaction_scenario.present?
+      
+      DocumentSetupService.new(self).setup_required_documents
+    rescue StandardError => e
+      Rails.logger.error "❌ Error creando documentos para transacción #{id}: #{e.message}"
+      raise
+    end
+
 def setup_required_documents
   return unless transaction_scenario.present?
   

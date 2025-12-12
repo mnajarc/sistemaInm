@@ -11,7 +11,11 @@ class DocumentSubmission < ApplicationRecord
   belongs_to :validated_by, class_name: 'User', optional: true
   belongs_to :uploaded_by, class_name: 'User', optional: true
   belongs_to :business_transaction_co_owner, optional: true
+  belongs_to :validation_user, class_name: 'User', optional: true, foreign_key: 'validation_user_id'
   
+
+  has_many :document_notes, dependent: :destroy
+
   # Active Storage
   has_one_attached :document_file do |attachable|
     attachable.variant :thumb, resize_to_limit: [200, 200]
@@ -25,7 +29,7 @@ class DocumentSubmission < ApplicationRecord
   # ========================================================================
   
   validates :party_type, presence: true, inclusion: { 
-    in: %w[oferente adquiriente copropietario]
+    in: %w[oferente adquiriente copropietario copropietario_principal]
   }
   
   # Validación de Active Storage - sintaxis Rails 8
@@ -39,6 +43,13 @@ class DocumentSubmission < ApplicationRecord
   validates :analysis_status, 
     inclusion: { in: %w[pending processing completed failed] },
     allow_nil: true
+  
+  validates :validation_status, presence: true, inclusion: {
+    in: %w[pending_review approved rejected expired]
+  }
+
+
+
   
   # ========================================================================
   # SCOPES
@@ -113,7 +124,8 @@ class DocumentSubmission < ApplicationRecord
   end
   
   def uploaded?
-    document_file.attached? && submitted_at.present?
+    # document_file.attached? && submitted_at.present?
+    submitted_at.present?
   end
   
   def analyzed?
@@ -226,6 +238,28 @@ class DocumentSubmission < ApplicationRecord
     ) if uploaded?
   end
   
+  def can_reupload?
+    validation_status.in?(['rejected', 'expired']) || submitted_at.blank?
+  end
+
+  def is_expired?
+    return false unless expiry_date.present?
+    Date.current > expiry_date
+  end
+
+  def last_note
+    document_notes.recent.first
+  end
+
+  def add_note(user, content, note_type = 'comment')
+    document_notes.create!(
+      user: user,
+      content: content,
+      note_type: note_type
+    )
+  end
+
+
   # ========================================================================
   # MÉTODOS PRIVADOS
   # ========================================================================

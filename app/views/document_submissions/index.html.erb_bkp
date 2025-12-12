@@ -1,0 +1,105 @@
+<!-- app/views/document_submissions/index.html.erb -->
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>
+          <i class="bi bi-file-earmark-check"></i>
+          Checklist Documental
+        </h2>
+        <%= link_to business_transaction_path(@business_transaction), class: 'btn btn-outline-secondary' do %>
+          <i class="bi bi-arrow-left"></i> Volver a Transacción
+        <% end %>
+      </div>
+      
+      <div class="text-muted mt-2">
+        <strong>Transacción:</strong> <%= @business_transaction.id %> |
+        <strong>Escenario:</strong> <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %> |
+        <strong>Propiedad:</strong> <%= @business_transaction.property.address %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de progreso -->
+  <%= render 'shared/document_progress_summary', checklist: @checklist %>
+
+  <!-- Tabs por parte (oferente/adquiriente/copropietarios) -->
+  <ul class="nav nav-tabs mb-4" id="partyTabs" role="tablist">
+    
+    <!-- Tabs Copropietarios -->
+    <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
+      <% @checklist[:copropietarios].each_with_index do |co_data, idx| %>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="co_owner-<%= idx %>-tab" data-bs-toggle="tab"
+                  data-bs-target="#co_owner-<%= idx %>" type="button" role="tab">
+            <i class="bi bi-person-vcard"></i>
+            <%= co_data[:co_owner][:name] %>
+            (<%= co_data[:documents][:total] %>)
+          </button>
+        </li>
+      <% end %>
+    <% end %>
+
+    <!-- Tab Adquiriente -->
+    <% if @business_transaction.acquiring_client.present? %>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="adquiriente-tab" data-bs-toggle="tab" 
+                data-bs-target="#adquiriente" type="button" role="tab">
+          <i class="bi bi-person-check"></i>
+          Adquiriente (<%= @checklist[:adquiriente][:total] %>)
+        </button>
+      </li>
+    <% end %>
+  </ul>
+
+  <!-- Contenido de tabs -->
+  <div class="tab-content" id="partyTabsContent">
+    <!-- Tab Oferente -->
+
+    <!-- Tabs Copropietarios -->
+    <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
+      <% @checklist[:copropietarios].each_with_index do |co_data, idx| %>
+        <div class="tab-pane fade" id="co_owner-<%= idx %>" role="tabpanel">
+          <div class="alert alert-info mb-3">
+            <strong><i class="bi bi-info-circle"></i> Copropietario:</strong>
+            <%= co_data[:co_owner][:name] %>
+            (<%= co_data[:co_owner][:percentage] %>% - <%= co_data[:co_owner][:role] %>)
+          </div>
+          <%= render 'shared/document_checklist_party',
+                     party: 'copropietario',
+                     documents: co_data[:documents][:list],
+                     business_transaction: @business_transaction %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <!-- Tab Adquiriente -->
+    <% if @business_transaction.acquiring_client.present? %>
+      <div class="tab-pane fade" id="adquiriente" role="tabpanel">
+        <%= render 'shared/document_checklist_party', 
+                   party: 'adquiriente', 
+                   documents: @checklist[:adquiriente][:documents],
+                   business_transaction: @business_transaction %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Modal para preview de documento (actualizar en index.html.erb) -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Vista Previa del Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="documentPreviewBody">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

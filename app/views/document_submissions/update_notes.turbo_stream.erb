@@ -1,0 +1,13 @@
+<!-- app/views/document_submissions/update_notes.turbo_stream.erb -->
+
+<%= turbo_stream.update "notes-container-#{@submission.id}" do %>
+  <%= render 'document_notes_panel', submission: @submission, current_user: current_user %>
+<% end %>
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-chat-dots"></i> 
+    Nota agregada
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>

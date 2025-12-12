@@ -1,0 +1,18 @@
+<% status = submission.document_status&.name %>
+
+<span class="badge badge-<%= status %>">
+  <%= case status
+    when 'pendiente_solicitud'
+      '⏳ Pendiente'
+    when 'pendiente_validacion'
+      '📋 Validando'
+    when 'validado'
+      '✅ Aprobado'
+    when 'rechazado'
+      '❌ Rechazado'
+    when 'expirado'
+      '⏰ Expirado'
+    else
+      status
+    end %>
+</span>

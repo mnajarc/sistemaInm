@@ -20,6 +20,9 @@ class User < ApplicationRecord
   scope :manageable_by, ->(manager) {
     joins(:role).where("roles.level > ?", manager.role&.level || 999)
   }
+  scope :admin, -> { where(role: 'admin') }
+  scope :agent, -> { where(role: 'agent') }
+  scope :superadmin, -> { where(role: 'superadmin') }
 
   # ✅ NIVELES DE ROL (para lógica de interfaz)
   def role_level
