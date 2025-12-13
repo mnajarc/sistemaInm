@@ -251,7 +251,7 @@ end
         # 4. CREAR CO-PROPIETARIOS
         # ========================================
 
-        raw_count = @form.acquisition_details&.dig('coowners_count').to_i
+        raw_count = @form.acquisition_details&.dig('co_owners_count').to_i
         coowners_count = raw_count > 0 ? raw_count : 1  # Evita división por cero
 
         percentage_per_owner = (100.0 / coowners_count).round(2)
@@ -488,6 +488,35 @@ end
   end
 
   private
+
+  def create_co_owners!(transaction)
+    # Extraer conteo desde acquisition_details
+    count = (@form.acquisition_details['co_owners_count'] || 1).to_i
+    
+    # Calcular porcentaje
+    percentage_each = (100.0 / count).round(2)
+    
+    # Crear copropietario principal
+    transaction.business_transaction_co_owners.create!(
+      client: transaction.offering_client,
+      person_name: @form.general_conditions['owner_or_representative_name'],
+      percentage: percentage_each,
+      role: 'propietario',
+      active: true
+    )
+    
+    # Crear placeholders para los demás
+    if count > 1
+      (count - 1).times do |i|
+        transaction.business_transaction_co_owners.create!(
+          person_name: "Copropietario #{i + 2} - Por definir",
+          percentage: percentage_each,
+          role: 'copropietario',
+          active: true
+        )
+      end
+    end
+  end
 
   def set_form
     @form = InitialContactForm.find(params[:id])
