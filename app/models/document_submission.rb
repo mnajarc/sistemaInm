@@ -1,4 +1,6 @@
+# ✅ MODELO CONSOLIDADO Y CORREGIDO
 # app/models/document_submission.rb
+
 class DocumentSubmission < ApplicationRecord
   # ========================================================================
   # RELACIONES
@@ -9,21 +11,21 @@ class DocumentSubmission < ApplicationRecord
   belongs_to :document_status, optional: true
   belongs_to :submitted_by, polymorphic: true, optional: true
   belongs_to :validated_by, class_name: 'User', optional: true
-  belongs_to :uploaded_by, class_name: 'User', optional: true
-  belongs_to :business_transaction_co_owner
-  belongs_to :validation_user, class_name: 'User', optional: true, foreign_key: 'validation_user_id'
-  
+  belongs_to :uploaded_by, class_name: 'User', optional: true, 
+             foreign_key: 'uploaded_by_id'
+  belongs_to :business_transaction_co_owner, optional: true
+  belongs_to :validation_user, class_name: 'User', optional: true, 
+             foreign_key: 'validation_user_id'
 
   has_many :document_notes, dependent: :destroy
+  has_many :document_reviews, dependent: :destroy
 
   # Active Storage
   has_one_attached :document_file do |attachable|
     attachable.variant :thumb, resize_to_limit: [200, 200]
     attachable.variant :medium, resize_to_limit: [800, 800]
   end
-  
-  has_many :document_reviews, dependent: :destroy
-  
+
   # ========================================================================
   # VALIDACIONES
   # ========================================================================
@@ -32,13 +34,9 @@ class DocumentSubmission < ApplicationRecord
     in: %w[oferente adquiriente copropietario copropietario_principal]
   }
   
-  # Validación de Active Storage - sintaxis Rails 8
-  validate :validate_document_file_type
-  validate :validate_document_file_size
-  
   validates :business_transaction_co_owner_id, 
     presence: true, 
-    if: -> { party_type == 'copropietario' }
+    if: -> { party_type.in?(%w[copropietario copropietario_principal]) }
   
   validates :analysis_status, 
     inclusion: { in: %w[pending processing completed failed] },
@@ -46,20 +44,27 @@ class DocumentSubmission < ApplicationRecord
   
   validates :validation_status, presence: true, inclusion: {
     in: %w[pending_review approved rejected expired]
-  }
+  }, allow_nil: true
 
+  validates :business_transaction_id, presence: true
+  validates :document_type_id, presence: true
 
+  # Active Storage validations
+  validate :validate_document_file_type
+  validate :validate_document_file_size
 
-  
   # ========================================================================
-  # SCOPES
+  # SCOPES - SIN DUPLICADOS
   # ========================================================================
   
+  # Por partido (oferente/adquiriente/copropietario)
   scope :for_oferente, -> { where(party_type: 'oferente') }
   scope :for_adquiriente, -> { where(party_type: 'adquiriente') }
-  scope :for_copropietario, -> { where(party_type: 'copropietario') }
+  scope :for_copropietario, -> { where(party_type: ['copropietario', 'copropietario_principal']) }
   scope :for_co_owner, ->(co_owner) { where(business_transaction_co_owner: co_owner) }
-  
+  scope :by_party, ->(party) { where(party_type: party) }
+
+  # Por estado del documento
   scope :pending, -> { 
     joins(:document_status).where(document_statuses: { name: 'pendiente_solicitud' }) 
   }
@@ -67,89 +72,97 @@ class DocumentSubmission < ApplicationRecord
     joins(:document_status).where(document_statuses: { name: 'validado_vigente' }) 
   }
   scope :validated, -> { 
-    joins(:document_status).where(document_statuses: { name: 'validado' }) 
+    where.not(validated_at: nil).where(validation_status: 'approved')
   }
   scope :rejected, -> { 
-    joins(:document_status).where(document_statuses: { name: 'rechazado' }) 
+    where(validation_status: 'rejected')
   }
-  
-  scope :expiring_soon, -> { 
-    where('expiry_date <= ? AND expiry_date > ?', 30.days.from_now, Date.current) 
-  }
-  scope :expired, -> { where('expiry_date < ?', Date.current) }
-  
+
+  # Por carga del documento
   scope :pending_upload, -> { where(submitted_at: nil) }
   scope :uploaded, -> { where.not(submitted_at: nil) }
-  
+
+  # Por análisis
   scope :pending_analysis, -> { where(analysis_status: 'pending') }
-  scope :analyzed, -> { where(analysis_status: 'completed') }
+  scope :analyzed, -> { where.not(analysis_status: 'pending') }
   scope :auto_validated, -> { where(auto_validated: true) }
-  
+  scope :pending_validation, -> { where(validation_status: ['pending_review', nil]) }
+
+  # Por fecha de expiración
+  scope :expired, -> { where('expiry_date < ?', Date.current) }
+  scope :expiring_soon, -> { where('expiry_date BETWEEN ? AND ?', Date.current, 30.days.from_now) }
+  scope :valid_date, -> { where('expiry_date IS NULL OR expiry_date >= ?', Date.current) }
+
   # ========================================================================
   # CALLBACKS
   # ========================================================================
   
+  before_create :set_default_status
   after_create_commit :schedule_analysis, if: :document_file_attached?
-  
-  # app/models/document_submission.rb
-  # (Agregar después de la línea has_many :document_reviews)
+  after_update :notify_status_change, if: :saved_change_to_document_status_id?
 
-  # Métodos para reviews
-  def latest_review
-    document_reviews.recent.first
+  # ========================================================================
+  # MÉTODOS DE ESTADO - SIN DUPLICADOS
+  # ========================================================================
+
+  # Verifica si el documento ha sido analizado
+  def analyzed?
+    analysis_status.present? && analysis_status != 'pending'
   end
 
-  def reviews_count
-    document_reviews.count
+  # Verifica si el documento está expirado
+  def expired?
+    return false unless expiry_date.present?
+    expiry_date < Date.current
   end
 
-  def reviewed_by?(user)
-    document_reviews.exists?(user: user)
+  # Verifica si está próximo a expirar (30 días)
+  def expiring_soon?
+    return false unless expiry_date.present?
+    days_until_expiry = (expiry_date - Date.current).to_i
+    days_until_expiry >= 0 && days_until_expiry <= 30
   end
 
-  def review_history
-    document_reviews.recent.includes(:user)
+  # Verifica si fue validado
+  def validated?
+    validated_at.present? && validation_status == 'approved'
+  end
+
+  # Verifica si el documento es válido para usar (MÉTODO CRÍTICO)
+  def valid_for_use?
+    uploaded? && validated? && !expired?
   end
 
   # ========================================================================
-  # MÉTODOS DE ESTADO
+  # MÉTODOS DE ESTADO - COMPATIBILIDAD
   # ========================================================================
-  
+
   def pending?
     document_status&.name == 'pendiente_solicitud'
   end
   
   def completed?
-    document_status&.name == 'validado_vigente'
+    document_status&.name.in?(['validado_vigente', 'validado'])
   end
   
   def uploaded?
-    # document_file.attached? && submitted_at.present?
     submitted_at.present?
   end
   
-  def analyzed?
-    analysis_status == 'completed'
-  end
-  
   def pending_validation?
-    uploaded? && document_status&.name == 'pendiente_validacion'
-  end
-  
-  def expired?
-    expiry_date.present? && expiry_date < Date.current
-  end
-  
-  def expiring_soon?
-    expiry_date.present? && expiry_date <= 30.days.from_now && !expired?
+    uploaded? && validation_status.in?(['pending_review', nil])
   end
   
   def has_files?
     document_file.attached?
   end
-  
+
+  # ========================================================================
+  # MÉTODOS DE LEGIBILIDAD Y ANÁLISIS
+  # ========================================================================
+
   def legibility_status
-    return 'unknown' if legibility_score.nil?
+    return 'unknown' if legibility_score.nil? || legibility_score.zero?
     
     case legibility_score
     when 0...40 then 'poor'
@@ -158,7 +171,17 @@ class DocumentSubmission < ApplicationRecord
     else 'excellent'
     end
   end
-  
+
+  def analysis_status_label
+    case analysis_status
+    when 'pending' then 'Pendiente'
+    when 'processing' then 'Procesando'
+    when 'completed' then 'Completado'
+    when 'failed' then 'Error'
+    else 'Desconocido'
+    end
+  end
+
   # ========================================================================
   # MÉTODOS DE CAMBIO DE ESTADO
   # ========================================================================
@@ -177,7 +200,8 @@ class DocumentSubmission < ApplicationRecord
       document_status: DocumentStatus.find_by(name: 'validado'),
       validated_by: user,
       validated_at: Time.current,
-      validation_notes: notes
+      validation_notes: notes,
+      validation_status: 'approved'
     )
   end
   
@@ -192,28 +216,27 @@ class DocumentSubmission < ApplicationRecord
       document_status: DocumentStatus.find_by(name: 'rechazado'),
       validated_by: user,
       validated_at: Time.current,
-      validation_notes: reason
+      validation_notes: reason,
+      validation_status: 'rejected'
     )
   end
-  
+
   # ========================================================================
-  # MÉTODOS AUXILIARES
+  # MÉTODOS DE VISUALIZACIÓN Y FORMATO
   # ========================================================================
-  
+
   def status_badge_class
     return 'bg-secondary' unless uploaded?
     
-    case document_status&.name
-    when 'validado' then 'bg-success'
-    when 'validado_vigente' then 'bg-success'
-    when 'rechazado' then 'bg-danger'
-    when 'pendiente_validacion' then 'bg-warning'
-    when 'vencido' then 'bg-dark'
-    when 'recibido_revision' then 'bg-info'
-    else 'bg-secondary'
+    case validation_status
+    when 'approved' then 'bg-success'
+    when 'rejected' then 'bg-danger'
+    when 'expired' then 'bg-dark'
+    when 'pending_review' then 'bg-warning'
+    else 'bg-info'
     end
   end
-  
+
   def party_display_name
     case party_type
     when 'oferente'
@@ -222,7 +245,7 @@ class DocumentSubmission < ApplicationRecord
         'Oferente'
     when 'adquiriente'
       'Adquiriente'
-    when 'copropietario'
+    when 'copropietario', 'copropietario_principal'
       business_transaction_co_owner.present? ? 
         business_transaction_co_owner.person_name : 
         'Copropietario'
@@ -230,7 +253,7 @@ class DocumentSubmission < ApplicationRecord
       party_type.titleize
     end
   end
-  
+
   def download_url
     Rails.application.routes.url_helpers.rails_blob_path(
       document_file, 
@@ -242,9 +265,24 @@ class DocumentSubmission < ApplicationRecord
     validation_status.in?(['rejected', 'expired']) || submitted_at.blank?
   end
 
-  def is_expired?
-    return false unless expiry_date.present?
-    Date.current > expiry_date
+  # ========================================================================
+  # MÉTODOS DE NOTAS Y REVIEWS
+  # ========================================================================
+
+  def latest_review
+    document_reviews.recent.first
+  end
+
+  def reviews_count
+    document_reviews.count
+  end
+
+  def reviewed_by?(user)
+    document_reviews.exists?(user: user)
+  end
+
+  def review_history
+    document_reviews.recent.includes(:user)
   end
 
   def last_note
@@ -258,7 +296,6 @@ class DocumentSubmission < ApplicationRecord
       note_type: note_type
     )
   end
-
 
   # ========================================================================
   # MÉTODOS PRIVADOS
@@ -289,5 +326,15 @@ class DocumentSubmission < ApplicationRecord
   
   def document_file_attached?
     document_file.attached?
+  end
+
+  def set_default_status
+    self.document_status ||= DocumentStatus.find_by(name: 'pendiente_solicitud')
+    self.analysis_status ||= 'pending'
+    self.validation_status ||= 'pending_review'
+  end
+
+  def notify_status_change
+    # DocumentStatusNotificationJob.perform_later(self.id)
   end
 end
