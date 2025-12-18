@@ -293,7 +293,7 @@ class InitialContactForm < ApplicationRecord
   # ============================================================
   # MÉTODOS PRIVADOS - GENERACIÓN DE IDENTIFICADORES
   # ============================================================
-  private
+  # protected
 
   def should_generate_identifier?
     general_conditions['owner_or_representative_name'].present? &&
@@ -916,11 +916,226 @@ end
       tax_information: build_tax_information,
       legal_representation: build_legal_representation
     )
-    
+
+      create_co_owners!(bt, client)
+
     create_required_documents!(bt, scenario) if scenario
     Rails.logger.info "✅ BT creada (ID: #{bt.id})"
     bt
   end
+
+
+  def create_co_owners!(business_transaction, primary_client)
+    # Obtener datos de herencia desde acquisition_details
+    heirs_count = acquisition_details['heirs_count'].to_i
+    civil_status = general_conditions['current_civil_status']
+    
+    if heirs_count <= 1
+      # Un solo propietario (100%)
+      BusinessTransactionCoOwner.create!(
+        business_transaction: business_transaction,
+        client: primary_client,
+        percentage: 100,
+        person_name: primary_client.full_name,
+        role: 'propietario',  # ← Usar role en lugar de ownership_type
+        active: true
+      )
+    else
+      # Múltiples herederos (copropietarios)
+      percentage_per_heir = 100 / heirs_count
+      
+      # El cliente principal como heredero #1 (propietario principal)
+      BusinessTransactionCoOwner.create!(
+        business_transaction: business_transaction,
+        client: primary_client,
+        percentage: percentage_per_heir,
+        person_name: primary_client.full_name,
+        role: 'propietario',  # ← Rol principal
+        active: true
+      )
+      
+      # Crear placeholders para los otros herederos
+      (heirs_count - 1).times do |index|
+        BusinessTransactionCoOwner.create!(
+          business_transaction: business_transaction,
+          client: nil,  # Se asignará después
+          percentage: percentage_per_heir,
+          person_name: "Heredero #{index + 2}",  # Temporal
+          role: 'copropietario',  # ← Rol secundario
+          active: true
+        )
+      end
+    end
+    
+    Rails.logger.info "✅ #{business_transaction.business_transaction_co_owners.count} copropietarios creados"
+  end
+
+
+# app/models/initial_contact_form.rb
+
+def create_required_documents!(business_transaction, scenario)
+  return unless scenario.present?
+  
+  Rails.logger.info "=" * 80
+  Rails.logger.info "📋 CREANDO DOCUMENTOS - DEBUG INTENSO"
+  Rails.logger.info "Scenario: #{scenario.name} (ID: #{scenario.id})"
+  Rails.logger.info "BT ID: #{business_transaction.id}"
+  Rails.logger.info "=" * 80
+  
+  scenario.scenario_documents.each do |scenario_doc|
+    doc_name = scenario_doc.document_type.name
+    only_principal = scenario_doc.only_for_principal?
+    party_type = scenario_doc.party_type
+    
+    # 🔴 DEBUG CADA DOCUMENTO
+    Rails.logger.info "🔍 Doc: #{doc_name}"
+    Rails.logger.info "   only_for_principal: #{only_principal} (#{only_principal.class})"
+    Rails.logger.info "   party_type: #{party_type.inspect}"
+    Rails.logger.info "   DB valores: #{scenario_doc.inspect}"
+    
+    # Si es solo para principal, crear solo para propietario
+    if only_principal
+      Rails.logger.info "   ✅ Usando: SOLO PROPIETARIO (only_for_principal=true)"
+      target_co_owners = business_transaction.business_transaction_co_owners
+                                              .where(role: 'propietario')
+    else
+      Rails.logger.info "   ❌ Usando: map_party_type_to_co_owners(#{party_type})"
+      target_co_owners = map_party_type_to_co_owners(
+        business_transaction, 
+        party_type
+      )
+    end
+    
+    Rails.logger.info "   → Creando para #{target_co_owners.count} copropietarios:"
+    target_co_owners.each do |co_owner|
+      Rails.logger.info "      - #{co_owner.person_name} (role: #{co_owner.role})"
+      
+      DocumentSubmission.create!(
+        business_transaction: business_transaction,
+        business_transaction_co_owner: co_owner,
+        document_type: scenario_doc.document_type,
+        party_type: scenario_doc.party_type,
+        notes: "Documento requerido por escenario: #{scenario.name}"
+      )
+    end
+    Rails.logger.info ""
+  end
+  
+  Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
+  Rails.logger.info "=" * 80
+end
+
+
+
+def create_required_documents_anterior_sindebug!(business_transaction, scenario)
+  return unless scenario.present?
+  
+  # 🔴 DEBUG
+  Rails.logger.info "=" * 80
+  Rails.logger.info "📋 CREANDO DOCUMENTOS - DEBUG"
+  Rails.logger.info "Scenario: #{scenario.name}"
+  Rails.logger.info "BT ID: #{business_transaction.id}"
+  Rails.logger.info "only_for_principal count: #{ScenarioDocument.where(only_for_principal: true).count}"
+  Rails.logger.info "scenario_documents count: #{scenario.scenario_documents.count}"
+  Rails.logger.info "=" * 80
+  
+  scenario.scenario_documents.each do |scenario_doc|
+    # 🔴 DEBUG
+    Rails.logger.info "  Procesando: #{scenario_doc.document_type.name} (only_for_principal: #{scenario_doc.only_for_principal?})"
+    
+    # Si es solo para principal, crear solo para propietario
+    if scenario_doc.only_for_principal?
+      target_co_owners = business_transaction.business_transaction_co_owners
+                                              .where(role: 'propietario')
+    else
+      # Sino, mapear según party_type
+      target_co_owners = map_party_type_to_co_owners(
+        business_transaction, 
+        scenario_doc.party_type
+      )
+    end
+    
+    target_co_owners.each do |co_owner|
+      DocumentSubmission.create!(
+        business_transaction: business_transaction,
+        business_transaction_co_owner: co_owner,
+        document_type: scenario_doc.document_type,
+        party_type: scenario_doc.party_type,
+        notes: "Documento requerido por escenario: #{scenario.name}"
+      )
+    end
+  end
+  
+  Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
+end
+
+
+
+  def create_required_documents_anterior1!(business_transaction, scenario)
+    return unless scenario.present?
+    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
+    
+    scenario.scenario_documents.each do |scenario_doc|
+      # Si es solo para principal, crear solo para propietario
+      if scenario_doc.only_for_principal?
+        target_co_owners = business_transaction.business_transaction_co_owners
+                                                .where(role: 'propietario')
+      else
+        # Sino, mapear según party_type
+        target_co_owners = map_party_type_to_co_owners(
+          business_transaction, 
+          scenario_doc.party_type
+        )
+      end
+      
+      target_co_owners.each do |co_owner|
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          business_transaction_co_owner: co_owner,
+          document_type: scenario_doc.document_type,
+          party_type: scenario_doc.party_type,
+          notes: "Documento requerido por escenario: #{scenario.name}"
+        )
+      end
+    end
+    
+    Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
+  end
+
+
+
+  def create_required_documents_anterior!(business_transaction, scenario)
+    return unless scenario.present?
+    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
+    
+    scenario.scenario_documents.each do |scenario_doc|
+      # Mapear party_type del escenario a copropietarios reales
+      target_co_owners = map_party_type_to_co_owners(
+        business_transaction, 
+        scenario_doc.party_type
+      )
+      
+      # Crear documento para CADA copropietario que corresponda
+      target_co_owners.each do |co_owner|
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          business_transaction_co_owner: co_owner,
+          document_type: scenario_doc.document_type,
+          party_type: scenario_doc.party_type,
+          notes: "Documento requerido por escenario: #{scenario.name}"
+        )
+      end
+    end
+    
+    Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
+  end
+
+
+
+
+
+# ✅ NUEVO MÉTODO: Crear copropietarios basado en datos de herencia
+
 
   def build_transaction_co_owners!(business_transaction, main_client, co_owners_count)
     percentage = (100.0 / co_owners_count).round(2)
@@ -946,47 +1161,73 @@ end
     end
   end
 
-  def create_required_documents!(business_transaction, scenario)
-    return unless scenario.present?
-    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
-    
-    scenario.scenario_documents.each do |doc|
-      parties = doc.party_type == 'ambos' ? ['oferente', 'adquiriente'] : [doc.party_type]
-      parties.each do |party|
+
+  # Documentos relacionados con estado civil
+  def create_marital_status_documents(business_transaction)
+    business_transaction.business_transaction_co_owners.each do |co_owner|
+      # Obtener estado civil del copropietario
+      civil_status = co_owner.civil_status || 'soltero'
+      
+      case civil_status
+      when 'casado', 'unión_libre'
+        # Requiere consentimiento del cónyuge
         DocumentSubmission.create!(
           business_transaction: business_transaction,
-          document_type: doc.document_type,
-          party_type: party,
-          notes: "Documento requerido: #{scenario.name}"
+          business_transaction_co_owner: co_owner,
+          document_type: DocumentType.find_by(code: 'consentimiento_conyugal'),
+          party_type: 'oferente',
+          notes: "Consentimiento requerido: #{civil_status}"
+        )
+      when 'divorciado'
+        # Requiere sentencia de divorcio
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          business_transaction_co_owner: co_owner,
+          document_type: DocumentType.find_by(code: 'sentencia_divorcio'),
+          party_type: 'oferente',
+          notes: "Sentencia de divorcio requerida"
+        )
+      when 'viudo'
+        # Requiere acta de defunción
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          business_transaction_co_owner: co_owner,
+          document_type: DocumentType.find_by(code: 'acta_defuncion'),
+          party_type: 'oferente',
+          notes: "Acta de defunción requerida"
         )
       end
     end
-    
-    create_marital_status_documents(business_transaction)
-    create_mortgage_documents(business_transaction) if has_mortgage?
   end
 
-  def create_marital_status_documents(business_transaction)
-    civil_status = general_conditions['civil_status']
-    return unless civil_status == 'casado'
+  # Documentos relacionados con hipotecas
+  def create_mortgage_documents(business_transaction)
+    return unless has_mortgage?
     
-    marriage_regime_id = general_conditions['marriage_regime_id']
-    regime = MarriageRegime.find_by(id: marriage_regime_id)
-    return unless regime
-    
-    case regime.name.downcase
-    when /separaci[oó]n.*bienes/i
-      add_document_if_exists(business_transaction, 'escritura_separacion_bienes', 'oferente')
-    when /mancomunad|sociedad.*conyugal/i
-      add_document_if_exists(business_transaction, 'consentimiento_conyuge', 'oferente')
-      add_document_if_exists(business_transaction, 'acta_matrimonio', 'oferente')
+    business_transaction.business_transaction_co_owners.each do |co_owner|
+      # Carta de liberación del banco
+      DocumentSubmission.create!(
+        business_transaction: business_transaction,
+        business_transaction_co_owner: co_owner,
+        document_type: DocumentType.find_by(code: 'carta_liberacion_hipoteca'),
+        party_type: 'oferente',
+        notes: "Propiedad hipotecada: requiere carta de liberación"
+      )
+      
+      # Avalúo actualizado
+      DocumentSubmission.create!(
+        business_transaction: business_transaction,
+        business_transaction_co_owner: co_owner,
+        document_type: DocumentType.find_by(code: 'avaluo_actualizado'),
+        party_type: 'oferente',
+        notes: "Avalúo actualizado para trámite hipotecario"
+      )
     end
   end
 
-  def create_mortgage_documents(business_transaction)
-    add_document_if_exists(business_transaction, 'estado_cuenta_hipoteca', 'oferente')
-    add_document_if_exists(business_transaction, 'carta_no_adeudo', 'oferente')
-  end
+
+
+
 
   def add_document_if_exists(business_transaction, document_code, party_type)
     document_type = DocumentType.find_by(name: document_code) ||
@@ -1011,17 +1252,49 @@ end
     notes
   end
 
+
+def build_inheritance_details_anterior
+  return {} unless property_acquisition_method&.code == 'herencia'
+  
+  {
+    'heirs_count' => acquisition_details['heirs_count']&.to_i,
+    'all_living' => acquisition_details['all_living'], #Convert
+    'deceased_count' => acquisition_details['deceased_count']&.to_i,
+    'all_married' => acquisition_details['all_married'], #Convert
+    'single_heirs_count' => acquisition_details['single_heirs_count']&.to_i,
+    'deceased_civil_status' => acquisition_details['deceased_civil_status'],
+    'inheritance_from' => acquisition_details['inheritance_from'],
+    'inheritance_from_other' => acquisition_details['inheritance_from_other'],
+    'parents_were_married' => acquisition_details['parents_were_married'], #Convert
+    'parents_marriage_regime' => acquisition_details['parents_marriage_regime'],
+    'has_testamentary_succession' => acquisition_details['has_testamentary_succession'], #Convert
+    'succession_planned_date' => acquisition_details['succession_planned_date'],
+    'succession_authority' => acquisition_details['succession_authority'],
+    'succession_type' => acquisition_details['succession_type']
+  }.reject { |_, v| v.blank? }
+end
+
   def build_inheritance_details
-    return {} unless property_acquisition_method&.code == 'herencia'
-    
-    {
-      'heirs_count' => acquisition_details['heirs_count'],
-      'all_living' => acquisition_details['all_living'],
-      'deceased_count' => acquisition_details['deceased_count'],
-      'has_judicial_sentence' => acquisition_details['has_judicial_sentence'],
-      'has_notarial_deed' => acquisition_details['has_notarial_deed']
-    }.compact
-  end
+  return {} unless property_acquisition_method&.code == 'herencia'
+  
+  {
+    'heirs_count' => acquisition_details['heirs_count']&.to_i,
+    'all_living' => convert_to_bool(acquisition_details['all_living']),
+    'deceased_count' => acquisition_details['deceased_count']&.to_i,
+    'all_married' => convert_to_bool(acquisition_details['all_married']),
+    'single_heirs_count' => acquisition_details['single_heirs_count']&.to_i,
+    'deceased_civil_status' => acquisition_details['deceased_civil_status'],
+    'inheritance_from' => acquisition_details['inheritance_from'],
+    'inheritance_from_other' => acquisition_details['inheritance_from_other'],
+    'parents_were_married' => convert_to_bool(acquisition_details['parents_were_married']),
+    'parents_marriage_regime' => acquisition_details['parents_marriage_regime'],
+    'has_testamentary_succession' => convert_to_bool(acquisition_details['has_testamentary_succession']),
+    'succession_planned_date' => acquisition_details['succession_planned_date'],
+    'succession_authority' => acquisition_details['succession_authority'],
+    'succession_type' => acquisition_details['succession_type']
+  }.reject { |_, v| v.blank? }
+end
+
 
   def build_property_status
     {
@@ -1049,4 +1322,60 @@ end
       'contract_signer_type' => contract_signer_type&.name
     }.compact
   end
+
+  def map_party_type_to_co_owners(business_transaction, party_type)
+    case party_type
+    when 'copropietario_principal'
+      # Solo el propietario principal (vendedor)
+      business_transaction.business_transaction_co_owners.where(role: 'propietario')
+    
+    when 'copropietario'
+      # ✅ FIJO: Todos los PROPIETARIOS (principal + secundarios)
+      business_transaction.business_transaction_co_owners
+                          .where(role: ['propietario', 'copropietario'])
+    
+    when 'ambos'
+      # Todos los propietarios (principal + secundarios)
+      business_transaction.business_transaction_co_owners
+    
+    when 'adquiriente'
+      # El comprador - NOT a co-owner (retorna vacío por ahora)
+      []
+    
+    else
+      []
+    end
+  end
+
+  def map_party_type_to_co_owners_anterior(business_transaction, party_type)
+    case party_type
+    when 'copropietario_principal'
+      # Solo el propietario principal (vendedor)
+      business_transaction.business_transaction_co_owners.where(role: 'propietario')
+    
+    when 'copropietario'
+      # Todos los copropietarios secundarios
+      business_transaction.business_transaction_co_owners.where(role: 'copropietario')
+    
+    when 'ambos'
+      # Todos los propietarios (principal + secundarios)
+      business_transaction.business_transaction_co_owners
+    
+    when 'adquiriente'
+      # El comprador - NOT a co-owner (retorna vacío por ahora)
+      # Esto se maneja diferente (es el offering_client o acquiring_client)
+      []
+    
+    else
+      []
+    end
+  end
+
+  def convert_to_bool(value)
+    return value if [true, false].include?(value)
+    value.to_s.strip.downcase == 'true'
+  end
+
+
+
 end

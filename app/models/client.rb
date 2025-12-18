@@ -161,9 +161,6 @@ class Client < ApplicationRecord
     [full_name, email, phone].compact.join(' - ')
   end
 
-  def display_name
-    full_name.presence || email.presence || "Cliente ##{id}"
-  end
 
   # ✅ NUEVOS MÉTODOS PARA OFERTAS
   def offers_summary

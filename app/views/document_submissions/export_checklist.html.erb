@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    h2 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+    h3 { color: #0066cc; margin-top: 20px; }
+    h4 { color: #666; margin-top: 15px; }
+    .summary { background: #f0f8ff; padding: 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; }
+    .co-owner-header { background: #e6f2ff; padding: 10px; margin-top: 20px; border-left: 4px solid #0066cc; }
+    .category { margin-left: 20px; }
+    .doc-item { margin: 5px 0; padding: 5px 0; border-bottom: 1px solid #eee; }
+    .doc-item.uploaded { color: green; }
+    .doc-item.pending { color: #999; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    table th, table td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+    table th { background: #0066cc; color: white; }
+    .progress-bar { width: 100%; height: 20px; background: #eee; border-radius: 5px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #0066cc; }
+  </style>
+</head>
+<body>
+  <h2>📋 CHECKLIST DOCUMENTAL</h2>
+  
+  <div class="summary">
+    <p><strong>Transacción:</strong> #<%= @business_transaction.id %></p>
+    <p><strong>Propiedad:</strong> <%= @business_transaction.property.address %></p>
+    <p><strong>Escenario:</strong> <%= @business_transaction.initial_contact_form.transaction_scenario.name %></p>
+    <p><strong>Fecha:</strong> <%= I18n.l(Date.today, format: :long) %></p>
+  </div>
+
+  <h3>📊 Resumen General</h3>
+  <table>
+    <tr>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+      <th>Validados</th>
+      <th>Rechazados</th>
+      <th>Progreso</th>
+    </tr>
+    <tr>
+      <td><%= @checklist[:summary][:total] %></td>
+      <td><%= @checklist[:summary][:uploaded] %></td>
+      <td><%= @checklist[:summary][:pending] %></td>
+      <td><%= @checklist[:summary][:validated] %></td>
+      <td><%= @checklist[:summary][:rejected] %></td>
+      <td>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: <%= @checklist[:summary][:progress] %>%"></div>
+        </div>
+        <%= @checklist[:summary][:progress] %>%
+      </td>
+    </tr>
+  </table>
+
+  <h3>👥 Documentos por Copropietario</h3>
+  <table>
+    <tr>
+      <th>Copropietario</th>
+      <th>Rol</th>
+      <th>%</th>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+    </tr>
+    <% @checklist[:copropietarios].each do |co_data| %>
+      <tr>
+        <td><strong><%= co_data[:co_owner][:name] %></strong></td>
+        <td><%= co_data[:co_owner][:role].titleize %></td>
+        <td><%= co_data[:co_owner][:percentage] %>%</td>
+        <td><%= co_data[:documents][:total] %></td>
+        <td><%= co_data[:documents][:uploaded] %></td>
+        <td><%= co_data[:documents][:total] - co_data[:documents][:uploaded] %></td>
+      </tr>
+    <% end %>
+  </table>
+
+  <h3>📄 Detalle de Documentos</h3>
+  
+  <% @checklist[:copropietarios].each do |co_data| %>
+    <div class="co-owner-header">
+      <h4>👤 <%= co_data[:co_owner][:name] %></h4>
+      <p style="margin: 5px 0;"><small>Rol: <%= co_data[:co_owner][:role].titleize %> | Documentos: <%= co_data[:documents][:total] %></small></p>
+    </div>
+    
+    <% co_data[:documents][:list].each do |category| %>
+      <div class="category">
+        <h5>📁 <%= category[:category_display] %></h5>
+        <% category[:documents].each do |doc| %>
+          <div class="doc-item <%= doc[:uploaded] ? 'uploaded' : 'pending' %>">
+            <% if doc[:uploaded] %>
+              ✅ <strong><%= doc[:document_type][:name] %></strong> (Cargado)
+            <% else %>
+              ☐ <%= doc[:document_type][:name] %> (Pendiente)
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</body>
+</html>

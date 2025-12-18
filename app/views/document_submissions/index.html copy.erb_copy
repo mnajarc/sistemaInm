@@ -1,0 +1,359 @@
+<!-- app/views/document_submissions/index.html.erb -->
+
+<div class="container-fluid py-4" data-business-transaction-id="<%= @business_transaction.id %>">
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>
+          <i class="bi bi-file-earmark-check"></i>
+          Checklist Documental
+        </h2>
+        <%= link_to business_transaction_path(@business_transaction), class: 'btn btn-outline-secondary' do %>
+          <i class="bi bi-arrow-left"></i> Volver a Transacción
+        <% end %>
+      </div>
+      
+      <div class="text-muted mt-2">
+        <strong>Transacción:</strong> <%= @business_transaction.id %> |
+        <strong>Escenario:</strong> <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %> |
+        <strong>Propiedad:</strong> <%= @business_transaction.property.address %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de progreso -->
+  <%= render 'shared/document_progress_summary', checklist: @checklist %>
+
+  <!-- Tabla de documentos -->
+  <div class="card mt-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <i class="bi bi-list-check"></i>
+        Documentos por Copropietario
+      </h5>
+    </div>
+    <div class="card-body">
+      <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
+        <% @checklist[:copropietarios].each_with_index do |co_data, co_idx| %>
+          <!-- Encabezado del Copropietario -->
+          <div class="mb-4 p-3 bg-light border-start border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">
+                  <i class="bi bi-person-vcard"></i>
+                  <%= co_data[:co_owner][:name] %>
+                </h6>
+                <small class="text-muted">
+                  <%= co_data[:co_owner][:percentage] %>% - 
+                  <%= co_data[:co_owner][:role].titleize %>
+                  <% unless co_data[:co_owner][:active] %>
+                    <span class="badge bg-warning text-dark ms-2">Pendiente</span>
+                  <% end %>
+                </small>
+              </div>
+              <div class="text-end">
+                <small class="text-muted">
+                  <strong><%= co_data[:documents][:total] %></strong> documentos
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de documentos del copropietario -->
+          <div class="table-responsive mb-5">
+            <table class="table table-hover table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 35%;">Documento</th>
+                  <th style="width: 12%;">Estado</th>
+                  <th style="width: 12%;">Vigencia</th>
+                  <th style="width: 10%;">Subido por</th>
+                  <th style="width: 8%;">Fecha</th>
+                  <th style="width: 23%;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if co_data[:documents][:list].present? && co_data[:documents][:list].any? %>
+                  <% co_data[:documents][:list].each do |category| %>
+                    <% category[:documents].each do |doc| %>
+                      <tr data-document-id="<%= doc[:id] %>">
+                        <!-- Documento -->
+                        <td>
+                          <div>
+                            <strong><%= doc[:document_type][:name] %></strong>
+                            <br>
+                            <small class="text-muted"><%= category[:category_display] %></small>
+                          </div>
+                        </td>
+
+                        <!-- Estado -->
+                        <td>
+                          <%= render 'shared/document_status_badge', submission: doc[:submission] %>
+                        </td>
+
+                        <!-- Vigencia -->
+                        <td>
+                          <% if doc[:expiry_date].present? %>
+                            <small>
+                              <% if doc[:expired] %>
+                                <span class="badge bg-danger">
+                                  <i class="bi bi-exclamation-circle"></i> Vencido
+                                </span>
+                              <% elsif doc[:expiring_soon] %>
+                                <span class="badge bg-warning text-dark">
+                                  <i class="bi bi-clock-history"></i> Próximo a vencer
+                                </span>
+                              <% else %>
+                                <span class="text-muted">
+                                  Hasta <%= doc[:expiry_date].strftime('%d/%m/%Y') %>
+                                </span>
+                              <% end %>
+                            </small>
+                          <% else %>
+                            <small class="text-muted">Sin vigencia</small>
+                          <% end %>
+                        </td>
+
+                        <!-- Subido por -->
+                        <td>
+                          <% if doc[:uploaded_by].present? %>
+                            <small><%= doc[:uploaded_by] %></small>
+                          <% else %>
+                            <small class="text-muted">—</small>
+                          <% end %>
+                        </td>
+
+                        <!-- Fecha -->
+                        <td>
+                          <% if doc[:uploaded_at].present? %>
+                            <small><%= doc[:uploaded_at].strftime('%d/%m/%y') %></small>
+                          <% else %>
+                            <small class="text-muted">—</small>
+                          <% end %>
+                        </td>
+
+                        <!-- Acciones con iconos -->
+                        <td>
+                          <div class="btn-group btn-group-sm" role="group">
+                            <!-- Preview -->
+                            <% if doc[:uploaded] %>
+                              <%= link_to preview_business_transaction_document_submission_path(@business_transaction, doc[:id]), 
+                                  class: 'btn btn-outline-secondary', 
+                                  title: 'Ver documento',
+                                  data: { bs_toggle: 'tooltip' } do %>
+                                <i class="bi bi-eye"></i>
+                              <% end %>
+                            <% end %>
+
+                            <!-- Subir/Re-subir -->
+                                <% if doc[:submission].submitted_at.blank? || doc[:submission].validation_status.in?(['rejected', 'expired']) %>
+                                  <button class="btn btn-outline-primary btn-sm"
+                                          type="button"
+                                          data-bs-toggle="modal" 
+                                          data-bs-target="#uploadModal"
+                                          data-document-id="<%= doc[:id] %>"
+                                          title="Subir documento">
+                                    <i class="bi bi-cloud-upload"></i>
+                                  </button>
+                                <% end %>
+
+
+
+                            <!-- Aprobar (solo admin) -->
+                            <% if policy(doc[:submission]).approve? && doc[:submission].validation_status == 'pending_review' %>
+                              <%= link_to approve_business_transaction_document_submission_path(@business_transaction, doc[:id]),
+                                  method: :post,
+                                  class: 'btn btn-outline-success',
+                                  title: 'Aprobar documento',
+                                  data: { bs_toggle: 'tooltip' } do %>
+                                <i class="bi bi-check-circle"></i>
+                              <% end %>
+                            <% end %>
+
+                            <!-- Rechazar (solo admin) -->
+                            <% if policy(doc[:submission]).reject? && doc[:submission].validation_status != 'approved' %>
+                              <%= link_to '#rejectModal',
+                                  class: 'btn btn-outline-danger',
+                                  data: { bs_toggle: 'modal', document_id: doc[:id] },
+                                  title: 'Rechazar documento' do %>
+                                <i class="bi bi-x-circle"></i>
+                              <% end %>
+                            <% end %>
+
+                            <!-- Marcar expirado (solo admin) -->
+                            <% if policy(doc[:submission]).mark_expired? && doc[:submission].validation_status == 'approved' && !doc[:expired] %>
+                              <%= link_to mark_expired_business_transaction_document_submission_path(@business_transaction, doc[:id]),
+                                  method: :post,
+                                  class: 'btn btn-outline-warning',
+                                  title: 'Marcar como expirado',
+                                  data: { bs_toggle: 'tooltip', confirm: '¿Marcar como expirado?' } do %>
+                                <i class="bi bi-clock-x"></i>
+                              <% end %>
+                            <% end %>
+
+                            <!-- Modal para notas -->
+                            <div class="modal fade" id="notesModal" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-scrollable" style="max-width: 600px;">
+                                <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Notas del Documento</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body" id="notesContainer">
+                                    <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                            </div>
+                                                    
+
+                            
+                          </div>
+                        </td>
+                      </tr>
+                    <% end %>
+                  <% end %>
+                <% else %>
+                  <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                      <i class="bi bi-inbox"></i> Sin documentos requeridos
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i> Sin copropietarios configurados
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Adquiriente (si existe) -->
+  <% if @business_transaction.acquiring_client.present? && @checklist[:adquiriente][:total].positive? %>
+    <div class="card mt-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="bi bi-person-check"></i>
+          Adquiriente
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">
+          <strong><%= @business_transaction.acquiring_client.display_name %></strong>
+        </p>
+        
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 35%;">Documento</th>
+                <th style="width: 12%;">Estado</th>
+                <th style="width: 12%;">Vigencia</th>
+                <th style="width: 10%;">Subido por</th>
+                <th style="width: 8%;">Fecha</th>
+                <th style="width: 23%;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Similar estructura a copropietarios -->
+              <!-- ... (repetir tabla para adquiriente) ...-->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Modal para subir documento -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Subir Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      
+      <form id="uploadForm" method="POST" enctype="multipart/form-data">
+        <div class="modal-body">
+          <input type="file" name="document_file" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Subir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para rechazar documento -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Rechazar Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="rejectForm" method="post">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="rejectReason" class="form-label">Motivo del rechazo</label>
+            <textarea name="reason" id="rejectReason" class="form-control" rows="3" required placeholder="Explica por qué rechazas este documento..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Rechazar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para notas -->
+<div class="modal fade" id="notesModal" tabindex="-1" style="max-width: 600px;">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Notas del Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="notesContainer">
+        <!-- Se llena dinámicamente -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+</style>
+
+<script>
+  document.getElementById('uploadModal').addEventListener('show.bs.modal', function(event) {
+    const documentId = event.relatedTarget.dataset.documentId;
+    const businessTxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
+    const form = document.getElementById('uploadForm');
+    
+    form.action = `/business_transactions/${businessTxId}/document_submissions/${documentId}/upload`;
+  });
+</script>

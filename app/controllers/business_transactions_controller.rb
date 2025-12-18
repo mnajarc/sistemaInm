@@ -128,7 +128,7 @@ class BusinessTransactionsController < ApplicationController
   end
 
   def load_form_data
-    @clients = Client.active.order(:name)
+    @clients = Client.active.order(:full_name)
     @properties = Property.includes(:property_type, :user).order(:address)
     @operation_types = OperationType.active.order(:sort_order)
     @business_statuses = BusinessStatus.active.order(:sort_order)
