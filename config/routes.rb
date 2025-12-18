@@ -34,9 +34,10 @@ Rails.application.routes.draw do
 
   resources :business_transactions do
     patch :transfer_agent, on: :member
-    post :export_documents, on: :member  # ← NUEVA RUTA
+    post :export_documents, on: :member
     resources :agent_transfers, only: [:create, :index]
     resources :document_submissions, only: [:index, :show, :destroy] do
+      # Acciones a nivel de documento (member)
       member do
         get :preview
         post :upload
@@ -49,9 +50,12 @@ Rails.application.routes.draw do
         post :add_note
         delete :delete_note
       end
+      
+      # Acciones a nivel de colección (no necesitan documento_submission ID)
+      collection do
+        get :export_checklist  # ← Export de TODA la colección
+      end
     end
-
-
   end
 
   namespace :admin do

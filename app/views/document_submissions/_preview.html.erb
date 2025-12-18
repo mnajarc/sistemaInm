@@ -1,0 +1,186 @@
+<!-- app/views/document_submissions/_preview.html.erb -->
+
+<div class="preview-container" data-turbo="false">
+  <!-- Imagen del documento -->
+  <div class="document-preview mb-4">
+    <% if submission.document_file.present? %>
+      <% if submission.document_file.content_type.include?('pdf') %>
+        <embed src="<%= url_for(submission.document_file) %>" 
+               type="application/pdf" 
+               style="width: 100%; height: 600px;" />
+      <% else %>
+        <img src="<%= url_for(submission.document_file) %>" 
+             alt="<%= submission.document_type.name %>" 
+             class="img-fluid border rounded">
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Análisis de calidad -->
+  <% if submission.analysis_result.present? %>
+    <div class="analysis-results card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="bi bi-bar-chart"></i> Análisis de Calidad
+        </h6>
+      </div>
+      <div class="card-body">
+        <% analysis = submission.analysis_result %>
+        <% if analysis['legibility'].present? %>
+          <div class="mb-3">
+            <small class="text-muted">Legibilidad</small>
+            <div class="progress" style="height: 25px;">
+              <div class="progress-bar" role="progressbar" 
+                   style="width: <%= analysis['legibility']['score'] %>%"
+                   aria-valuenow="<%= analysis['legibility']['score'] %>" 
+                   aria-valuemin="0" 
+                   aria-valuemax="100">
+                <%= analysis['legibility']['score'].round(1) %>%
+              </div>
+            </div>
+          </div>
+        <% end %>
+        
+        <% if analysis['metadata'].present? %>
+          <div class="metadata-section">
+            <small class="fw-bold">Datos extraídos:</small>
+            <ul class="small">
+              <% analysis['metadata'].each do |key, value| %>
+                <% if value.present? && value != [] %>
+                  <li><strong><%= key.humanize %>:</strong> <%= value.inspect %></li>
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Notas -->
+  <div class="notes-section card">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <i class="bi bi-chat-dots"></i> Notas
+      </h6>
+    </div>
+    <div class="card-body">
+      <% if submission.document_notes.any? %>
+        <div class="notes-list" style="max-height: 200px; overflow-y: auto;">
+          <% submission.document_notes.order(created_at: :desc).each do |note| %>
+            <div class="note-item mb-3 p-3 border rounded" style="background: #f8f9fa;">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <small class="fw-bold"><%= note.user.email %></small>
+                <small class="text-muted"><%= time_ago_in_words(note.created_at) %> ago</small>
+              </div>
+              <p class="mb-2"><%= simple_format(note.content) %></p>
+              
+              <% if current_user.admin? || note.user == current_user %>
+                <form action="<%= delete_note_business_transaction_document_submission_path(@business_transaction, submission, note_id: note.id) %>" 
+                      method="POST" 
+                      style="display: inline;"
+                      data-turbo="false"
+                      onsubmit="return confirm('¿Eliminar nota?')">
+                  <input type="hidden" name="_method" value="delete">
+                  <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-muted text-center py-3">Sin notas aún</p>
+      <% end %>
+
+      <!-- Agregar nota - FETCH SIN RELOAD -->
+      <div class="add-note mt-3">
+        <form id="addNoteForm-<%= submission.id %>" data-turbo="false">
+          <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+          <div class="input-group">
+            <input type="text" 
+                   name="content" 
+                   class="form-control form-control-sm"
+                   placeholder="Agregar nota..."
+                   required>
+            <button type="submit" class="btn btn-sm btn-primary">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de decisión -->
+  <% if (current_user.admin? || current_user.agent?) && submission.document_status&.name != 'validado' %>
+    <div class="preview-actions p-3 border-top bg-white mt-4 d-flex gap-2">
+      <form action="<%= validate_document_business_transaction_document_submission_path(@business_transaction, submission) %>" 
+            method="POST" 
+            style="flex: 1;"
+            data-turbo="false"
+            onsubmit="return confirm('¿Validar este documento?')">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-check-circle"></i> Aceptar
+        </button>
+      </form>
+
+      <button type="button" 
+              class="btn btn-danger flex-grow-1"
+              data-bs-toggle="modal" 
+              data-bs-target="#rejectModal"
+              data-turbo="false"
+              onclick="document.getElementById('rejectForm').action = '<%= reject_document_business_transaction_document_submission_path(@business_transaction, submission) %>'">
+        <i class="bi bi-x-circle"></i> Rechazar
+      </button>
+    </div>
+  <% end %>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Usar event delegation para formularios que se cargan dinámicamente
+  document.addEventListener('submit', function(e) {
+    if (e.target.matches('[id^="addNoteForm-"]')) {
+      e.preventDefault();
+      
+      const form = e.target;
+      const submissionId = form.id.replace('addNoteForm-', '');
+      const businessTransactionId = document.body.dataset.businessTransactionId || window.location.pathname.split('/')[2];
+      
+      const formData = new FormData(form);
+      const url = `/business_transactions/${businessTransactionId}/document_submissions/${submissionId}/add_note`;
+      
+      fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': formData.get('authenticity_token'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        form.reset();
+        alert('✅ Nota agregada');
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al agregar nota');
+      });
+    }
+  });
+});
+</script>
+
+<style>
+.note-item { 
+  transition: background-color 0.2s ease; 
+}
+
+.preview-container {
+  /* Prevenir que Turbo actualice esto */
+  transition: none !important;
+}
+</style>

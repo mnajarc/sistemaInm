@@ -3,6 +3,9 @@ class BusinessTransactionCoOwner < ApplicationRecord
   belongs_to :client, optional: true
   belongs_to :co_ownership_role, foreign_key: 'role', primary_key: 'name', optional: true
 
+  has_many :document_submissions, dependent: :destroy
+
+
   # validates :business_transaction_id, presence: true
   # validates :percentage, presence: true, numericality: { greater_than: 0, less_than_or_equal_to: 100 }
   validates :person_name, presence: true, if: -> { client_id.blank? }

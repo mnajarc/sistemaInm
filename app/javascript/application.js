@@ -1,4 +1,9 @@
 // app/javascript/application.js
+
+window.translations = window.translations || {};
+window.I18n = window.I18n || { translations: {} };
+
+
 import "@hotwired/turbo-rails"
 import "./controllers"
 import * as bootstrap from "bootstrap"
@@ -12,6 +17,8 @@ let navbarCollapse = null
 let allDropdowns = []
 let allCollapses = []
 
+let isInitialized = false;
+
 document.addEventListener("turbo:before-cache", () => {
   // Destruir todos los componentes antes de guardar en cache
   allDropdowns.forEach(dropdown => dropdown.dispose())
@@ -19,73 +26,37 @@ document.addEventListener("turbo:before-cache", () => {
   allDropdowns = []
   allCollapses = []
   navbarCollapse = null
+  isInitialized = false;
 })
 
-document.addEventListener("turbo:load", () => {
-  console.log("Reinicializando Bootstrap components...")
+// 🟢 NUEVO - Solo UNA VEZ por página
+document.addEventListener("turbo:render", () => {
+  console.log("Inicializando Bootstrap components...")
   
-  // Destruir componentes existentes primero
+  // Limpia componentes anteriores
   allDropdowns.forEach(dropdown => dropdown.dispose())
   allCollapses.forEach(collapse => collapse.dispose())
   allDropdowns = []
   allCollapses = []
-
-  // Recrear todos los dropdowns
-  document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(el => {
-    const dropdown = new bootstrap.Dropdown(el)
-    allDropdowns.push(dropdown)
-  })
-
-  // Detecta hover o click en submenú para abrirlo
-  document.querySelectorAll('.dropdown-menu .dropdown-toggle').forEach(el => {
-    el.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-// Cerrar todos los submenús abiertos
-      document.querySelectorAll('.dropdown-menu .dropdown-menu.show').forEach(openSubmenu => {
-        openSubmenu.classList.remove('show');
-      });
-
-
-      const subMenu = this.nextElementSibling;
-      if (subMenu) {
-        subMenu.classList.toggle('show');
-      }
-    });
-  });
-
-  // Recrear todos los collapses
-  document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(el => {
-    const targetId = el.getAttribute('data-bs-target')
-    const target = document.querySelector(targetId)
-    if (target) {
-      const collapse = new bootstrap.Collapse(target, { toggle: false })
-      allCollapses.push(collapse)
-      
-      // Si es el navbar, guardarlo
-      if (targetId === '#mainNavbar') {
-        navbarCollapse = collapse
-      }
-    }
-  })
-
-  // Cerrar hamburguesa en navegación real
-  document.querySelectorAll('.navbar-collapse .nav-link:not(.dropdown-toggle)').forEach(link => {
-    if (!link.hasAttribute('data-bs-toggle')) {
-      link.addEventListener('click', function(e) {
-        const href = this.getAttribute('href')
-        if (href && href !== '#' && !href.startsWith('#')) {
-          const navbarCollapseEl = document.querySelector('.navbar-collapse.show')
-          if (navbarCollapseEl && window.innerWidth < 992 && navbarCollapse) {
-            navbarCollapse.hide()
-          }
-        }
-      })
-    }
-  })
+  navbarCollapse = null
   
-  console.log("Bootstrap components initialized:", {
-    dropdowns: allDropdowns.length,
-    collapses: allCollapses.length
+  // Reinitializa TODO de nuevo sin flag
+  const navbarTogglerBtn = document.querySelector(".navbar-toggler")
+  if (navbarTogglerBtn) {
+    navbarCollapse = new bootstrap.Collapse(document.querySelector(".navbar-collapse"), { toggle: false })
+  }
+
+  const dropdownElements = document.querySelectorAll("[data-bs-toggle='dropdown']")
+  dropdownElements.forEach(element => {
+    allDropdowns.push(new bootstrap.Dropdown(element))
   })
+
+  const collapseElements = document.querySelectorAll("[data-bs-toggle='collapse']")
+  collapseElements.forEach(element => {
+    allCollapses.push(new bootstrap.Collapse(element, { toggle: false }))
+  })
+
+  console.log("Bootstrap components initialized:", { dropdowns: allDropdowns.length, collapses: allCollapses.length })
 })
+
+// Y QUITA el turbo:before-cache

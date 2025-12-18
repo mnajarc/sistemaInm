@@ -1,0 +1,222 @@
+<!-- app/views/document_submissions/_document_row.html.erb -->
+    <div data-turbo="false">
+
+    <div class="btn-group btn-group-sm" role="group">
+    <% if submission.present? %>
+        
+        <!-- VER - CON data-turbo="false" EN BOTÓN -->
+        <% if submission.document_file&.attached? %>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#previewModal<%= submission.id %>"
+                data-turbo="false"
+                onclick="event.stopPropagation(); event.stopImmediatePropagation();"
+                title="Ver">
+            <i class="bi bi-eye"></i>
+        </button>
+        <% end %>
+
+
+        
+
+        <!-- CARGAR/RE-CARGAR (solo si NO está validado) -->
+        <% if submission.document_status&.name != 'validado' %>
+        <button type="button" 
+                class="btn btn-outline-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#uploadModal<%= submission.id %>"
+                title="<%= submission.document_status&.name == 'rechazado' ? 'Re-subir' : 'Subir' %>">
+            <i class="bi bi-cloud-upload"></i>
+        </button>
+        <% end %>
+
+        <!-- DESCARGAR -->
+        <% if submission.document_file&.attached? %>
+        <a href="<%= business_transaction_document_submission_path(@business_transaction, submission, format: :download) %>"
+            class="btn btn-outline-secondary btn-sm"
+            title="Descargar"
+            download>
+            <i class="bi bi-download"></i>
+        </a>
+        <% end %>
+
+
+    <!-- MODAL PREVIEW -->
+    <div class="modal fade"
+         id="previewModal<%= submission.id %>"
+         tabindex="-1"
+         data-turbo="false"
+         data-bs-backdrop="static"
+         data-bs-keyboard="false">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" data-turbo="false">
+          <div class="modal-header" data-turbo="false">
+            <h5 class="modal-title"><%= submission.document_type.name %></h5>
+            <button type="button" 
+                    class="btn-close" 
+                    data-bs-dismiss="modal"
+                    data-turbo="false"
+                    onclick="Turbo.session.drive = true;"></button>
+          </div>
+          <div class="modal-body" data-turbo="false" style="pointer-events: none;">
+            <%= render 'preview', submission: submission %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // Solo agregar listener UNA VEZ a nivel de documento
+    if (!window._previewModalListenerAdded) {
+        window._previewModalListenerAdded = true;
+        
+        document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-bs-toggle="modal"]');
+        if (btn) {
+            const targetId = btn.getAttribute('data-bs-target');
+            const modal = document.querySelector(targetId);
+            
+            if (modal && targetId.includes('previewModal')) {
+            window.Turbo.session.drive = false;
+            
+            // Escuchar cuando se cierra el modal
+            modal.addEventListener('hidden.bs.modal', () => {
+                window.Turbo.session.drive = true;
+            }, { once: true });
+            }
+        }
+        }, true);
+    }
+    </script>
+
+
+
+
+        <!-- MODAL CARGAR/RE-CARGAR -->
+        <div class="modal fade" id="uploadModal<%= submission.id %>" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                    <% if submission.document_status&.name == 'rechazado' %>
+                        Re-cargar documento
+                    <% else %>
+                        Cargar documento
+                    <% end %>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="<%= upload_business_transaction_document_submission_path(@business_transaction, submission) %>"
+                        method="POST"
+                        enctype="multipart/form-data"
+                        data-turbo="false">
+                    <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                    
+                    <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="document_file_<%= submission.id %>" class="form-label">Seleccionar archivo</label>
+                        <input type="file"
+                            name="document_file"
+                            id="document_file_<%= submission.id %>"
+                            class="form-control"
+                            accept="image/*,application/pdf"
+                            required>
+                        <small class="form-text text-muted d-block mt-2">
+                        Formatos: JPG, PNG, PDF (máx. 10 MB)
+                        </small>
+                    </div>
+
+                    <% if submission.document_status&.name == 'rechazado' && submission.validation_notes.present? %>
+                        <div class="alert alert-warning mb-0">
+                        <strong>Motivo del rechazo anterior:</strong>
+                        <p class="mb-0 mt-2"><%= submission.validation_notes %></p>
+                        </div>
+                    <% end %>
+                    </div>
+
+                    <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <% if submission.document_status&.name == 'rechazado' %>
+                        Re-cargar
+                        <% else %>
+                        Cargar
+                        <% end %>
+                    </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Script LOCAL para este modal específico
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalElement = document.getElementById('uploadModal<%= submission.id %>');
+            if (modalElement) {
+            modalElement.addEventListener('show.bs.modal', function(event) {
+                const documentId = event.relatedTarget?.dataset.documentId;
+                const businessTxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
+                const form = modalElement.querySelector('form');
+                
+                if (form && documentId && businessTxId) {
+                form.action = `/business_transactions/${businessTxId}/document_submissions/${documentId}/upload`;
+                }
+            });
+            }
+        });
+        </script>
+
+    <% else %>
+        <!-- Si NO existe submission aún, mostrar botón para crear -->
+        <button type="button" 
+                class="btn btn-outline-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#uploadNewModal<%= document[:document_type][:id] %>"
+                title="Crear y subir">
+        <i class="bi bi-cloud-upload"></i> Subir
+        </button>
+
+        <!-- MODAL NUEVA CARGA -->
+        <div class="modal fade" id="uploadNewModal<%= document[:document_type][:id] %>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Cargar: <%= document[:document_type][:name] %></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<%= business_transaction_document_submissions_path(@business_transaction) %>"
+                    method="POST"
+                    enctype="multipart/form-data"
+                    data-turbo="false">
+                <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                <input type="hidden" name="document_type_id" value="<%= document[:document_type][:id] %>">
+                <input type="hidden" name="business_transaction_co_owner_id" value="<%= co_owner[:id] %>">
+                
+                <div class="modal-body">
+                <div class="mb-3">
+                    <label for="new_document_file" class="form-label">Seleccionar archivo</label>
+                    <input type="file"
+                        name="document_file"
+                        id="new_document_file"
+                        class="form-control"
+                        accept="image/*,application/pdf"
+                        required>
+                    <small class="form-text text-muted d-block mt-2">
+                    Formatos: JPG, PNG, PDF (máx. 10 MB)
+                    </small>
+                </div>
+                </div>
+
+                <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success">Cargar</button>
+                </div>
+            </form>
+            </div>
+        </div>
+        </div>
+    <% end %>
+    </div>
+</div>

@@ -10,7 +10,7 @@ class DocumentSubmission < ApplicationRecord
   belongs_to :submitted_by, polymorphic: true, optional: true
   belongs_to :validated_by, class_name: 'User', optional: true
   belongs_to :uploaded_by, class_name: 'User', optional: true
-  belongs_to :business_transaction_co_owner, optional: true
+  belongs_to :business_transaction_co_owner
   belongs_to :validation_user, class_name: 'User', optional: true, foreign_key: 'validation_user_id'
   
 

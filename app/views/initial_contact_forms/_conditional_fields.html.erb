@@ -2,9 +2,10 @@
 <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN -->
 <!-- CORRECCIÓN: Usar data-originally-required en lugar de required -->
 
+<div data-controller="initial-contact-form-conditional-fields">
 
-<!-- COMPRAVENTA -->
-<div id="compraventa-fields" class="conditional-section" style="display: none;">
+  <!-- COMPRAVENTA -->
+  <div id="compraventa-fields" class="conditional-section" style="display: none;">
   <div class="card">
     <div class="card-header bg-info text-white">
       <h5 class="mb-0">📋 Detalles de Compraventa</h5>
@@ -27,8 +28,8 @@
       <div class="mb-3">
         <div class="form-check">
           <%= check_box_tag 'initial_contact_form[acquisition_details][has_relationship]', '1',
-                           form.acquisition_details['has_relationship'],
-                           class: 'form-check-input', id: 'has_relationship_check' %>
+                            form.acquisition_details['has_relationship'],
+                            class: 'form-check-input', id: 'has_relationship_check' %>
           <%= label_tag 'has_relationship_check', '¿Los copropietarios tienen parentesco?',
                         class: 'form-check-label' %>
         </div>
@@ -52,18 +53,18 @@
       <div class="mb-3">
         <div class="form-check">
           <%= check_box_tag 'initial_contact_form[acquisition_details][acquired_pre_2014]', '1',
-                           form.acquisition_details['acquired_pre_2014'],
-                           class: 'form-check-input' %>
+                            form.acquisition_details['acquired_pre_2014'],
+                            class: 'form-check-input' %>
           <%= label_tag 'acquired_pre_2014', '¿Se adquirió antes de 2014?',
                         class: 'form-check-label' %>
         </div>
       </div>
     </div>
   </div>
-</div>
+  </div>
 
-<!-- HERENCIA -->
-<div id="herencia-fields" class="conditional-section" style="display: none;">
+  <!-- HERENCIA -->
+  <div id="herencia-fields" class="conditional-section" style="display: none;">
   <div class="card">
     <div class="card-header bg-warning text-dark">
       <h5 class="mb-0">👨‍👩‍👧‍👦 Detalles de Herencia</h5>
@@ -86,13 +87,13 @@
         <div class="col-md-4 mb-3">
           <%= label_tag 'acquisition_details_all_living', '¿Todos viven?', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][all_living]',
-                         options_for_select([['Sí', 'true'], ['No', 'false']],
-                                           form.acquisition_details['all_living']),
-                         class: 'form-select', id: 'all_living_select' %>
+                          options_for_select([['Sí', 'true'], ['No', 'false']],
+                                            form.acquisition_details['all_living']),
+                          class: 'form-select', id: 'all_living_select' %>
         </div>
         
         <div class="col-md-4 mb-3" id="deceased-count-field"
-             style="<%= 'display:none;' unless form.acquisition_details['all_living'] == 'false' %>">
+              style="<%= 'display:none;' unless form.acquisition_details['all_living'] == 'false' %>">
           <%= label_tag 'acquisition_details_deceased_count', '¿Cuántos han fallecido?',
                         class: 'form-label' %>
           <%= number_field_tag 'initial_contact_form[acquisition_details][deceased_count]',
@@ -106,13 +107,13 @@
           <%= label_tag 'acquisition_details_all_married', '¿Todos están casados?',
                         class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][all_married]',
-                         options_for_select([['Sí', 'true'], ['No', 'false']],
-                                           form.acquisition_details['all_married']),
-                         class: 'form-select', id: 'all_married_select' %>
+                          options_for_select([['Sí', 'true'], ['No', 'false']],
+                                            form.acquisition_details['all_married']),
+                          class: 'form-select', id: 'all_married_select' %>
         </div>
         
         <div class="col-md-6 mb-3" id="single-count-field"
-             style="<%= 'display:none;' unless form.acquisition_details['all_married'] == 'false' %>">
+              style="<%= 'display:none;' unless form.acquisition_details['all_married'] == 'false' %>">
           <%= label_tag 'acquisition_details_single_heirs_count', '¿Cuántos solteros?',
                         class: 'form-label' %>
           <%= number_field_tag 'initial_contact_form[acquisition_details][single_heirs_count]',
@@ -151,7 +152,7 @@
       </div>
       
       <div id="inheritance-other-field"
-           style="<%= 'display:none;' unless form.acquisition_details['inheritance_from'] == 'otro' %>">
+            style="<%= 'display:none;' unless form.acquisition_details['inheritance_from'] == 'otro' %>">
         <div class="mb-3">
           <%= label_tag 'acquisition_details_inheritance_from_other', 'Especifique',
                         class: 'form-label' %>
@@ -166,9 +167,9 @@
         <%= label_tag 'acquisition_details_parents_were_married', '¿Los padres estaban casados?',
                       class: 'form-label' %>
         <%= select_tag 'initial_contact_form[acquisition_details][parents_were_married]',
-                       options_for_select([['Sí', 'true'], ['No', 'false']],
-                                         form.acquisition_details['parents_were_married']),
-                       class: 'form-select', id: 'parents_married_select' %>
+                        options_for_select([['Sí', 'true'], ['No', 'false']],
+                                          form.acquisition_details['parents_were_married']),
+                        class: 'form-select', id: 'parents_married_select' %>
       </div>
       
       <div id="parents-regime-field" style="display: none;">
@@ -187,10 +188,10 @@
         <%= label_tag 'acquisition_details_has_testamentary', '¿Tiene sucesión testamentaria? *',
                       class: 'form-label' %>
         <%= select_tag 'initial_contact_form[acquisition_details][has_testamentary_succession]',
-                       options_for_select([['Sí', 'true'], ['No', 'false']],
-                                         form.acquisition_details['has_testamentary_succession']),
-                       class: 'form-select', id: 'has_testamentary_select',
-                       data: { originally_required: 'true' } %>
+                        options_for_select([['Sí', 'true'], ['No', 'false']],
+                                          form.acquisition_details['has_testamentary_succession']),
+                        class: 'form-select', id: 'has_testamentary_select',
+                        data: { originally_required: 'true' } %>
       </div>
       
       <div id="no-testamentary-field" style="display: none;">
@@ -235,10 +236,10 @@
       </div>
     </div>
   </div>
-</div>
+  </div>
 
-<!-- USUCAPIÓN Y PRESCRIPCIÓN NEGATIVA -->
-<div id="usucapion-fields" class="conditional-section" style="display: none;">
+  <!-- USUCAPIÓN Y PRESCRIPCIÓN NEGATIVA -->
+  <div id="usucapion-fields" class="conditional-section" style="display: none;">
   <div class="card">
     <div class="card-header bg-info text-white">
       <h5 class="mb-0">⚖️ Detalles de Usucapión/Prescripción</h5>
@@ -252,8 +253,8 @@
         <div class="col-md-6 mb-3">
           <div class="form-check">
             <%= check_box_tag 'initial_contact_form[acquisition_details][has_judicial_sentence]', '1',
-                             form.acquisition_details['has_judicial_sentence'],
-                             class: 'form-check-input' %>
+                              form.acquisition_details['has_judicial_sentence'],
+                              class: 'form-check-input' %>
             <%= label_tag 'has_judicial_sentence', '¿Tiene sentencia del juez?',
                           class: 'form-check-label' %>
           </div>
@@ -262,8 +263,8 @@
         <div class="col-md-6 mb-3">
           <div class="form-check">
             <%= check_box_tag 'initial_contact_form[acquisition_details][has_notarial_deed]', '1',
-                             form.acquisition_details['has_notarial_deed'],
-                             class: 'form-check-input' %>
+                              form.acquisition_details['has_notarial_deed'],
+                              class: 'form-check-input' %>
             <%= label_tag 'has_notarial_deed', '¿Tiene escritura ante notario?',
                           class: 'form-check-label' %>
           </div>
@@ -271,10 +272,10 @@
       </div>
     </div>
   </div>
-</div>
+  </div>
 
-<!-- DACIÓN EN PAGO -->
-<div id="dacion-pago-fields" class="conditional-section" style="display: none;">
+  <!-- DACIÓN EN PAGO -->
+  <div id="dacion-pago-fields" class="conditional-section" style="display: none;">
   <div class="card">
     <div class="card-header bg-success text-white">
       <h5 class="mb-0">💰 Detalles de Dación en Pago</h5>
@@ -289,13 +290,13 @@
           <%= label_tag 'acquisition_details_document_type',
                         '¿Con qué documento avala la propiedad? *', class: 'form-label' %>
           <%= select_tag 'initial_contact_form[acquisition_details][document_type]',
-                         options_for_select([
-                           ['Escritura Pública', 'escritura_publica'],
-                           ['Sentencia Judicial', 'sentencia_judicial'],
-                           ['Ambos', 'ambos']
-                         ], form.acquisition_details['document_type']),
-                         class: 'form-select',
-                         data: { originally_required: 'true' } %>
+                          options_for_select([
+                            ['Escritura Pública', 'escritura_publica'],
+                            ['Sentencia Judicial', 'sentencia_judicial'],
+                            ['Ambos', 'ambos']
+                          ], form.acquisition_details['document_type']),
+                          class: 'form-select',
+                          data: { originally_required: 'true' } %>
         </div>
         
         <div class="col-md-6 mb-3">
@@ -308,10 +309,10 @@
       </div>
     </div>
   </div>
-</div>
+  </div>
 
-<!-- DONACIÓN -->
-<div id="donacion-fields" class="conditional-section" style="display: none;">
+  <!-- DONACIÓN -->
+  <div id="donacion-fields" class="conditional-section" style="display: none;">
   <div class="card">
     <div class="card-header bg-primary text-white">
       <h5 class="mb-0">🎁 Detalles de Donación</h5>
@@ -349,7 +350,7 @@
       </div>
       
       <div id="donor-other-field"
-           style="<%= 'display:none;' unless form.acquisition_details['donor_relationship'] == 'otro' %>">
+            style="<%= 'display:none;' unless form.acquisition_details['donor_relationship'] == 'otro' %>">
         <div class="mb-3">
           <%= label_tag 'acquisition_details_donor_relationship_other', 'Especifique relación',
                         class: 'form-label' %>
@@ -370,77 +371,109 @@
       </div>
     </div>
   </div>
+  </div>
 </div>
 
-<!-- JAVASCRIPT INTERNO PARA CAMPOS CONDICIONALES -->
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function initializeConditionalFields() {
   // HERENCIA: Campos condicionales
   const allLivingSelect = document.getElementById('all_living_select');
   const deceasedCountField = document.getElementById('deceased-count-field');
-  
+
   if (allLivingSelect) {
     allLivingSelect.addEventListener('change', function() {
       deceasedCountField.style.display = this.value === 'false' ? 'block' : 'none';
     });
   }
-  
+
   const allMarriedSelect = document.getElementById('all_married_select');
   const singleCountField = document.getElementById('single-count-field');
-  
+
   if (allMarriedSelect) {
     allMarriedSelect.addEventListener('change', function() {
       singleCountField.style.display = this.value === 'false' ? 'block' : 'none';
     });
   }
-  
+
   const inheritanceFromSelect = document.getElementById('inheritance-from-select');
   const inheritanceOtherField = document.getElementById('inheritance-other-field');
-  
+
   if (inheritanceFromSelect) {
     inheritanceFromSelect.addEventListener('change', function() {
       inheritanceOtherField.style.display = this.value === 'otro' ? 'block' : 'none';
     });
   }
-  
+
   const parentsMarriedSelect = document.getElementById('parents_married_select');
   const parentsRegimeField = document.getElementById('parents-regime-field');
-  
+
   if (parentsMarriedSelect) {
     parentsMarriedSelect.addEventListener('change', function() {
       parentsRegimeField.style.display = this.value === 'true' ? 'block' : 'none';
     });
   }
-  
+
   const hasTestamentarySelect = document.getElementById('has_testamentary_select');
   const noTestamentaryField = document.getElementById('no-testamentary-field');
   const yesTestamentaryField = document.getElementById('yes-testamentary-field');
-  
+
   if (hasTestamentarySelect) {
     hasTestamentarySelect.addEventListener('change', function() {
       noTestamentaryField.style.display = this.value === 'false' ? 'block' : 'none';
       yesTestamentaryField.style.display = this.value === 'true' ? 'block' : 'none';
     });
   }
-  
+
   // COMPRAVENTA: Parentesco
   const hasRelationshipCheck = document.getElementById('has_relationship_check');
   const relationshipField = document.getElementById('relationship-field');
-  
+
   if (hasRelationshipCheck) {
     hasRelationshipCheck.addEventListener('change', function() {
       relationshipField.style.display = this.checked ? 'block' : 'none';
     });
   }
-  
+
   // DONACIÓN: Relación otro
   const donorRelationshipSelect = document.getElementById('donor-relationship-select');
   const donorOtherField = document.getElementById('donor-other-field');
-  
+
   if (donorRelationshipSelect) {
     donorRelationshipSelect.addEventListener('change', function() {
       donorOtherField.style.display = this.value === 'otro' ? 'block' : 'none';
     });
   }
-});
+  // Ejecutar cambios iniciales para mostrar campos según valores guardados
+  if (hasTestamentarySelect && hasTestamentarySelect.value) {
+    hasTestamentarySelect.dispatchEvent(new Event('change'));
+  }
+  if (allLivingSelect && allLivingSelect.value) {
+    allLivingSelect.dispatchEvent(new Event('change'));
+  }
+  if (allMarriedSelect && allMarriedSelect.value) {
+    allMarriedSelect.dispatchEvent(new Event('change'));
+  }
+  if (inheritanceFromSelect && inheritanceFromSelect.value) {
+    inheritanceFromSelect.dispatchEvent(new Event('change'));
+  }
+  if (parentsMarriedSelect && parentsMarriedSelect.value) {
+    parentsMarriedSelect.dispatchEvent(new Event('change'));
+  }
+  if (donorRelationshipSelect && donorRelationshipSelect.value) {
+    donorRelationshipSelect.dispatchEvent(new Event('change'));
+  }
+  if (hasRelationshipCheck && hasRelationshipCheck.checked) {
+    hasRelationshipCheck.dispatchEvent(new Event('change'));
+  }
+  
+  };
+
+// Ejecutar al cargar inicial
+document.addEventListener('DOMContentLoaded', initializeConditionalFields);
+
+// Ejecutar cuando Turbo carga nuevo contenido
+document.addEventListener('turbo:load', initializeConditionalFields);
+
+
 </script>

@@ -98,5 +98,9 @@ group :test do
   gem 'shoulda-matchers', '~> 5.0'
 end
 
+gem 'wicked_pdf'
+gem 'wkhtmltopdf-binary'
+gem 'prawn'
+gem 'prawn-table'
 
 gem "whenever", require: false
