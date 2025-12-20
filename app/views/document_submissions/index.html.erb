@@ -260,21 +260,20 @@ document.addEventListener('DOMContentLoaded', function() {
       fetch(`/business_transactions/${btxId}/document_submissions/${submissionId}/preview.json`)
         .then(r => r.json())
         .then(data => {
-          if (!data.success) throw new Error(data.error);
-          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.data.analysis.status_label || 'Pendiente'}</p>`;
-          if (data.data.file_url) {
-            if (data.data.content_type?.startsWith('image/')) {
-              html += `<img src="${data.data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
-            } else if (data.data.content_type === 'application/pdf') {
-              html += `<embed src="${data.data.file_url}" style="width: 100%; height: 60vh;" type="application/pdf">`;
+          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.analysis.status_label || 'Pendiente'}</p>`;
+          if (data.file_url) {
+            if (data.content_type?.startsWith('image/')) {
+              html += `<img src="${data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
+            } else if (data.content_type === 'application/pdf') {
+              html += `<embed src="${data.file_url}" style="width: 100%; height: 60vh;" type="application/pdf">`;
             } else {
-              html += `<p class="alert alert-info">Archivo no previewable. <a href="${data.data.file_url}" target="_blank">Descargar</a></p>`;
+              html += `<p class="alert alert-info">Archivo no previewable. <a href="${data.file_url}" target="_blank">Descargar</a></p>`;
             }
           } else {
             html += '<p class="alert alert-warning">No hay archivo cargado</p>';
           }
-          if (data.data.analysis.legibility_score) {
-            html += `<hr><p><strong>Puntuación de legibilidad:</strong> ${data.data.analysis.legibility_score}%</p>`;
+          if (data.analysis.legibility_score) {
+            html += `<hr><p><strong>Puntuación de legibilidad:</strong> ${data.analysis.legibility_score}%</p>`;
           }
           html += '</div>';
           previewContent.innerHTML = html;
