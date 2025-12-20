@@ -114,7 +114,7 @@
                               title="Ver previsualización">
                         <i class="bi bi-eye"></i>
                       </button>
-                      <a href="<%= business_transaction_document_submission_download_path(@business_transaction, submission) %>"
+                      <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
                          class="btn btn-outline-info"
                          title="Descargar">
                         <i class="bi bi-download"></i>
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(r => r.json())
         .then(data => {
           if (!data.success) throw new Error(data.error);
-          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.data.analysis.status_label}</p>`;
+          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.data.analysis.status_label || 'Pendiente'}</p>`;
           if (data.data.file_url) {
             if (data.data.content_type?.startsWith('image/')) {
               html += `<img src="${data.data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
