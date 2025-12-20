@@ -1,4 +1,4 @@
-<!-- XXX app/views/document_submissions/index.html.erb -->
+<!-- app/views/document_submissions/index.html.erb -->
 <div class="container-fluid py-4" data-business-transaction-id="<%= @business_transaction.id %>">
 
   <div class="row mb-4">
@@ -61,100 +61,125 @@
     });
   </script>
 
-  <div class="table-responsive">
-    <table class="table table-hover table-sm">
-      <thead class="table-light">
-        <tr>
-          <th>Documento</th>
-          <th>Estado</th>
-          <th>Cargado</th>
-          <th>Validado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @checklist[:copropietarios].each do |co_data| %>
-          <% co_data[:documents][:list].each do |category| %>
-            <% category[:documents].each do |doc| %>
-              <% submission = doc[:submission] %>
-              <tr id="document-row-<%= submission.id %>">
-                <td>
-                  <small class="d-block text-muted"><%= co_data[:co_owner][:name] %></small>
-                  <strong><%= doc[:document_type][:name] %></strong>
-                </td>
-                <td>
-                  <% if submission.document_file.attached? %>
-                    <span class="badge bg-<%= submission.document_status&.name || 'secondary' %>">
-                      <%= submission.document_status&.name || 'Desconocido' %>
-                    </span>
-                  <% else %>
-                    <span class="badge bg-secondary">Pendiente Solicitud</span>
-                  <% end %>
-                </td>
-                <td>
-                  <% if submission.submitted_at %>
-                    <small><%= submission.submitted_at.strftime('%d/%m/%Y') %></small>
-                  <% else %>
-                    <span class="text-muted">-</span>
-                  <% end %>
-                </td>
-                <td>
-                  <% if submission.validated_at %>
-                    <small><%= submission.validated_at.strftime('%d/%m/%Y') %></small>
-                  <% else %>
-                    <span class="text-muted">-</span>
-                  <% end %>
-                </td>
-                <td>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <% if submission.document_file.attached? %>
-                      <button class="btn btn-outline-primary preview-btn" 
-                              data-submission-id="<%= submission.id %>"
-                              data-document-type="<%= submission.document_type&.name %>"
-                              title="Ver previsualización">
-                        <i class="bi bi-eye"></i>
-                      </button>
-                      <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
-                         class="btn btn-outline-info"
-                         title="Descargar">
-                        <i class="bi bi-download"></i>
-                      </a>
-                    <% end %>
+  <!-- PESTAÑAS POR COPROPIETARIO -->
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= 'active' if index == 0 %>" 
+                id="tab-<%= co_data[:co_owner][:id] %>" 
+                data-bs-toggle="tab" 
+                data-bs-target="#pane-<%= co_data[:co_owner][:id] %>" 
+                type="button" 
+                role="tab">
+          <%= co_data[:co_owner][:name] %>
+          <span class="badge bg-primary ms-2"><%= co_data[:documents][:list].sum { |cat| cat[:documents].count } %></span>
+        </button>
+      </li>
+    <% end %>
+  </ul>
 
-                    <% if current_user.admin? || current_user.agent? %>
-                      <% if submission.document_file.attached? && !submission.validated? %>
-                        <button class="btn btn-outline-success validate-btn"
-                                data-submission-id="<%= submission.id %>"
-                                title="Validar documento">
-                          <i class="bi bi-check-circle"></i>
-                        </button>
-                        <button class="btn btn-outline-danger reject-btn"
-                                data-submission-id="<%= submission.id %>"
-                                title="Rechazar documento">
-                          <i class="bi bi-x-circle"></i>
-                        </button>
-                      <% end %>
-                    <% end %>
-
-                    <% if !submission.document_file.attached? || (current_user == submission.uploaded_by || current_user.admin?) %>
-                      <button class="btn btn-outline-warning upload-btn"
-                              data-submission-id="<%= submission.id %>"
-                              title="Cargar/Recargar documento">
-                        <i class="bi bi-upload"></i>
-                      </button>
-                    <% end %>
-                  </div>
-                </td>
+  <!-- CONTENIDO DE LAS PESTAÑAS -->
+  <div class="tab-content">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <div class="tab-pane fade <%= 'show active' if index == 0 %>" 
+           id="pane-<%= co_data[:co_owner][:id] %>" 
+           role="tabpanel">
+        
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Documento</th>
+                <th>Estado</th>
+                <th>Cargado</th>
+                <th>Validado</th>
+                <th>Acciones</th>
               </tr>
-            <% end %>
-          <% end %>
-        <% end %>
-      </tbody>
-    </table>
+            </thead>
+            <tbody>
+              <% co_data[:documents][:list].each do |category| %>
+                <% category[:documents].each do |doc| %>
+                  <% submission = doc[:submission] %>
+                  <tr id="document-row-<%= submission.id %>">
+                    <td>
+                      <strong><%= doc[:document_type][:name] %></strong>
+                    </td>
+                    <td>
+                      <% if submission.document_file.attached? %>
+                        <span class="badge bg-<%= submission.document_status&.name || 'secondary' %>">
+                          <%= submission.document_status&.name || 'Desconocido' %>
+                        </span>
+                      <% else %>
+                        <span class="badge bg-secondary">Pendiente Solicitud</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.submitted_at %>
+                        <small><%= submission.submitted_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.validated_at %>
+                        <small><%= submission.validated_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <% if submission.document_file.attached? %>
+                          <button class="btn btn-outline-primary preview-btn" 
+                                  data-submission-id="<%= submission.id %>"
+                                  data-document-type="<%= submission.document_type&.name %>"
+                                  title="Ver previsualización">
+                            <i class="bi bi-eye"></i>
+                          </button>
+                          <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
+                             class="btn btn-outline-info"
+                             title="Descargar">
+                            <i class="bi bi-download"></i>
+                          </a>
+                        <% end %>
+
+                        <% if current_user.admin? || current_user.agent? %>
+                          <% if submission.document_file.attached? && !submission.validated? %>
+                            <button class="btn btn-outline-success validate-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Validar documento">
+                              <i class="bi bi-check-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-danger reject-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Rechazar documento">
+                              <i class="bi bi-x-circle"></i>
+                            </button>
+                          <% end %>
+                        <% end %>
+
+                        <% if !submission.document_file.attached? || (current_user == submission.uploaded_by || current_user.admin?) %>
+                          <button class="btn btn-outline-warning upload-btn"
+                                  data-submission-id="<%= submission.id %>"
+                                  title="Cargar/Recargar documento">
+                            <i class="bi bi-upload"></i>
+                          </button>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
   </div>
 
+  <!-- MODALES (sin cambios) -->
   <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="previewModalLabel">Previsualización</h5>
@@ -261,6 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(r => r.json())
         .then(data => {
           let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.analysis.status_label || 'Pendiente'}</p>`;
+          
           if (data.file_url) {
             if (data.content_type?.startsWith('image/')) {
               html += `<img src="${data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
@@ -272,11 +298,55 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             html += '<p class="alert alert-warning">No hay archivo cargado</p>';
           }
+          
           if (data.analysis.legibility_score) {
             html += `<hr><p><strong>Puntuación de legibilidad:</strong> ${data.analysis.legibility_score}%</p>`;
           }
           html += '</div>';
           previewContent.innerHTML = html;
+
+          // ZOOM DE IMÁGENES CON SCROLL
+          document.addEventListener('wheel', function(event) {
+            const img = document.querySelector('.preview-wrapper img');
+            if (!img) return;
+            
+            if (event.target === img || img.contains(event.target)) {
+              event.preventDefault();
+              
+              if (event.deltaY < 0) {
+                if (img.classList.contains('zoomed-2x')) return;
+                if (img.classList.contains('zoomed')) {
+                  img.classList.remove('zoomed');
+                  img.classList.add('zoomed-2x');
+                } else {
+                  img.classList.add('zoomed');
+                }
+              } else {
+                if (img.classList.contains('zoomed-2x')) {
+                  img.classList.remove('zoomed-2x');
+                  img.classList.add('zoomed');
+                } else if (img.classList.contains('zoomed')) {
+                  img.classList.remove('zoomed');
+                }
+              }
+            }
+          }, { passive: false });
+
+          // CLICK PARA ZOOM
+          document.addEventListener('click', function(event) {
+            const img = event.target.closest('.preview-wrapper img');
+            if (!img) return;
+            
+            if (img.classList.contains('zoomed-2x')) {
+              img.classList.remove('zoomed-2x');
+              img.classList.remove('zoomed');
+            } else if (img.classList.contains('zoomed')) {
+              img.classList.remove('zoomed');
+              img.classList.add('zoomed-2x');
+            } else {
+              img.classList.add('zoomed');
+            }
+          });
         })
         .catch(err => {
           previewContent.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
@@ -287,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // UPLOAD
   document.querySelectorAll('.upload-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -314,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(err => alert('Error: ' + err.message));
   });
 
+  // VALIDATE
   document.querySelectorAll('.validate-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -341,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(err => alert('Error: ' + err.message));
   });
 
+  // REJECT
   document.querySelectorAll('.reject-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -372,19 +445,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
 .preview-wrapper {
-  padding: 1rem;
+  padding: 20px;
+  max-height: 70vh;
+  overflow: auto;
   text-align: center;
+  position: relative;
 }
 
-.preview-wrapper img,
+.preview-wrapper img {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+  transform-origin: center;
+  zoom: 1;
+}
+
+.preview-wrapper img.zoomed {
+  cursor: zoom-out;
+  zoom: 1.5;
+}
+
+.preview-wrapper img.zoomed-2x {
+  cursor: zoom-out;
+  zoom: 2;
+}
+
 .preview-wrapper embed {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
 }
 
 .modal-dialog {
   will-change: transform, opacity;
   transform: translateZ(0);
+  max-width: 90vw !important;
+}
+
+.modal-lg {
+  max-width: 90vw !important;
 }
 
 .modal-backdrop.show {
@@ -396,4 +507,55 @@ document.addEventListener('DOMContentLoaded', function() {
 body.modal-open {
   transition: none !important;
 }
+
+/* ESTILOS PARA LAS PESTAÑAS */
+.nav-tabs {
+  border-bottom: 2px solid #e9ecef;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6c757d;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.nav-tabs .nav-link.active {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+  background: none;
+}
+
+.nav-tabs .badge {
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+/* BADGES DE ESTADOS PERSONALIZADOS */
+.badge.bg-rechazado {
+  background-color: #dc3545 !important; /* Rojo */
+  color: white;
+}
+
+.badge.bg-validado {
+  background-color: #28a745 !important; /* Verde */
+  color: white;
+}
+
+.badge.bg-pendiente {
+  background-color: #ffc107 !important; /* Amarillo */
+  color: #333;
+}
+
+.badge.bg-desconocido {
+  background-color: #6c757d !important; /* Gris */
+  color: white;
+}
+
 </style>

@@ -205,6 +205,7 @@ class DocumentSubmissionsController < ApplicationController
           uploaded_at: @submission.submitted_at&.strftime('%d/%m/%Y %H:%M'),
           uploaded_by: @submission.uploaded_by&.email,
           file_url: @submission.document_file.attached? ? url_for(@submission.document_file) : nil,
+          content_type: @submission.document_file.content_type,
           analysis: {
             status: @submission.analysis_status,
             legibility_score: @submission.legibility_score,
