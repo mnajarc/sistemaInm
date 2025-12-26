@@ -14,20 +14,108 @@ class DocumentChecklistService
 
   private
 
+
   def summary_stats
     submissions = @transaction.document_submissions
+    
+    # ✅ Agrupar por estado (ahora todos tienen estado)
+    by_status = submissions.joins(:document_status)
+                          .group('document_statuses.name')
+                          .count
+    
+    # ✅ Estados específicos
+    validated = by_status['validado'] || 0
+    rejected = by_status['rechazado'] || 0
+    expired = by_status['vencido'] || 0
+    expiring_soon = by_status['por_vencer'] || 0
+    
+    # ✅ FÓRMULA CORRECTA: Pendientes = Total - Validados
+    # Lo que falta por validar (cualquier estado excepto validado)
+    pending = submissions.count - validated
+    
+    # ✅ Solo documentos ACTIVOS (no vencidos) para progreso
+    active_submissions = submissions.where.not(
+      id: submissions.joins(:document_status)
+                    .where(document_statuses: { name: 'vencido' })
+                    .select(:id)
+    )
     
     {
       total: submissions.count,
       uploaded: submissions.where.not(submitted_at: nil).count,
-      pending: submissions.where(submitted_at: nil).count,
-      validated: submissions.where.not(validated_at: nil).count,
-      rejected: submissions.joins(:document_status).where(document_statuses: { name: 'rechazado' }).count,
-      expired: submissions.expired.count,
-      expiring_soon: submissions.expiring_soon.count,
-      progress: calculate_progress(submissions)
+      
+      # ✅ Lógica clara y simple
+      pending: pending,           # P = T - V (lo que falta)
+      validated: validated,       # Aprobados
+      rejected: rejected,         # Rechazados
+      
+      # ☠️ MUERTOS (fuera del flujo activo)
+      expired: expired,
+      
+      # ⏰ TIME-DEPENDENT (cercanos a vencer, aún vivos)
+      expiring_soon: expiring_soon,
+      
+      # Métricas adicionales
+      active_count: active_submissions.count,
+      progress: calculate_progress(active_submissions)
     }
   end
+
+
+  def calculate_progress(submissions)
+    return 0 if submissions.empty?
+    
+    # Solo documentos ACTIVOS (no vencidos)
+    active = submissions.reject { |s| s.document_status&.name == 'vencido' }
+    return 0 if active.empty?
+    
+    # Contar validados dentro de activos
+    validated = active.count { |s| s.document_status&.name == 'validado' }
+    ((validated.to_f / active.count) * 100).round(2)
+  end
+
+
+
+def summary_stats_anterior
+  submissions = @transaction.document_submissions
+  
+  # ✅ Agrupar por estado REAL (mutuamente excluyente)
+  by_status = submissions.joins(:document_status)
+                         .group('document_statuses.name')
+                         .count
+  
+  # ✅ Solo documentos ACTIVOS (no vencidos)
+  active_submissions = submissions.where.not(
+    id: submissions.joins(:document_status)
+                   .where(document_statuses: { name: 'vencido' })
+                   .select(:id)
+  )
+  
+  {
+    total: submissions.count,
+    uploaded: submissions.where.not(submitted_at: nil).count,
+    
+    # Estados mutuamente excluyentes (basados en document_status.name)
+    pending: (by_status['pendiente_solicitud'] || 0) + 
+             (by_status['pendiente_validacion'] || 0),
+    validated: by_status['validado'] || 0,
+    rejected: by_status['rechazado'] || 0,
+    
+    # ☠️ MUERTOS (fuera del flujo activo)
+    expired: by_status['vencido'] || 0,
+    
+    # ⏰ TIME-DEPENDENT (cercanos a vencer, aún vivos)
+    expiring_soon: by_status['por_vencer'] || 0,
+    
+    # Solo documentos vivos para cálculo de progreso
+    active_count: active_submissions.count,
+    
+    progress: calculate_progress(active_submissions)
+  }
+end
+
+
+
 
   def documents_for_party(party_type)
     submissions = @transaction.document_submissions

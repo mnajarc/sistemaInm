@@ -1,4 +1,3 @@
-# ✅ MODELO CONSOLIDADO Y CORREGIDO
 # app/models/document_submission.rb
 
 class DocumentSubmission < ApplicationRecord
