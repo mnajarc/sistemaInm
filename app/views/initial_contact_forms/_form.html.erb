@@ -435,7 +435,8 @@
                     <%= text_field_tag 'initial_contact_form[general_conditions][owner_phone]',
                                       form.general_conditions['owner_phone'],
                                       class: 'form-control',
-                                      placeholder: '(55) 1234-5678' %>
+                                      placeholder: '(55) 1234-5678',
+                                      id: 'owner-phone-field' %>
                   </div>
                   
                   <div class="col-md-6 mb-3">
@@ -782,6 +783,7 @@
     const interiorField = document.getElementById('property-interior-field');
     const identifierField = document.querySelector('input[name="initial_contact_form[opportunity_identifier]"]');
     const previewDiv = document.getElementById('opportunity-identifier-preview');
+    const phoneField = document.getElementById('owner-phone-field');
 
     function updateIdentifierPreview() {
       const operationTypeId = operationTypeSelect?.value || '';
@@ -868,6 +870,21 @@
     if (streetField) streetField.addEventListener('input', updateIdentifierPreview);
     if (exteriorField) exteriorField.addEventListener('input', updateIdentifierPreview);
     if (interiorField) interiorField.addEventListener('input', updateIdentifierPreview);
+    if (phoneField) {
+      phoneField.addEventListener('blur', function(e) {
+        let phone = e.target.value.trim();
+        
+        if (!phone) return;
+        
+        let cleaned = phone.replace(/[\s\-()]/g, '');
+        
+        if (cleaned.match(/^\d{10}$/)) {
+          e.target.value = cleaned.slice(0, 2) + ' ' + 
+                           cleaned.slice(2, 6) + ' ' + 
+                           cleaned.slice(6, 10);
+        }
+      });
+    }
 
     // Trigger inicial
     setTimeout(() => updateIdentifierPreview(), 100);

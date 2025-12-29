@@ -38,13 +38,20 @@ class Client < ApplicationRecord
 
 
   validates :full_name, presence: true
-  validates :email, presence: true, uniqueness: true, allow_blank: true
+  validates :email,
+    presence: true,
+    format: { with: URI::MailTo::EMAIL_REGEXP },
+    uniqueness: true,
+    allow_blank: true
+
+  validates :phone,
+    allow_blank: true,
+    format: { with: /\A\+?[0-9\s\-()]{7,20}\z/, message: "formato inválido" }
+
   validates :active, inclusion: { in: [true, false] }
   validates :first_names, presence: true
   validates :first_surname, presence: true
   validates :civil_status, presence: true
-  validates :email, presence: true, uniqueness: true
-
 
 
 

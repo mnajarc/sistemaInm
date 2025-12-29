@@ -208,48 +208,54 @@ end
   end
   
 
-
-
-def convert_to_transaction
-  @form = InitialContactForm.find(params[:id])
-  
-  begin
-    ActiveRecord::Base.transaction do
-      # ========================================
-      # 1. CREAR O ACTUALIZAR CLIENTE
-      # ========================================
-      @client = Client.from_initial_contact_form(@form)
-      
-      unless @client.save
-        raise ActiveRecord::RecordInvalid, @client
-      end
-
-      @form.update!(client_id: @client.id)
-
-      # ========================================
-      # 2. USAR EL MÉTODO DEL MODELO (COMPLETO)
-      # ========================================
-      @transaction = @form.create_business_transaction!(@client, @form.property)
-
-      # ========================================
-      # 3. ACTUALIZAR ESTADO DEL FORMULARIO
-      # ========================================
-      @form.update!(
-        business_transaction_id: @transaction.id,
-        status: :converted,
-        converted_at: Time.current
-      )
-
+  def convert_to_transaction
+    @form = InitialContactForm.find(params[:id])
+    
+    @transaction = @form.convert_to_transaction!
+    
+    if @transaction
       redirect_to business_transaction_path(@transaction), 
                   notice: '✅ Convertido a Transacción de Negocio exitosamente'
+    else
+      redirect_to @form, alert: "❌ No se pudo convertir el formulario"
     end
-  rescue ActiveRecord::RecordInvalid => e
-    redirect_to @form, alert: "❌ Error al convertir: #{e.message}"
-  rescue StandardError => e
+   rescue StandardError => e
     Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
-    redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
+    redirect_to @form, alert: "❌ Error: #{e.message}"
   end
-end
+
+
+
+
+
+  def convert_to_transaction_anterior_1
+    @form = InitialContactForm.find(params[:id])
+    
+    begin
+      ActiveRecord::Base.transaction do
+        # ✅ Dejar que create_business_transaction! maneje TODO
+        client = @form.find_or_create_client!
+        @transaction = @form.create_business_transaction!(client, @form.property)
+
+        
+        @form.update!(
+          business_transaction_id: @transaction.id,
+          status: :converted,
+          converted_at: Time.current
+        )
+
+        redirect_to business_transaction_path(@transaction), 
+                    notice: '✅ Convertido a Transacción de Negocio exitosamente'
+      end
+    rescue ActiveRecord::RecordInvalid => e
+      redirect_to @form, alert: "❌ Error al convertir: #{e.message}"
+    rescue StandardError => e
+      Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
+      redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
+    end
+  end
+
+
 
 
 
@@ -268,64 +274,13 @@ end
         end
 
         @form.update!(client_id: @client.id)
+        # ========================================
+        # 2. USAR EL MÉTODO DEL MODELO (COMPLETO)
+        # ========================================
+        @transaction = @form.create_business_transaction!(@client, @form.property)
 
         # ========================================
-        # 2. CALCULAR PRECIO (FUERA DEL HASH)
-        # ========================================
-        asking_price = @form.property_info&.dig('asking_price').to_f || 1.0
-        final_price = asking_price.positive? ? asking_price : 1.0
-
-        # ========================================
-        # 3. CREAR TRANSACCIÓN COMERCIAL
-        # ========================================
-        @transaction = BusinessTransaction.create!(
-          offering_client_id: @client.id,
-          property_id: @form.property_id,
-          listing_agent_id: current_user.id,
-          current_agent_id: current_user.id,
-          operation_type_id: @form.operation_type_id,
-          business_status_id: BusinessStatus.find_by(name: 'prospecto')&.id || BusinessStatus.first&.id,
-          price: final_price,
-          commission_percentage: 0,
-          start_date: Date.current,
-          property_acquisition_method_id: @form.property_acquisition_method_id
-        )
-
-        # ========================================
-        # 4. CREAR CO-PROPIETARIOS
-        # ========================================
-
-        raw_count = @form.acquisition_details&.dig('co_owners_count').to_i
-        coowners_count = raw_count > 0 ? raw_count : 1  # Evita división por cero
-
-        percentage_per_owner = (100.0 / coowners_count).round(2)
-
-        
-        # coowners_count = @form.acquisition_details&.dig('coowners_count').to_i || 1
-        # percentage_per_owner = (100.0 / coowners_count).round(2)
-
-        BusinessTransactionCoOwner.create!(
-          business_transaction_id: @transaction.id,
-          client_id: @client.id,
-          person_name: @client.display_name,
-          percentage: percentage_per_owner,
-          role: 'propietario',
-          active: true
-        )
-
-        (coowners_count - 1).times do |i|
-          BusinessTransactionCoOwner.create!(
-            business_transaction_id: @transaction.id,
-            client_id: nil,
-            person_name: "Copropietario #{i + 2} - Pendiente",
-            percentage: percentage_per_owner,
-            role: 'copropietario',
-            active: false
-          )
-        end
-
-        # ========================================
-        # 5. ACTUALIZAR ESTADO DEL FORMULARIO
+        # 3. ACTUALIZAR ESTADO DEL FORMULARIO
         # ========================================
         @form.update!(
           business_transaction_id: @transaction.id,
@@ -343,6 +298,9 @@ end
       redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
     end
   end
+
+
+
 
 
   
@@ -496,15 +454,6 @@ end
   end
 
   # Método antiguo para compatibilidad (opcional, puede eliminarse después)
-  def edit_client_modal_anterior
-    @form = InitialContactForm.find(params[:id])
-    @general_conditions = @form.general_conditions || {}
-    
-    respond_to do |format|
-      format.turbo_stream
-      format.html { render :edit_client_modal, layout: false }
-    end
-  end
 
 
 

@@ -199,14 +199,78 @@ class InitialContactForm < ApplicationRecord
     true
   end
 
+  
+
+  
+
+
+  
   def find_or_create_client!
     return client if client.present?
-    owner_name = general_conditions['owner_or_representative_name']
-    Client.find_or_create_by!(name: owner_name) do |c|
-      c.email = general_conditions['owner_email'] || "temp_#{SecureRandom.hex(4)}@pending.com"
-      c.phone = general_conditions['owner_phone'] if general_conditions['owner_phone'].present?
+
+    email = general_conditions['owner_email'].to_s.strip.presence
+    name  = general_conditions['owner_or_representative_name'].to_s.strip
+    phone = general_conditions['owner_phone'].to_s.strip.presence
+
+    if email
+      # Buscar PRIMERO sin crear
+      existing_client = Client.find_by(email: email)
+      return existing_client if existing_client.present?
+      
+      # Si no existe, CREAR (sin actualizar)
+      Client.create!(
+        full_name: name,
+        email: email,
+        phone: phone,
+        first_names: name.split(' ').first || '',
+        first_surname: name.split(' ')[1] || '',
+        civil_status: 'soltero'  # ← O lo que sea por defecto
+      )
+    else
+      # Sin email: crear cliente "débil" con email sintético
+      Client.create!(
+        full_name: name,
+        phone: phone,
+        email: "temp_#{SecureRandom.hex(6)}@sin-correo.local",
+        first_names: name.split(' ').first || '',
+        first_surname: name.split(' ')[1] || '',
+        civil_status: 'soltero'  # ← O lo que sea por defecto
+      )
     end
+  rescue ActiveRecord::RecordNotUnique
+    # Si hay race condition, recuperar el cliente existente
+    Client.find_by!(email: email)
   end
+
+
+  
+
+  def find_or_create_client_anterior!
+    return client if client.present?
+
+    email = general_conditions['owner_email'].to_s.strip.presence
+    name  = general_conditions['owner_or_representative_name'].to_s.strip
+    phone = general_conditions['owner_phone'].to_s.strip.presence
+
+    if email
+      Client.create_or_find_by!(email: email) do |client|
+        client.full_name = name
+        client.phone = phone
+      end
+    else
+      Client.create!(
+        name:  name,
+        phone: phone,
+        email: "temp_#{SecureRandom.hex(6)}@sin-correo.local"
+      )
+    end
+  rescue ActiveRecord::RecordNotUnique
+    Client.find_by!(email: email)
+  end
+
+    
+
+
 
   def find_or_create_property!(client)
     existing_property = Property.find_by_location(
@@ -253,7 +317,62 @@ class InitialContactForm < ApplicationRecord
     )
   end
 
-  def convert_to_transaction!
+
+
+
+def convert_to_transaction!
+  return false if converted? || business_transaction.present? || !valid_for_conversion?
+
+  begin
+    # Si NECESITAS transacción:
+    ActiveRecord::Base.transaction do
+      client = find_or_create_client!
+      property = find_or_create_property!(client)
+      transaction = create_business_transaction!(client, property)
+      
+      update!(
+        status: :converted,
+        converted_at: Time.current,
+        client: client,
+        property: property,
+        business_transaction: transaction
+      )
+      
+      transaction  # Retorna la transacción
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "Validación falló: #{e.message}"
+    false
+  rescue => e
+    Rails.logger.error "Error: #{e.class} - #{e.message}"
+    false
+  end
+end
+
+
+def convert_to_transaction_anterior_1
+  @form = InitialContactForm.find(params[:id])
+  
+  begin
+    # ✅ El modelo maneja TODO: cliente, propiedad, transacción
+    @transaction = @form.convert_to_transaction!
+    
+    unless @transaction
+      redirect_to @form, alert: "❌ No se pudo convertir el formulario"
+      return
+    end
+
+    redirect_to business_transaction_path(@transaction), 
+                notice: '✅ Convertido a Transacción de Negocio exitosamente'
+  rescue StandardError => e
+    Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
+    redirect_to @form, alert: "❌ Error: #{e.message}"
+  end
+end
+
+
+
+  def convert_to_transaction_anterior!
     return false if converted? || business_transaction.present? || !valid_for_conversion?
 
     Rails.logger.info "═" * 100
@@ -266,8 +385,6 @@ class InitialContactForm < ApplicationRecord
         property = find_or_create_property!(client)
         transaction = create_business_transaction!(client, property)
         
-        co_owners_count = acquisition_details['co_owners_count']&.to_i || 1
-        build_transaction_co_owners!(transaction, client, co_owners_count)
         
         update!(
           status: :converted,
@@ -1027,108 +1144,6 @@ end
 
 
 
-def create_required_documents_anterior_sindebug!(business_transaction, scenario)
-  return unless scenario.present?
-  
-  # 🔴 DEBUG
-  Rails.logger.info "=" * 80
-  Rails.logger.info "📋 CREANDO DOCUMENTOS - DEBUG"
-  Rails.logger.info "Scenario: #{scenario.name}"
-  Rails.logger.info "BT ID: #{business_transaction.id}"
-  Rails.logger.info "only_for_principal count: #{ScenarioDocument.where(only_for_principal: true).count}"
-  Rails.logger.info "scenario_documents count: #{scenario.scenario_documents.count}"
-  Rails.logger.info "=" * 80
-  
-  scenario.scenario_documents.each do |scenario_doc|
-    # 🔴 DEBUG
-    Rails.logger.info "  Procesando: #{scenario_doc.document_type.name} (only_for_principal: #{scenario_doc.only_for_principal?})"
-    
-    # Si es solo para principal, crear solo para propietario
-    if scenario_doc.only_for_principal?
-      target_co_owners = business_transaction.business_transaction_co_owners
-                                              .where(role: 'propietario')
-    else
-      # Sino, mapear según party_type
-      target_co_owners = map_party_type_to_co_owners(
-        business_transaction, 
-        scenario_doc.party_type
-      )
-    end
-    
-    target_co_owners.each do |co_owner|
-      DocumentSubmission.create!(
-        business_transaction: business_transaction,
-        business_transaction_co_owner: co_owner,
-        document_type: scenario_doc.document_type,
-        party_type: scenario_doc.party_type,
-        notes: "Documento requerido por escenario: #{scenario.name}"
-      )
-    end
-  end
-  
-  Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
-end
-
-
-
-  def create_required_documents_anterior1!(business_transaction, scenario)
-    return unless scenario.present?
-    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
-    
-    scenario.scenario_documents.each do |scenario_doc|
-      # Si es solo para principal, crear solo para propietario
-      if scenario_doc.only_for_principal?
-        target_co_owners = business_transaction.business_transaction_co_owners
-                                                .where(role: 'propietario')
-      else
-        # Sino, mapear según party_type
-        target_co_owners = map_party_type_to_co_owners(
-          business_transaction, 
-          scenario_doc.party_type
-        )
-      end
-      
-      target_co_owners.each do |co_owner|
-        DocumentSubmission.create!(
-          business_transaction: business_transaction,
-          business_transaction_co_owner: co_owner,
-          document_type: scenario_doc.document_type,
-          party_type: scenario_doc.party_type,
-          notes: "Documento requerido por escenario: #{scenario.name}"
-        )
-      end
-    end
-    
-    Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
-  end
-
-
-
-  def create_required_documents_anterior!(business_transaction, scenario)
-    return unless scenario.present?
-    Rails.logger.info "📋 Creando documentos para: #{scenario.name}"
-    
-    scenario.scenario_documents.each do |scenario_doc|
-      # Mapear party_type del escenario a copropietarios reales
-      target_co_owners = map_party_type_to_co_owners(
-        business_transaction, 
-        scenario_doc.party_type
-      )
-      
-      # Crear documento para CADA copropietario que corresponda
-      target_co_owners.each do |co_owner|
-        DocumentSubmission.create!(
-          business_transaction: business_transaction,
-          business_transaction_co_owner: co_owner,
-          document_type: scenario_doc.document_type,
-          party_type: scenario_doc.party_type,
-          notes: "Documento requerido por escenario: #{scenario.name}"
-        )
-      end
-    end
-    
-    Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
-  end
 
 
 
@@ -1253,26 +1268,6 @@ end
   end
 
 
-def build_inheritance_details_anterior
-  return {} unless property_acquisition_method&.code == 'herencia'
-  
-  {
-    'heirs_count' => acquisition_details['heirs_count']&.to_i,
-    'all_living' => acquisition_details['all_living'], #Convert
-    'deceased_count' => acquisition_details['deceased_count']&.to_i,
-    'all_married' => acquisition_details['all_married'], #Convert
-    'single_heirs_count' => acquisition_details['single_heirs_count']&.to_i,
-    'deceased_civil_status' => acquisition_details['deceased_civil_status'],
-    'inheritance_from' => acquisition_details['inheritance_from'],
-    'inheritance_from_other' => acquisition_details['inheritance_from_other'],
-    'parents_were_married' => acquisition_details['parents_were_married'], #Convert
-    'parents_marriage_regime' => acquisition_details['parents_marriage_regime'],
-    'has_testamentary_succession' => acquisition_details['has_testamentary_succession'], #Convert
-    'succession_planned_date' => acquisition_details['succession_planned_date'],
-    'succession_authority' => acquisition_details['succession_authority'],
-    'succession_type' => acquisition_details['succession_type']
-  }.reject { |_, v| v.blank? }
-end
 
   def build_inheritance_details
   return {} unless property_acquisition_method&.code == 'herencia'
@@ -1347,29 +1342,6 @@ end
     end
   end
 
-  def map_party_type_to_co_owners_anterior(business_transaction, party_type)
-    case party_type
-    when 'copropietario_principal'
-      # Solo el propietario principal (vendedor)
-      business_transaction.business_transaction_co_owners.where(role: 'propietario')
-    
-    when 'copropietario'
-      # Todos los copropietarios secundarios
-      business_transaction.business_transaction_co_owners.where(role: 'copropietario')
-    
-    when 'ambos'
-      # Todos los propietarios (principal + secundarios)
-      business_transaction.business_transaction_co_owners
-    
-    when 'adquiriente'
-      # El comprador - NOT a co-owner (retorna vacío por ahora)
-      # Esto se maneja diferente (es el offering_client o acquiring_client)
-      []
-    
-    else
-      []
-    end
-  end
 
   def convert_to_bool(value)
     return value if [true, false].include?(value)
