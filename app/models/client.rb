@@ -20,8 +20,6 @@ class Client < ApplicationRecord
   has_many :business_transactions
 
 
-  attr_accessor :first_names, :first_surname, :second_surname
- 
   # ✅ NUEVAS RELACIONES PARA OFERTAS
   has_many :offers_made, class_name: 'Offer', foreign_key: 'offerer_id'
   has_many :active_offers, -> { active }, class_name: 'Offer', foreign_key: 'offerer_id'
@@ -37,6 +35,8 @@ class Client < ApplicationRecord
 
 
 
+  attr_accessor :first_names, :first_surname, :second_surname
+ 
   validates :full_name, presence: true
   validates :email,
     presence: true,
@@ -190,7 +190,46 @@ class Client < ApplicationRecord
 
   private
   
-  def compose_full_name
+def compose_full_name
+  # Convertir cada campo a string, trim, y asegurar que no sea nil
+  first_n = first_names.to_s.strip
+  first_s = first_surname.to_s.strip
+  second_s = second_surname.to_s.strip
+  
+  # Construir nombre con solo las partes que tienen valor
+  parts = []
+  parts << first_n if first_n.present?
+  parts << first_s if first_s.present?
+  parts << second_s if second_s.present?
+  
+  # Asignar nombre completo (nunca vacío)
+  self.full_name = parts.join(' ').strip.presence || 'Sin nombre'
+end
+
+def sync_full_name
+  return if first_names.blank? || first_surname.blank?
+
+  first_n = first_names.to_s.strip
+  first_s = first_surname.to_s.strip
+  second_s = second_surname.to_s.strip if second_surname.present?
+  
+  parts = [first_n, first_s]
+  parts << second_s if second_s.present?
+
+  self.full_name = parts.join(' ').strip.presence || 'Sin nombre'
+end
+
+def clean_names
+  # Convertir a string PRIMERO, luego trim
+  self.first_names = first_names.to_s.strip
+  self.first_surname = first_surname.to_s.strip
+  self.second_surname = second_surname.to_s.strip
+  self.email = email.to_s.strip.downcase
+end
+
+
+  
+  def compose_full_name_anterior
     parts = [
       first_names&.strip,
       first_surname&.strip,
@@ -204,7 +243,7 @@ class Client < ApplicationRecord
   # ========================================
   # Sincronizar full_name a partir de componentes
   # ========================================
-  def sync_full_name
+  def sync_full_name_anterior
     return if first_names.blank? || first_surname.blank?
 
     parts = [first_names.to_s.strip, first_surname.to_s.strip]
@@ -216,7 +255,7 @@ class Client < ApplicationRecord
   # ========================================
   # Limpiar espacios en blanco
   # ========================================
-  def clean_names
+  def clean_names_anterior
     self.first_names = first_names&.strip
     self.first_surname = first_surname&.strip
     self.second_surname = second_surname&.strip

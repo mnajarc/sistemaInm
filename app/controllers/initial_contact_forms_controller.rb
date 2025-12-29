@@ -208,96 +208,52 @@ end
   end
   
 
+
+
   def convert_to_transaction
     @form = InitialContactForm.find(params[:id])
-    
+
     @transaction = @form.convert_to_transaction!
-    
+
     if @transaction
-      redirect_to business_transaction_path(@transaction), 
+      redirect_to business_transaction_path(@transaction),
                   notice: '✅ Convertido a Transacción de Negocio exitosamente'
     else
       redirect_to @form, alert: "❌ No se pudo convertir el formulario"
     end
-   rescue StandardError => e
+  rescue StandardError => e
     Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
-    redirect_to @form, alert: "❌ Error: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
   end
-
-
-
-
-
-  def convert_to_transaction_anterior_1
-    @form = InitialContactForm.find(params[:id])
-    
-    begin
-      ActiveRecord::Base.transaction do
-        # ✅ Dejar que create_business_transaction! maneje TODO
-        client = @form.find_or_create_client!
-        @transaction = @form.create_business_transaction!(client, @form.property)
-
-        
-        @form.update!(
-          business_transaction_id: @transaction.id,
-          status: :converted,
-          converted_at: Time.current
-        )
-
-        redirect_to business_transaction_path(@transaction), 
-                    notice: '✅ Convertido a Transacción de Negocio exitosamente'
-      end
-    rescue ActiveRecord::RecordInvalid => e
-      redirect_to @form, alert: "❌ Error al convertir: #{e.message}"
-    rescue StandardError => e
-      Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
-      redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
-    end
-  end
-
 
 
 
 
   def convert_to_transaction_anterior
     @form = InitialContactForm.find(params[:id])
-    
-    begin
-      ActiveRecord::Base.transaction do
-        # ========================================
-        # 1. CREAR O ACTUALIZAR CLIENTE
-        # ========================================
-        @client = Client.from_initial_contact_form(@form)
-        
-        unless @client.save
-          raise ActiveRecord::RecordInvalid, @client
-        end
 
-        @form.update!(client_id: @client.id)
-        # ========================================
-        # 2. USAR EL MÉTODO DEL MODELO (COMPLETO)
-        # ========================================
-        @transaction = @form.create_business_transaction!(@client, @form.property)
+    @transaction = @form.convert_to_transaction!
 
-        # ========================================
-        # 3. ACTUALIZAR ESTADO DEL FORMULARIO
-        # ========================================
-        @form.update!(
-          business_transaction_id: @transaction.id,
-          status: :converted,
-          converted_at: Time.current
-        )
-
-        redirect_to business_transaction_path(@transaction), 
-                    notice: '✅ Convertido a Transacción de Negocio exitosamente'
-      end
-    rescue ActiveRecord::RecordInvalid => e
-      redirect_to @form, alert: "❌ Error al convertir: #{e.message}"
-    rescue StandardError => e
-      Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
-      redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
+    if @transaction
+      redirect_to business_transaction_path(@transaction),
+                  notice: '✅ Convertido a Transacción de Negocio exitosamente'
+    else
+      redirect_to @form, alert: "❌ No se pudo convertir el formulario"
     end
+  rescue StandardError => e
+    Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
   end
+
+
+
+
+
+
+
+
 
 
 
