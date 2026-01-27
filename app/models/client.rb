@@ -15,12 +15,7 @@ class Client < ApplicationRecord
            class_name: "BusinessTransaction",
            foreign_key: "acquiring_client_id",
            dependent: :nullify
-
-
   has_many :business_transactions
-
-
-  # ✅ NUEVAS RELACIONES PARA OFERTAS
   has_many :offers_made, class_name: 'Offer', foreign_key: 'offerer_id'
   has_many :active_offers, -> { active }, class_name: 'Offer', foreign_key: 'offerer_id'
   has_many :pending_offers, -> { joins(:offer_status).where(offer_statuses: { name: 'pending' }) }, 
@@ -33,16 +28,12 @@ class Client < ApplicationRecord
           through: :co_ownership_links,
           source: :co_owner_client
 
-
-
-  attr_accessor :first_names, :first_surname, :second_surname
- 
   validates :full_name, presence: true
   validates :email,
     presence: true,
     format: { with: URI::MailTo::EMAIL_REGEXP },
-    uniqueness: true,
-    allow_blank: true
+    uniqueness: { case_sensitive: false },
+    allow_blank: false
 
   validates :phone,
     allow_blank: true,
@@ -53,9 +44,11 @@ class Client < ApplicationRecord
   validates :first_surname, presence: true
   validates :civil_status, presence: true
 
-
-
-  before_save :compose_full_name, :sync_full_name, :clean_names
+  # ============================================================
+  # CALLBACKS - ORDEN IMPORTANTE
+  # ============================================================
+  before_validation :clean_names
+  before_validation :compose_full_name
 
   scope :active, -> { where(active: true) }
   scope :with_system_user, -> { where.not(user_id: nil) }
@@ -63,15 +56,17 @@ class Client < ApplicationRecord
   scope :with_contact, -> { where.not(email: nil) }
   scope :recent, -> { order(created_at: :desc) }
 
-  # ═══════════════════════════════════════════════════════════
-  # MÉTODOS
-  # ═══════════════════════════════════════════════════════════
+  # ============================================================
+  # MÉTODOS PÚBLICOS
+  # ============================================================
   
-  # Generar identificador de cliente único
+  def display_name
+    full_name.presence || "#{first_names} #{first_surname}".strip
+  end
+
   def generate_client_identifier
     return unless full_name.present?
     
-    # Formato: Primer apellido + primeras 2 letras nombre + ID
     name_parts = full_name.strip.split(/\s+/)
     last_name = name_parts.length >= 2 ? name_parts[1] : name_parts[0]
     first_name = name_parts[0]
@@ -89,69 +84,8 @@ class Client < ApplicationRecord
     "#{last_name_clean}-#{first_name_clean}-#{id.to_s.rjust(6, '0')}"
   end
 
-
-
-  def self.from_initial_contact_form(form)
-    attrs = {
-      email: form.general_conditions&.dig('owner_email'),
-      full_name: form.general_conditions&.dig('owner_or_representative_name'),
-      first_names: form.general_conditions&.dig('first_names')&.strip,
-      first_surname: form.general_conditions&.dig('first_surname')&.strip,
-      second_surname: form.general_conditions&.dig('second_surname')&.strip,
-      phone: form.general_conditions&.dig('owner_phone'),
-      civil_status: form.general_conditions&.dig('civil_status'),
-      marriage_regime_id: form.general_conditions&.dig('marriage_regime_id'),
-      notes: form.general_conditions&.dig('notes')
-    }
-
-    # Buscar existente por email
-    client = find_by(email: attrs[:email]) || new
-
-    # Actualizar atributos
-    client.assign_attributes(attrs.compact)
-    client
-  end
-
-
-  
-  # Crear cliente desde InitialContactForm
-
-  # ========================================
-  # MÉTODOS DE INSTANCIA
-  # ========================================
-
-  # Actualizar desde InitialContactForm
-  def update_from_initial_contact_form(form)
-    update(
-      email: form.general_conditions&.dig('owner_email'),
-      full_name: form.general_conditions&.dig('owner_or_representative_name'),
-      first_names: form.general_conditions&.dig('first_names')&.strip,
-      first_surname: form.general_conditions&.dig('first_surname')&.strip,
-      second_surname: form.general_conditions&.dig('second_surname')&.strip,
-      phone: form.general_conditions&.dig('owner_phone'),
-      civil_status: form.general_conditions&.dig('civil_status'),
-      marriage_regime_id: form.general_conditions&.dig('marriage_regime_id'),
-      notes: form.general_conditions&.dig('notes')
-    )
-  end
-
-
-  # Nombre completo para mostrar
-  def display_name
-    full_name.presence || "#{first_names} #{first_surname}".strip
-  end
-
-
-
-
-
-
-
-
-  
-  # Validar completitud de datos
   def complete?
-    full_name.present? && email.present? && (phone.present? || city.present?)
+    full_name.present? && email.present? && (phone.present? || address.present?)
   end
 
   def all_transactions
@@ -168,8 +102,6 @@ class Client < ApplicationRecord
     [full_name, email, phone].compact.join(' - ')
   end
 
-
-  # ✅ NUEVOS MÉTODOS PARA OFERTAS
   def offers_summary
     {
       total: offers_made.count,
@@ -184,82 +116,34 @@ class Client < ApplicationRecord
   end
 
   def can_make_offer_on?(business_transaction)
-    # No puede ofertar si ya tiene una oferta activa en esa transacción
     !offers_made.active.where(business_transaction: business_transaction).exists?
   end
 
+  # ============================================================
+  # MÉTODOS PRIVADOS
+  # ============================================================
   private
-  
-def compose_full_name
-  # Convertir cada campo a string, trim, y asegurar que no sea nil
-  first_n = first_names.to_s.strip
-  first_s = first_surname.to_s.strip
-  second_s = second_surname.to_s.strip
-  
-  # Construir nombre con solo las partes que tienen valor
-  parts = []
-  parts << first_n if first_n.present?
-  parts << first_s if first_s.present?
-  parts << second_s if second_s.present?
-  
-  # Asignar nombre completo (nunca vacío)
-  self.full_name = parts.join(' ').strip.presence || 'Sin nombre'
-end
 
-def sync_full_name
-  return if first_names.blank? || first_surname.blank?
+  # 🔧 ÚNICO callback que arma full_name
+  def compose_full_name
+    first_n  = first_names.to_s.strip
+    first_s  = first_surname.to_s.strip
+    second_s = second_surname.to_s.strip
 
-  first_n = first_names.to_s.strip
-  first_s = first_surname.to_s.strip
-  second_s = second_surname.to_s.strip if second_surname.present?
-  
-  parts = [first_n, first_s]
-  parts << second_s if second_s.present?
-
-  self.full_name = parts.join(' ').strip.presence || 'Sin nombre'
-end
-
-def clean_names
-  # Convertir a string PRIMERO, luego trim
-  self.first_names = first_names.to_s.strip
-  self.first_surname = first_surname.to_s.strip
-  self.second_surname = second_surname.to_s.strip
-  self.email = email.to_s.strip.downcase
-end
-
-
-  
-  def compose_full_name_anterior
-    parts = [
-      first_names&.strip,
-      first_surname&.strip,
-      second_surname&.strip
-    ].compact
-    
-    self.full_name = parts.join(' ')
+    # Armar nombre con las partes disponibles
+    # Si faltan first_n o first_s, esto quedará vacío
+    # y la validación presence: true lo va a reventar
+    self.full_name = [first_n, first_s, second_s.presence]
+                      .compact
+                      .reject(&:blank?)
+                      .join(' ')
   end
 
-
-  # ========================================
-  # Sincronizar full_name a partir de componentes
-  # ========================================
-  def sync_full_name_anterior
-    return if first_names.blank? || first_surname.blank?
-
-    parts = [first_names.to_s.strip, first_surname.to_s.strip]
-    parts << second_surname.to_s.strip if second_surname.present?
-    
-    self.full_name = parts.join(' ')
+  def clean_names
+    self.first_names    = first_names.to_s.strip
+    self.first_surname  = first_surname.to_s.strip
+    self.second_surname = second_surname.to_s.strip
+    self.email          = email.to_s.strip.downcase
+    self.phone          = phone.to_s.strip
   end
-
-  # ========================================
-  # Limpiar espacios en blanco
-  # ========================================
-  def clean_names_anterior
-    self.first_names = first_names&.strip
-    self.first_surname = first_surname&.strip
-    self.second_surname = second_surname&.strip
-    self.email = email&.strip&.downcase
-  end
-
 end

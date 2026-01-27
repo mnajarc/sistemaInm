@@ -1,20 +1,39 @@
 # app/controllers/document_submissions_controller.rb
+# 🔥 SOLO document_status - SIN validation_status ENUM
+
+
 class DocumentSubmissionsController < ApplicationController
+  include Pundit::Authorization
+
+
   before_action :authenticate_user!
   before_action :set_business_transaction
-  before_action :set_document_submission, only: [:show, :upload, :validate_document, :reject_document, :download, :destroy, :preview]
+  before_action :set_document_submission, only: [
+    :show, :upload, :validate, :reject, :mark_expired,
+    :add_note, :delete_note, :download, :destroy, :preview
+  ]
 
-  # GET /business_transactions/:business_transaction_id/document_submissions
+
+  rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
+
+
+  # ===========================================================================
+  # INDEX: Listar documentos con checklist
+  # ===========================================================================
   def index
     @checklist = DocumentChecklistService.new(@business_transaction).checklist
-    
+
+
     respond_to do |format|
       format.html
       format.json { render json: @checklist }
     end
   end
 
-  # GET /business_transactions/:business_transaction_id/document_submissions/:id
+
+  # ===========================================================================
+  # SHOW: Ver detalles de un documento
+  # ===========================================================================
   def show
     respond_to do |format|
       format.html
@@ -23,194 +42,29 @@ class DocumentSubmissionsController < ApplicationController
   end
 
 
-  def approve
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission, :approve?
-    
-    notes = params[:notes].presence
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      service.approve!(current_user, notes)
-      
-      respond_to do |format|
-        format.turbo_stream { render :update_submission }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '✅ Documento aprobado' }
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.turbo_stream { render :error, locals: { error: e.message } }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
-      end
-    end
-  end
-
-  def reject
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission
-    
-    reason = params[:reason]
-    raise "Motivo requerido" if reason.blank?
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      service.reject!(current_user, reason)
-      
-      respond_to do |format|
-        format.turbo_stream { render :update_submission }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '❌ Documento rechazado - pedir re-subida' }
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.turbo_stream { render :error, locals: { error: e.message } }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
-      end
-    end
-  end
-
-  def mark_expired
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission
-    
-    reason = params[:reason].presence || "Vigencia vencida"
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      service.mark_expired!(current_user, reason)
-      
-      respond_to do |format|
-        format.turbo_stream { render :update_submission }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '⏰ Documento marcado como expirado' }
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.turbo_stream { render :error, locals: { error: e.message } }
-        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
-      end
-    end
-  end
-
-
-  def add_note
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission
-    
-    content = params[:content]
-    raise "Contenido requerido" if content.blank?
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      @note = service.add_note(current_user, content)
-      
-      respond_to do |format|
-        format.json { render json: @note, status: :created }
-        # 🔴 QUITAMOS format.turbo_stream
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-
-  def add_note_anterior
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission
-    
-    content = params[:content]
-    raise "Contenido requerido" if content.blank?
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      @note = service.add_note(current_user, content)
-      
-      respond_to do |format|
-        format.turbo_stream { render :update_notes }
-        format.json { render json: @note, status: :created }
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.turbo_stream { render :error, locals: { error: e.message } }
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  
-  def delete_note
-    @note = DocumentNote.find(params[:id])
-    @submission = @note.document_submission
-    authorize @submission
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      service.delete_last_note(current_user)
-      
-      respond_to do |format|
-        format.json { render json: { success: true }, status: :ok }
-        # 🔴 QUITAMOS format.turbo_stream
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-
-  def delete_note_anterior
-    @note = DocumentNote.find(params[:id])
-    @submission = @note.document_submission
-    authorize @submission
-    
-    begin
-      service = DocumentValidationService.new(@submission)
-      service.delete_last_note(current_user)
-      
-      respond_to do |format|
-        format.turbo_stream { render :update_notes }
-        format.json { render json: { success: true }, status: :ok }
-      end
-    rescue StandardError => e
-      respond_to do |format|
-        format.turbo_stream { render :error, locals: { error: e.message } }
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  # AGREGAR en las rutas privadas (al final del archivo):
-
-  def authorize_submission
-    @submission = DocumentSubmission.find(params[:id])
-    authorize @submission
-  end
-
-
-
-
-
-
+  # ===========================================================================
+  # PREVIEW: Ver preview del documento en modal
+  # ===========================================================================
   def preview
-    @submission = @document_submission
-    
+    @document_submission = DocumentSubmission.find(params[:id])
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+
+
     respond_to do |format|
-      format.html { render layout: false } # Sin layout para modal
+      format.html { render layout: false }
       format.json do
         render json: {
-          id: @submission.id,
-          document_type: @submission.document_type.name,
-          status: @submission.document_status&.name,
-          uploaded_at: @submission.submitted_at&.strftime('%d/%m/%Y %H:%M'),
-          uploaded_by: @submission.uploaded_by&.email,
-          file_url: @submission.document_file.attached? ? url_for(@submission.document_file) : nil,
-          content_type: @submission.document_file.content_type,
+          id: @document_submission.id,
+          document_type: @document_submission.document_type.name,
+          status: @document_submission.document_status&.name,
+          uploaded_at: @document_submission.submitted_at&.strftime('%d/%m/%Y %H:%M'),
+          uploaded_by: @document_submission.uploaded_by&.email,
+          file_url: @document_submission.document_file.attached? ?
+                    url_for(@document_submission.document_file) : nil,
+          content_type: @document_submission.document_file.content_type,
           analysis: {
-            status: @submission.analysis_status,
-            legibility_score: @submission.legibility_score,
-            ocr_text: @submission.ocr_text,
-            auto_validated: @submission.auto_validated
+            status: @document_submission.analysis_status,
+            legibility_score: @document_submission.legibility_score
           }
         }
       end
@@ -218,15 +72,19 @@ class DocumentSubmissionsController < ApplicationController
   end
 
 
+  # ===========================================================================
+  # UPLOAD: Cargar/reemplazar archivo de documento
+  # ===========================================================================
   def upload
     if params[:document_file].present?
       @document_submission.document_file.attach(params[:document_file])
       @document_submission.update!(
         submitted_at: Time.current,
         uploaded_by: current_user,
-        document_status: DocumentStatus.find_by(name: 'pendiente_validacion')
+        document_status: DocumentStatus.find_by(name: 'recibido_revision')
       )
       DocumentAnalysisJob.perform_later(@document_submission.id)
+
 
       redirect_to business_transaction_document_submissions_path(@business_transaction),
                   notice: 'Documento cargado exitosamente. Se está analizando...'
@@ -236,54 +94,258 @@ class DocumentSubmissionsController < ApplicationController
     end
   end
 
-  def validate_document
-    authorize_validation!
-    
-    @document_submission.update!(
-      document_status: DocumentStatus.find_by(name: 'validado'),
-      validated_by: current_user,
+  # ============================================================================
+  # VALIDATE - Método CORREGIDO con nombres de status reales
+  # ============================================================================
+  def validate
+    @document_submission = DocumentSubmission.find(params[:id])
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+
+    authorize @document_submission, :validate?
+
+    # Variables para Turbo Stream
+    @validation_notes = params[:notes].presence
+    @current_user = current_user
+
+    # ✅ SOLO ACTUALIZA document_status - USANDO "validado_vigente"
+    if @document_submission.update(
+      document_status: DocumentStatus.find_by(name: 'validado_vigente'),
       validated_at: Time.current,
-      validation_notes: params[:validation_notes]
+      validated_by_id: current_user.id
     )
-    
-    # Agregar nota
-    DocumentNote.create!(
-      document_submission: @document_submission,
-      user: current_user,
-      content: params[:validation_notes].presence || 'Documento aprobado',
-      note_type: 'acceptance'
-    )
+      @document_submission.document_notes.create(
+        user: current_user,
+        content: @validation_notes || "Documento validado",
+        note_type: 'status_change'
+      )
+
+      # 🔥 RECALCULAR CONTADORES
+      @validated_count = @business_transaction.document_submissions.where(
+        document_status: DocumentStatus.find_by(name: 'validado_vigente')
+      ).count
 
 
 
-    redirect_to business_transaction_document_submissions_path(@business_transaction),
-                notice: 'Documento validado correctamente'
+      respond_to do |format|
+        format.turbo_stream { render :validate }
+        format.html do
+          redirect_to business_transaction_document_submissions_path(@business_transaction),
+            notice: "✅ Documento validado"
+        end
+      end
+    else
+      # ERROR CASE
+      @error_message = @document_submission.errors.full_messages.join(", ")
+      respond_to do |format|
+        format.turbo_stream { render :error, status: :unprocessable_entity }
+        format.html do
+          redirect_to preview_business_transaction_document_submission_path(
+            @business_transaction, @document_submission
+          ), alert: "Error al validar: #{@error_message}"
+        end
+      end
+    end
+  rescue StandardError => e
+    redirect_to preview_business_transaction_document_submission_path(
+      @business_transaction, @document_submission
+    ), alert: "Error: #{e.message}"
   end
 
-  def reject_document
-    authorize_validation!
-    
-    @document_submission.update!(
+
+  # ============================================================================
+  # REJECT - Método CORREGIDO con nombres de status reales
+  # ============================================================================
+  def reject
+    @document_submission = DocumentSubmission.find(params[:id])
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+
+    authorize @document_submission, :reject?
+
+    @rejection_reason = params[:reason].presence
+    @current_user = current_user
+
+    if @rejection_reason.blank?
+      @error_message = "Motivo de rechazo requerido"
+      respond_to do |format|
+        format.turbo_stream { render :error, status: :unprocessable_entity }
+        format.html do
+          redirect_to preview_business_transaction_document_submission_path(
+            @business_transaction, @document_submission
+          ), alert: @error_message
+        end
+      end
+      return
+    end
+
+    # ✅ SOLO ACTUALIZA document_status - USANDO "rechazado"
+    if @document_submission.update(
       document_status: DocumentStatus.find_by(name: 'rechazado'),
-      validated_by: current_user,
       validated_at: Time.current,
-      validation_notes: params[:rejection_reason]
+      validated_by_id: current_user.id
     )
-    
-    # Agregar nota con el motivo
-    DocumentNote.create!(
-      document_submission: @document_submission,
-      user: current_user,
-      content: params[:rejection_reason],
-      note_type: 'rejection'
-    )
-    
+      @document_submission.document_notes.create(
+        user: current_user,
+        content: "Documento rechazado: #{@rejection_reason}",
+        note_type: 'status_change'
+      )
+
+      # 🔥 RECALCULAR CONTADORES
+      @rejected_count = @business_transaction.document_submissions.where(
+        document_status: DocumentStatus.find_by(name: 'rechazado')
+      ).count
 
 
-    redirect_to business_transaction_document_submissions_path(@business_transaction),
-                alert: 'Documento rechazado'
+      respond_to do |format|
+        format.turbo_stream { render :reject }
+        format.html do
+          redirect_to business_transaction_document_submissions_path(@business_transaction),
+            notice: "❌ Documento rechazado"
+        end
+      end
+    else
+      # ERROR CASE
+      @error_message = @document_submission.errors.full_messages.join(", ")
+      respond_to do |format|
+        format.turbo_stream { render :error, status: :unprocessable_entity }
+        format.html do
+          redirect_to preview_business_transaction_document_submission_path(
+            @business_transaction, @document_submission
+          ), alert: "Error al rechazar: #{@error_message}"
+        end
+      end
+    end
+  rescue StandardError => e
+    redirect_to preview_business_transaction_document_submission_path(
+      @business_transaction, @document_submission
+    ), alert: "Error: #{e.message}"
   end
 
+
+  # ============================================================================
+  # MARK_EXPIRED - Método CORREGIDO con nombres de status reales
+  # ============================================================================
+  def mark_expired
+    @document_submission = DocumentSubmission.find(params[:id])
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+
+    authorize @document_submission, :mark_expired?
+
+    @expiration_reason = params[:reason].presence
+    @current_user = current_user
+
+    if @expiration_reason.blank?
+      @error_message = "Motivo de expiración requerido"
+      respond_to do |format|
+        format.turbo_stream { render :error, status: :unprocessable_entity }
+        format.html do
+          redirect_to preview_business_transaction_document_submission_path(
+            @business_transaction, @document_submission
+          ), alert: @error_message
+        end
+      end
+      return
+    end
+    # ✅ SOLO ACTUALIZA document_status - USANDO "vencido"
+    if @document_submission.update(
+      document_status: DocumentStatus.find_by(name: 'vencido'),
+      validated_at: Time.current,
+      validated_by_id: current_user.id
+    )
+      @document_submission.document_notes.create(
+        user: current_user,
+        content: "Documento marcado como vencido: #{@expiration_reason}",
+        note_type: 'status_change'
+      )
+
+      # 🔥 RECALCULAR CONTADORES
+      @expired_count = @business_transaction.document_submissions.where(
+        document_status: DocumentStatus.find_by(name: 'vencido')
+      ).count
+      
+      respond_to do |format|
+        format.turbo_stream { render :mark_expired }
+        format.html do
+          redirect_to business_transaction_document_submissions_path(@business_transaction),
+            notice: "⏰ Documento marcado como vencido"
+        end
+      end
+    else
+      # ERROR CASE
+      @error_message = @document_submission.errors.full_messages.join(", ")
+      respond_to do |format|
+        format.turbo_stream { render :error, status: :unprocessable_entity }
+        format.html do
+          redirect_to preview_business_transaction_document_submission_path(
+            @business_transaction, @document_submission
+          ), alert: "Error al marcar como vencido: #{@error_message}"
+        end
+      end
+    end
+  rescue StandardError => e
+    redirect_to preview_business_transaction_document_submission_path(
+      @business_transaction, @document_submission
+    ), alert: "Error: #{e.message}"
+  end
+  
+
+
+  # ===========================================================================
+  # ADD_NOTE: Agregar nota/comentario
+  # ===========================================================================
+  def add_note
+    @document_submission = DocumentSubmission.find(params[:id])
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+
+
+    authorize @document_submission, :add_note?
+
+
+    @note = @document_submission.document_notes.build(note_params)
+    @note.user = current_user
+
+
+    if @note.save
+      respond_to do |format|
+        format.turbo_stream
+        format.html { redirect_to business_transaction_document_submission_path(@business_transaction, @document_submission), notice: "Nota agregada" }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream { render :add_note_error, status: :unprocessable_entity }
+        format.html { redirect_to preview_business_transaction_document_submission_path(@business_transaction, @document_submission), alert: "Error al agregar nota" }
+      end
+    end
+  rescue Pundit::NotAuthorizedError
+    redirect_to business_transaction_document_submissions_path(@business_transaction), alert: "No tienes permiso"
+  end
+
+
+  # ===========================================================================
+  # DELETE_NOTE: Eliminar nota
+  # ===========================================================================
+  def delete_note
+    @note = DocumentNote.find(params[:id])
+    @submission = @note.document_submission
+    authorize @submission, :delete_note?
+
+
+    begin
+      @note.destroy
+
+
+      respond_to do |format|
+        format.json { render json: { success: true } }
+        format.turbo_stream { render :update_notes }
+      end
+    rescue StandardError => e
+      handle_error(e, :delete_note)
+    end
+  end
+
+
+  # ===========================================================================
+  # DOWNLOAD: Descargar archivo del documento
+  # ===========================================================================
   def download
     if @document_submission.document_file.attached?
       redirect_to rails_blob_path(@document_submission.document_file, disposition: 'attachment')
@@ -293,32 +355,47 @@ class DocumentSubmissionsController < ApplicationController
     end
   end
 
+
+  # ===========================================================================
+  # DESTROY: Eliminar documento y archivo
+  # ===========================================================================
   def destroy
-    authorize_deletion!
-    
+    authorize @document_submission, :destroy?
+
+
     @document_submission.document_file.purge if @document_submission.document_file.attached?
     @document_submission.update!(
       submitted_at: nil,
       uploaded_by: nil,
       document_status: DocumentStatus.find_by(name: 'pendiente_solicitud')
     )
-    
-    redirect_to business_transaction_document_submissions_path(@business_transaction),
-                notice: 'Documento eliminado'
+
+
+    respond_to do |format|
+      format.html do
+        redirect_to business_transaction_document_submissions_path(@business_transaction),
+                    notice: '🗑️ Documento eliminado'
+      end
+      format.json { render json: { success: true } }
+    end
   end
 
-  
+
+  # ===========================================================================
+  # EXPORT_CHECKLIST: Exportar checklist en PDF, Excel o TXT
+  # ===========================================================================
   def export_checklist
-    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
     @checklist = DocumentChecklistService.new(@business_transaction).checklist
+
 
     respond_to do |format|
       format.html { render layout: false }
-      
+
+
       format.pdf do
         pdf = Prawn::Document.new(page_size: 'A4', margin: [20, 20, 20, 20])
-        
-        # Define la fuente que soporta UTF-8
+
+
         pdf.font_families.update(
           'DejaVuSans' => {
             normal: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
@@ -327,92 +404,18 @@ class DocumentSubmissionsController < ApplicationController
           }
         )
         pdf.font 'DejaVuSans'
-        
-        # Título
-        pdf.text "CHECKLIST DOCUMENTAL", size: 18, style: :bold
-        pdf.move_down 10
-        
-        # Encabezado
-        pdf.text "Transacción: ##{@business_transaction.id}", size: 11
-        pdf.text "Propiedad: #{@business_transaction.property.address}", size: 11
-        pdf.text "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}", size: 11
-        pdf.text "Fecha: #{I18n.l(Date.today, format: :long)}", size: 11
-        pdf.move_down 15
-        
-        # Resumen
-        pdf.text "RESUMEN GENERAL", size: 14, style: :bold
-        pdf.move_down 8
-        
-        summary_data = [
-          ["Total", "Cargados", "Pendientes", "Validados", "Rechazados", "Progreso"],
-          [
-            @checklist[:summary][:total].to_s,
-            @checklist[:summary][:uploaded].to_s,
-            @checklist[:summary][:pending].to_s,
-            @checklist[:summary][:validated].to_s,
-            @checklist[:summary][:rejected].to_s,
-            "#{@checklist[:summary][:progress]}%"
-          ]
-        ]
-        
-        pdf.table(summary_data, width: pdf.bounds.width, cell_style: { size: 10, padding: 5 }) do |t|
-          t.header = true
-        end
-        
-        pdf.move_down 15
-        
-        # Documentos por copropietario
-        pdf.text "DOCUMENTOS POR COPROPIETARIO", size: 14, style: :bold
-        pdf.move_down 8
-        
-        co_owner_data = [["Copropietario", "Rol", "%", "Total", "Cargados", "Pendientes"]]
-        
-        @checklist[:copropietarios].each do |co_data|
-          co_owner_data << [
-            co_data[:co_owner][:name],
-            co_data[:co_owner][:role].titleize,
-            "#{co_data[:co_owner][:percentage]}%",
-            co_data[:documents][:total].to_s,
-            co_data[:documents][:uploaded].to_s,
-            (co_data[:documents][:total] - co_data[:documents][:uploaded]).to_s
-          ]
-        end
-        
-        pdf.table(co_owner_data, width: pdf.bounds.width, cell_style: { size: 9, padding: 4 }) do |t|
-          t.header = true
-        end
-        
-        pdf.move_down 15
-        
-        # Detalle de documentos
-        pdf.text "DETALLE DE DOCUMENTOS", size: 14, style: :bold
-        pdf.move_down 10
-        
-        @checklist[:copropietarios].each do |co_data|
-          pdf.text "#{co_data[:co_owner][:name]} (#{co_data[:co_owner][:percentage]}%)", size: 12, style: :bold
-          pdf.move_down 5
-          
-          co_data[:documents][:list].each do |category|
-            pdf.text "#{category[:category_display]}", size: 11, style: :italic
-            pdf.move_down 3
-            
-            category[:documents].each do |doc|
-              status = doc[:uploaded] ? "[X]" : "[ ]"
-              pdf.text "   #{status} #{doc[:document_type][:name]}", size: 10
-            end
-            
-            pdf.move_down 5
-          end
-          
-          pdf.move_down 10
-        end
-        
-        send_data pdf.render, 
+
+
+        render_checklist_pdf(pdf)
+
+
+        send_data pdf.render,
                   filename: "checklist_#{@business_transaction.id}.pdf",
                   type: 'application/pdf',
                   disposition: 'attachment'
       end
-      
+
+
       format.text do
         text_content = generate_checklist_text
         send_data text_content,
@@ -423,17 +426,95 @@ class DocumentSubmissionsController < ApplicationController
     end
   end
 
+
+  # ===========================================================================
+  # PRIVATE: Métodos auxiliares
+  # ===========================================================================
   private
+
+
+  def note_params
+    params.permit(:content, :note_type)
+  end
+
+
+  def set_business_transaction
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+  end
+
+
+  def set_document_submission
+    @document_submission = @business_transaction.document_submissions.find(params[:id])
+  end
+
+
+  def handle_error(error, action)
+    error_message = "❌ Error en #{action}: #{error.message}"
+
+
+    respond_to do |format|
+      format.turbo_stream { render :error, locals: { error: error_message } }
+      format.html do
+        redirect_to business_transaction_document_submissions_path(@business_transaction),
+                    alert: error_message
+      end
+      format.json { render json: { error: error_message }, status: :unprocessable_entity }
+    end
+  end
+
+
+  def user_not_authorized
+    flash[:alert] = "No tiene permiso para realizar esta acción"
+    redirect_to(request.referrer || business_transaction_document_submissions_path(@business_transaction))
+  end
+
+
+  def render_checklist_pdf(pdf)
+    pdf.text "CHECKLIST DOCUMENTAL", size: 18, style: :bold
+    pdf.move_down 10
+
+
+    pdf.text "Transacción: ##{@business_transaction.id}", size: 11
+    pdf.text "Propiedad: #{@business_transaction.property.address}", size: 11
+    pdf.text "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}", size: 11
+    pdf.text "Fecha: #{I18n.l(Date.today, format: :long)}", size: 11
+    pdf.move_down 15
+
+
+    pdf.text "RESUMEN GENERAL", size: 14, style: :bold
+    pdf.move_down 8
+
+
+    summary_data = [
+      ["Total", "Cargados", "Pendientes", "Validados", "Rechazados", "Progreso"],
+      [
+        @checklist[:summary][:total].to_s,
+        @checklist[:summary][:uploaded].to_s,
+        @checklist[:summary][:pending].to_s,
+        @checklist[:summary][:validated].to_s,
+        @checklist[:summary][:rejected].to_s,
+        "#{@checklist[:summary][:progress]}%"
+      ]
+    ]
+
+
+    pdf.table(summary_data, width: pdf.bounds.width, cell_style: { size: 10, padding: 5 }) do |t|
+      t.header = true
+    end
+  end
+
 
   def generate_checklist_text
     output = "CHECKLIST DOCUMENTAL\n"
     output += "═" * 60 + "\n\n"
-    
+
+
     output += "Transacción: ##{@business_transaction.id}\n"
     output += "Propiedad: #{@business_transaction.property.address}\n"
     output += "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}\n"
     output += "Fecha: #{I18n.l(Date.today, format: :long)}\n\n"
-    
+
+
     output += "RESUMEN\n"
     output += "─" * 60 + "\n"
     output += "Total de documentos: #{@checklist[:summary][:total]}\n"
@@ -442,55 +523,8 @@ class DocumentSubmissionsController < ApplicationController
     output += "Validados: #{@checklist[:summary][:validated]}\n"
     output += "Rechazados: #{@checklist[:summary][:rejected]}\n"
     output += "Progreso: #{@checklist[:summary][:progress]}%\n\n"
-    
-    @checklist[:copropietarios].each do |co_data|
-      output += "#{co_data[:co_owner][:name]}\n"
-      output += "   Rol: #{co_data[:co_owner][:role].titleize}\n"
-      output += "   Porcentaje: #{co_data[:co_owner][:percentage]}%\n"
-      output += "   Documentos: #{co_data[:documents][:total]} | Cargados: #{co_data[:documents][:uploaded]} | Pendientes: #{co_data[:documents][:total] - co_data[:documents][:uploaded]}\n"
-      output += "   " + ("─" * 50) + "\n\n"
-      
-      co_data[:documents][:list].each do |category|
-        output += "   #{category[:category_display]}\n"
-        category[:documents].each do |doc|
-          status = doc[:uploaded] ? "✅" : "☐"
-          output += "       #{status} #{doc[:document_type][:name]}\n"
-        end
-        output += "\n"
-      end
-    end
-    
+
+
     output
-  end
-
-
-
-  def document_submission_params
-    # params.require(:document_submission).permit(:document_type_id)
-    { document_file: params[:file] }
-
-  end
-
-
-  def set_business_transaction
-    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
-  end
-
-  def set_document_submission
-    @document_submission = @business_transaction.document_submissions.find(params[:id])
-  end
-
-  def authorize_validation!
-    unless current_user.admin? || current_user.agent?
-      redirect_to business_transaction_document_submissions_path(@business_transaction),
-                  alert: 'No tiene permisos para validar documentos' and return
-    end
-  end
-
-  def authorize_deletion!
-    unless current_user.admin? || @document_submission.uploaded_by == current_user
-      redirect_to business_transaction_document_submissions_path(@business_transaction),
-                  alert: 'No tiene permisos para eliminar este documento' and return
-    end
   end
 end

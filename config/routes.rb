@@ -39,17 +39,18 @@ Rails.application.routes.draw do
     resources :document_submissions, only: [:index, :show, :destroy] do
       # Acciones a nivel de documento (member)
       member do
-        get :preview
-        post :upload
-        post :validate_document
-        post :reject_document
-        get :download
-        post :approve
-        post :reject
-        post :mark_expired
-        post :add_note
+        patch  :validate
+        patch  :reject
+        patch  :mark_expired
+        post   :add_note
         delete :delete_note
+        post   :preview
+        get    :preview
+        get    :download
+        post   :upload
       end
+
+      resources :notes, only:  [:destroy], controller: 'document_submission_notes'
       
       # Acciones a nivel de colección (no necesitan documento_submission ID)
       collection do
@@ -59,6 +60,8 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    get 'dashboard', to: 'dashboard#index'
+    root to: 'dashboard#index' 
     get 'instance-settings/edit', to: 'instance_settings#edit'
     patch 'instance-settings', to: 'instance_settings#update'
     resources :co_ownership_types

@@ -1,0 +1,2629 @@
+
+*******
+app/controllers/application_controller.rb
+*******
+
+class ApplicationController < ActionController::Base
+  include Pundit::Authorization
+
+  protect_from_forgery with: :exception
+
+  before_action :authenticate_user!, unless: :devise_controller?
+  before_action :configure_permitted_parameters, if: :devise_controller?
+  
+  protected
+  
+  def after_sign_in_path_for(resource)
+    # Redirigir según el rol del usuario
+    case resource.role&.name
+    when 'client'
+      client_root_path
+    when 'agent', 'admin', 'superadmin'
+      root_path
+    else
+      root_path
+    end
+  end
+
+  def after_sign_out_path_for(resource_or_scope)
+    new_user_session_path
+  end
+  
+  private
+  
+  def configure_permitted_parameters
+    devise_parameter_sanitizer.permit(:sign_up, keys: [ :role ])
+    devise_parameter_sanitizer.permit(:account_update, keys: [ :role ])
+  end
+end
+
+*******
+app/controllers/base_controller.rb
+*******
+
+# app/controllers/base_controller.rb
+class BaseController < ApplicationController
+    include Pundit::Authorization
+
+    before_action :authenticate_user!
+    after_action :verify_authorized, except:  :index
+    after_action :verify_policy_scoped, only: :index
+
+    rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
+
+    protected
+
+    def pundit_user
+      current_user
+    end
+
+    private
+
+    def user_not_authorized
+      flash[:alert] = "No tienes permisos para realizar esta acción"
+      redirect_to(request.referrer || root_path)
+    end
+end
+
+*******
+app/controllers/admin/base_controller.rb
+*******
+
+class Admin::BaseController < BaseController
+  layout 'application'
+  before_action :ensure_admin_access
+
+  private
+
+  def ensure_admin_access
+    unless current_user&.admin_or_above?
+      flash[:alert] = "Acceso denegado: Se requieren permisos de administrador"
+      redirect_to root_path
+    end
+  end
+end
+
+*******
+app/controllers/agent/base_controller.rb
+*******
+
+class Agent::BaseController < BaseController
+  layout 'application'
+  before_action :ensure_agent
+
+  private
+
+  def ensure_agent
+    unless current_user&.agent?
+      redirect_to root_path, alert: "Acceso restringido a agentes"
+    end
+  end
+end
+
+*******
+app/controllers/client/base_controller.rb
+*******
+
+class Client::BaseController < ApplicationController
+    layout 'application'
+    before_action :authenticate_user!
+    before_action :ensure_client_access
+
+    private
+
+    def ensure_client_access
+      unless current_user.role&.name == "client"
+        redirect_to root_path, alert: "Acceso restringido a clientes"
+      end
+    end
+end
+
+*******
+app/controllers/superadmin/base_controller.rb
+*******
+
+class Superadmin::BaseController < BaseController
+  layout 'application'
+  before_action :ensure_superadmin
+
+  def index
+    role_counts = User.joins(:role)
+                    .group("roles.name")
+                    .count
+    @stats = {
+      total_users: User.count,
+      superadmins: role_counts["superadmin"] || 0,
+      admins: role_counts["admin"] || 0,
+      agents: role_counts["agent"] || 0,
+      clients: role_counts["client"] || 0,
+      total_menu_items: MenuItem.count,
+      active_menu_items: MenuItem.active.count,
+      total_roles: Role.count,
+      system_roles: Role.system_roles.count
+    }
+
+    @recent_role_changes = recent_role_changes
+  end
+
+  private
+
+  def ensure_superadmin_access
+    unless current_user&.superadmin?
+      flash[:alert] = "Acceso denegado: Se requieren permisos de SuperAdministrador"
+      redirect_to root_path
+    end
+  end
+
+  def ensure_superadmin
+    unless current_user&.superadmin?
+      redirect_to root_path, alert: "Acceso restringido solo a SuperAdministradores"
+    end
+  end
+
+  def verify_policy_scoped
+    return if action_name == 'index'  # Saltar verificación en dashboard
+    super  # Verificación normal para otras acciones
+  end
+
+  def recent_role_changes
+    User.joins(:role)
+      .where("users.updated_at > ?", 24.hours.ago)
+      .where.not(roles: { name: "client" })
+      .includes(:role)  # Para evitar N+1 queries
+      .order("users.updated_at DESC")
+      .limit(10)
+  end
+end
+
+*******
+app/models/user.rb
+*******
+
+class User < ApplicationRecord
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :validatable, :trackable
+
+  # anteriormente se tenía en memoria y se cambia por una tabla para dar mayor flexibilidad al modelo
+  belongs_to :role
+  has_one :agent, dependent: :destroy  # ← Asociación agregada
+
+  has_many :properties, dependent: :destroy
+
+  validates :role, presence: true
+  validates :role_id, presence: true
+  validate :role_exists
+  validate :role_change_authorization, if: :role_changed?
+
+  after_initialize :set_default_role, if: :new_record?
+  before_update :prevent_unauthorized_role_change
+
+  # ✅ SCOPE PARA USUARIOS GESTIONABLES
+  scope :manageable_by, ->(manager) {
+    joins(:role).where("roles.level > ?", manager.role&.level || 999)
+  }
+  scope :admin, -> { where(role: 'admin') }
+  scope :agent, -> { where(role: 'agent') }
+  scope :superadmin, -> { where(role: 'superadmin') }
+
+  # ✅ NIVELES DE ROL (para lógica de interfaz)
+  def role_level
+    role&.level || 999
+  end
+
+  # ✅ VERIFICAR SI PUEDE SER GESTIONADO POR OTRO USUARIO
+  def can_be_managed_by?(manager_user)
+    return false unless manager_user
+    self.role.level > manager_user.role.level
+  end
+
+  # ✅ VERIFICAR SI SE PUEDE CAMBIAR A UN ROL ESPECÍFICO
+  def can_change_role_to?(new_role_name, changer_user)
+    return false unless changer_user
+
+    new_role = Role.find_by(name: new_role_name)
+    return false unless new_role
+
+    # ✅ CORREGIR: SuperAdmin (nivel 0) puede asignar cualquier rol
+    return true if changer_user.superadmin?
+
+    # Para otros roles: solo pueden asignar roles de nivel MAYOR (menos privilegios)
+    changer_user.role&.level && new_role.level &&
+    changer_user.role.level < new_role.level
+  end
+
+  # ✅ MÉTODOS DE VERIFICACIÓN DE ROL
+  def admin_or_above?
+    role&.level && role.level <= 10
+  end
+
+  def agent_or_above?
+    role&.level && role.level <= 20
+  end
+
+  def superadmin?
+    role&.name == "superadmin"
+  end
+
+  def admin?
+    role&.name == "admin"
+  end
+
+  def agent?
+    role&.name == "agent"
+  end
+
+  def client?
+    role&.name == "client"
+  end
+
+  def can_manage_user?(other_user)
+    role&.level && other_user.role&.level &&
+    role.level < other_user.role.level
+  end
+
+
+  # ✅ VERIFICAR SI ESTÁ ACTIVO
+  def active?
+    respond_to?(:active) ? (active.nil? ? true : active) : true
+  end
+
+    # ✅ NOMBRE DEL ROL EN ESPAÑOL
+    def role_name
+    role&.display_name || "Sin rol"
+  end
+
+  # ✅ MÉTODO DE DEBUG PARA TROUBLESHOOTING
+  def debug_role_change(new_role, changer_user)
+    return unless Rails.env.development?
+
+    puts "=== DEBUG ROLE CHANGE ==="
+    puts "Usuario actual: #{email} (#{role} -> #{role_before_type_cast})"
+    puts "Nuevo rol: #{new_role} (#{new_role.class})"
+    puts "Changer: #{changer_user.email} (#{changer_user.role} -> #{changer_user.role_before_type_cast})"
+
+    new_role_int = case new_role
+    when String then User.roles[new_role]
+    when Symbol then User.roles[new_role.to_s]
+    when Integer then new_role
+    else nil
+    end
+
+    puts "Nuevo rol int: #{new_role_int}"
+    puts "Puede cambiar?: #{can_change_role_to?(new_role, changer_user)}"
+    puts "========================="
+  end
+  # ✅ AGREGAR MÉTODO DE CONVENIENCIA:
+
+  def full_name
+    # Buscar Client asociado
+    client = Client.find_by(user_id: id) || Client.find_by(email: email)
+    
+    # Si existe, retornar nombre, si no, retornar email
+    client&.name || email
+  end
+
+  # ✅ ATRIBUTO PARA TRACKEAR QUIÉN HACE EL CAMBIO
+  attr_accessor :role_changer
+
+  private
+
+  def set_default_role
+    self.role ||= Role.find_by(name: "client")
+  end
+
+  def role_exists
+  errors.add(:role, "debe existir") unless role&.persisted?
+  end
+
+  def role_change_authorization
+    return unless role_changed? && persisted?
+
+    if role_changer.nil?
+      errors.add(:role, "Debe especificar quién autoriza el cambio de rol")
+      return
+    end
+
+    # Convertir role a string para la comparación
+    new_role_for_validation = role.name
+    unless can_change_role_to?(new_role_for_validation, role_changer)
+      errors.add(:role, "No tienes permisos para asignar este rol a este usuario")
+    end
+  end
+
+  def prevent_unauthorized_role_change
+    return unless role_changed? && persisted?
+
+    if role_changer && !can_change_role_to?(role.name, role_changer)
+      Rails.logger.warn "🚨 INTENTO DE CAMBIO DE ROL NO AUTORIZADO:"
+      Rails.logger.warn "   Usuario objetivo: #{email} (#{role_was} -> #{role.name})"
+      Rails.logger.warn "   Usuario que intenta: #{role_changer&.email} (#{role_changer&.role.name})"
+      Rails.logger.warn "   Timestamp: #{Time.current}"
+
+      throw :abort
+    end
+  end
+end
+
+*******
+app/models/menu_item.rb
+*******
+
+class MenuItem < ApplicationRecord
+     include AutoSluggable
+  belongs_to :parent, class_name: "MenuItem", optional: true
+  has_many :children, class_name: "MenuItem", foreign_key: "parent_id", dependent: :destroy
+  has_many :role_menu_permissions, dependent: :destroy
+  has_many :roles, through: :role_menu_permissions
+
+  validates :name, presence: true, uniqueness: true
+  validates :display_name, presence: true
+  validates :minimum_role_level, presence: true
+  validates :sort_order, presence: true
+
+  scope :active, -> { where(active: true) }
+  scope :roots, -> { where(parent_id: nil) }
+  scope :by_sort_order, -> { order(:sort_order, :display_name) }
+  scope :visible_for_level, ->(level) { where("minimum_role_level >= ?", level) }
+  scope :parent_items, -> { where(parent_id: nil) }
+  # MÉTODO CRÍTICO para menús dinámicos
+  scope :accessible_for_user, ->(user) {
+    return none unless user&.role
+    
+    where(active: true)
+      .where('minimum_role_level >= ?', user.role.level)
+      .joins(:role_menu_permissions)
+      .where(role_menu_permissions: { role: user.role, can_view: true })
+      .distinct
+      .order(:sort_order)
+  }
+
+  before_validation :set_default_sort_order, on: :create
+  
+  def visible_for_role?(role_level)
+    return false unless active?
+    return false if role_level > minimum_role_level
+    
+    # Verificar permisos específicos
+    permission = role_menu_permissions.joins(:role)
+                                    .where('roles.level = ?', role_level)
+                                    .where(can_view: true)
+                                    .first
+    
+    permission.present?
+  end
+
+  def has_children?
+    children.where(active: true).any?
+  end
+
+  def accessible_children_for_user(user)
+    children.accessible_for_user(user).order(:sort_order)
+  end
+  def breadcrumb
+    items = []
+    current = self
+    while current
+      items.unshift(current)
+      current = current.parent
+    end
+    items
+  end
+
+  def depth
+    breadcrumb.length - 1
+  end
+
+  def to_s
+    display_name
+  end
+
+  def self.main_navigation(user)
+    accessible_for_user(user).parent_items.includes(:children)
+  end
+
+  private
+
+  def set_default_sort_order
+    return if sort_order.present?
+
+    if parent_id
+      max_order = MenuItem.where(parent_id: parent_id).maximum(:sort_order) || 0
+    else
+      max_order = MenuItem.roots.maximum(:sort_order) || 0
+    end
+
+    self.sort_order = max_order + 10
+  end
+end
+
+*******
+app/models/business_transaction.rb
+*******
+
+class BusinessTransaction < ApplicationRecord
+  belongs_to :listing_agent, class_name: "User"
+  belongs_to :current_agent, class_name: "User"
+  belongs_to :selling_agent, class_name: "User", optional: true
+  belongs_to :offering_client, class_name: "Client"
+  belongs_to :acquiring_client, class_name: "Client", optional: true
+  belongs_to :property
+  belongs_to :operation_type
+  belongs_to :business_status
+  belongs_to :transaction_scenario, optional: true
+  belongs_to :co_ownership_type, optional: true
+  belongs_to :property_acquisition_method, optional: true
+ 
+  after_create :assign_transaction_scenario_by_category
+  after_commit :setup_documents_on_creation, on: :create
+  # after_create :setup_required_documents
+  before_destroy :check_active_offers  
+  before_destroy :reset_initial_contact_form  
+
+  has_one :initial_contact_form, dependent: :nullify
+
+  has_many :document_submissions, dependent: :destroy
+  has_many :agent_transfers, dependent: :destroy
+  has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
+  has_many :offers, dependent: :destroy
+  alias_method :co_owners, :business_transaction_co_owners
+  accepts_nested_attributes_for :business_transaction_co_owners,
+                                allow_destroy: true,
+                                reject_if: proc { |attributes| attributes['client_id'].blank? && attributes['person_name'].blank? }
+  accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
+
+  validates :start_date, presence: true
+  validates :price, presence: true, numericality: { greater_than: 0 }
+  validate :validate_acquisition_method_requirements
+ 
+  scope :active, -> { joins(:business_status).where(business_statuses: { name: ["available", "reserved"] }) }
+  scope :completed, -> { joins(:business_status).where(business_statuses: { name: ["sold", "rented"] }) }
+  
+
+  # Método unificado para obtener el agente responsable
+  def assigned_agent
+    current_agent || selling_agent || listing_agent
+  end
+
+  # Helper para email con fallback
+  def assigned_agent_email
+    assigned_agent&.email || 'sin-agente@sistemainm.local'
+  end
+
+  # Helper para nombre completo
+  def assigned_agent_name
+    assigned_agent&.full_name || assigned_agent&.email || 'Sin agente asignado'
+  end
+def audit_trail
+  []  # Retorna array vacío por ahora
+end
+
+def co_ownership_notes
+  nil  # O retorna un valor por defecto
+end
+
+  def transfer_to_agent!(new_agent, reason, transferred_by)
+    transaction do
+      agent_transfers.create!(
+        from_agent: current_agent,
+        to_agent: new_agent,
+        transferred_by: transferred_by,
+        reason: reason,
+        transferred_at: Time.current
+      )
+      update!(current_agent: new_agent)
+    end
+  end
+  def revenue
+    return 0 unless completed?
+    (price * (commission_percentage || 0) / 100).round(2)
+  end
+
+  def completed?
+    %w[sold rented].include?(business_status.name)
+  end
+
+  def available?
+    business_status.name == "available"
+  end
+
+  def total_ownership_percentage
+    business_transaction_co_owners.active.sum(:percentage)
+  end
+
+  def is_single_owner?
+    business_transaction_co_owners.active.count == 1
+  end
+
+  def generate_initial_contact_folio(agent_initials, date)
+    last_sequence = InitialContactForm
+      .where("initial_contact_folio LIKE ?", "#{agent_initials}#{date.strftime('%d%m%y')}%")
+      .maximum('initial_contact_folio')
+    
+    sequence_number = if last_sequence.present?
+                        (last_sequence.split('_').last.to_i + 1).to_s.rjust(2, '0')
+                      else
+                        '01'
+                      end
+    
+    "#{agent_initials}#{date.strftime('%d%m%y')}_#{sequence_number}"
+  end
+  
+  def generate_property_identifier(operation_type_code, property_name)
+    sanitized_name = property_name
+      .strip
+      .downcase
+      .gsub(/[áéíóú]/, 'a' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u')
+      .gsub(/[^a-z0-9\s-]/, '')
+      .gsub(/\s+/, '_')
+      .gsub(/-+/, '_')
+      .gsub(/^_|_$/, '')
+    
+    "#{operation_type_code}_#{sanitized_name}"
+  end
+ 
+  
+  def create_required_documents_v2!(scenario)
+    return unless scenario.present?
+
+    Rails.logger.info "=" * 80
+    Rails.logger.info "📋 CREANDO DOCUMENTOS REQUERIDOS - V2 (SIN DUPLICADOS)"
+    Rails.logger.info "BT ID: #{id} | Scenario: #{scenario.name}"
+    Rails.logger.info "=" * 80
+
+    # Rastrear documentos creados para evitar duplicados en el mismo proceso
+    created_doc_map = {}  # { "doc_type_id:party_type" => true }
+
+    scenario.scenario_documents.each do |scenario_doc|
+      doc_type = scenario_doc.document_type
+      party_type = scenario_doc.party_type
+      only_principal = scenario_doc.only_for_principal?
+
+      # CLAVE DEDUPLICACIÓN: Prevenir documentos duplicados
+      # Si ya procesamos este tipo de documento para este tipo de parte en este loop, saltamos.
+      doc_key = "#{doc_type.id}:#{party_type}"
+      
+      if created_doc_map[doc_key]
+        Rails.logger.info "⏭️  SALTANDO DUPLICADO: #{doc_type.name} (#{party_type}) - YA CREADO"
+        next
+      end
+
+      Rails.logger.info "\n🔍 Procesando: #{doc_type.name}"
+      Rails.logger.info "   party_type: #{party_type}"
+      Rails.logger.info "   only_principal: #{only_principal}"
+
+      # Determinar copropietarios destino
+      target_co_owners = if only_principal
+                           business_transaction_co_owners.where(role: 'propietario')
+                         else
+                           map_party_type_to_co_owners(party_type)
+                         end
+
+      Rails.logger.info "   Creando para #{target_co_owners.count} copropietario(s):"
+
+      target_co_owners.each do |co_owner|
+        Rails.logger.info "      → #{co_owner.person_name} (#{co_owner.role})"
+
+        # CLAVE IDEMPOTENCIA: find_or_create_by previene duplicados en BD
+        # Si se corre el proceso dos veces, no crea dobles.
+        submission = DocumentSubmission.find_or_create_by!(
+          business_transaction_id: id,
+          business_transaction_co_owner_id: co_owner.id,
+          document_type_id: doc_type.id
+        ) do |sub|
+          sub.party_type = party_type
+          sub.notes = "Requerido por escenario: #{scenario.name}"
+          # Si necesitas copiar más atributos del scenario_doc, hazlo aquí
+        end
+
+        Rails.logger.info "         ✅ DocSub ID: #{submission.id}"
+      end
+
+      # Marcar como creado para esta combinación
+      created_doc_map[doc_key] = true
+    end
+
+    Rails.logger.info "\n" + "=" * 80
+    Rails.logger.info "✅ RESUMEN FINAL"
+    Rails.logger.info "   Documento combinations procesadas: #{created_doc_map.count}"
+    Rails.logger.info "   Total DocumentSubmissions: #{document_submissions.count}"
+    Rails.logger.info "=" * 80
+  end
+
+
+
+  private
+
+
+  def map_party_type_to_co_owners(party_type)
+      case party_type
+      when 'copropietario_principal', 'propietario', 'vendedor', 'dueño'
+        # Ajusta estos roles según tu lógica de negocio exacta
+        business_transaction_co_owners.where(role: 'propietario')
+      when 'adquiriente', 'comprador', 'arrendatario'
+        # Generalmente los documentos de adquiriente se manejan diferente o no tienen co-owners,
+        # pero si tienes co-owners tipo 'comprador', agrégalos aquí.
+        # Si 'adquiriente' es solo la contraparte y no está en co_owners, retorna vacío.
+        [] 
+      when 'copropietario'
+        business_transaction_co_owners.where(role: ['propietario', 'copropietario'])
+      when 'ambos', 'todos'
+        business_transaction_co_owners
+      else
+        []
+      end
+    end
+
+
+
+  # ============================================================
+  # VALIDACIÓN: No borrar si hay ofertas activas
+  # ============================================================
+  def check_active_offers
+    if offers.active.exists?
+      errors.add(:base, "No se puede borrar: hay ofertas activas en progreso. Rechaza o cancela todas las ofertas primero.")
+      throw :abort
+    end
+  end
+
+
+  # ============================================================
+  # CALLBACK: Reestablecer InitialContactForm cuando se borra BT
+  # ============================================================
+  def reset_initial_contact_form
+    return unless initial_contact_form.present?
+    
+    initial_contact_form.update!(
+      status: :completed,
+      business_transaction_id: nil
+    )
+    
+    Rails.logger.info "✅ InitialContactForm #{initial_contact_form.id} reestablecida a estado 'completed'"
+  end
+  
+  def validate_acquisition_method_requirements
+    return unless property_acquisition_method.present?
+    
+    if property_acquisition_method.requires_heirs? && 
+       inheritance_details['heirs_count'].blank?
+      errors.add(:inheritance_details, "es requerido para #{property_acquisition_method.name}")
+    end
+    
+    if property_acquisition_method.requires_judicial_sentence? && 
+       inheritance_details['judicial_sentence_number'].blank?
+      errors.add(:inheritance_details, "debe incluir número de sentencia judicial")
+    end
+  end
+
+
+# ============================================================
+# CALLBACK 1: Asignar TransactionScenario automáticamente
+# ============================================================
+def assign_transaction_scenario_by_category
+  return if transaction_scenario.present?  # Si ya tiene scenario, no hacer nada
+  
+  # Determinar category basado en operation_type.name
+  category = determine_scenario_category
+  return unless category
+  
+  # Buscar scenario por categoría
+  scenario = TransactionScenario.find_by(category: category, active: true)
+  
+  if scenario
+    update_column(:transaction_scenario_id, scenario.id)
+    Rails.logger.info "✅ Scenario asignado automáticamente: #{scenario.name}"
+  else
+    Rails.logger.warn "⚠️  No se encontró scenario para categoría: #{category}"
+  end
+rescue StandardError => e
+  Rails.logger.error "❌ Error asignando scenario: #{e.message}"
+end
+
+
+# Determinar categoría del scenario basado en operation_type
+def determine_scenario_category
+  return nil unless operation_type.present?
+  
+  case operation_type.name
+  when 'sale'
+    'compraventa'
+  when 'rent'
+    # Detectar si es habitacional o comercial
+    if property&.property_type&.name.to_s.include?('apartment') || 
+       property&.property_type&.name.to_s.include?('house')
+      'renta_habitacional'
+    else
+      'renta_comercial'
+    end
+  else
+    nil
+  end
+end
+
+
+# ============================================================
+# CALLBACK 2: Crear DocumentSubmissions requeridos
+# ============================================================
+
+
+    def setup_documents_on_creation
+      return unless transaction_scenario.present?
+      
+      DocumentSetupService.new(self).setup_required_documents
+    rescue StandardError => e
+      Rails.logger.error "❌ Error creando documentos para transacción #{id}: #{e.message}"
+      raise
+    end
+
+def setup_required_documents
+  return unless transaction_scenario.present?
+  
+  begin
+    service = DocumentSetupService.new(self)
+    service.setup_required_documents
+    Rails.logger.info "✅ Documentos requeridos creados automáticamente"
+  rescue StandardError => e
+    Rails.logger.error "❌ Error creando documentos: #{e.message}"
+  end
+end
+
+  def must_have_co_owners
+    active_co_owners = if new_record?
+                         business_transaction_co_owners.reject(&:marked_for_destruction?)
+                       else
+                         business_transaction_co_owners.where(active: true)
+                       end
+
+    if active_co_owners.empty?
+      errors.add(:business_transaction_co_owners, "Debe tener al menos un propietario/copropietario")
+    end
+  end
+
+  def ownership_percentages_sum_to_100
+    return if business_transaction_co_owners.empty?
+
+    active_co_owners = if new_record?
+                         business_transaction_co_owners.reject(&:marked_for_destruction?)
+                       else
+                         business_transaction_co_owners.where(active: true)
+                       end
+
+    return if active_co_owners.empty?
+
+    total = active_co_owners.sum(&:percentage)
+
+    unless total.round(2) == 100.0
+      errors.add(:business_transaction_co_owners, "Los porcentajes deben sumar exactamente 100% (actual: #{total.round(2)}%)")
+    end
+  end
+end
+
+*******
+app/models/initial_contact_form.rb
+*******
+
+# app/models/initial_contact_form.rb
+# REFACTORIZACIÓN COMPLETA
+# ✅ Organización clara: públicos vs privados
+# ✅ Métodos duplicados eliminados
+# ✅ Estructura modular por responsabilidad
+# Fecha: 2025-12-29
+
+class InitialContactForm < ApplicationRecord
+  # ============================================================
+  # RELACIONES
+  # ============================================================
+  belongs_to :agent
+  belongs_to :client, optional: true
+  belongs_to :property, optional: true
+  belongs_to :business_transaction, optional: true
+  belongs_to :property_acquisition_method, optional: true
+  belongs_to :operation_type, optional: true
+  belongs_to :contract_signer_type, optional: true
+  has_one :acquisition_suggestion, class_name: 'AcquisitionMethodSuggestion', dependent: :nullify
+
+  # ============================================================
+  # ENUMS
+  # ============================================================
+  enum :status, { draft: 0, completed: 1, converted: 2, archived: 3 }, default: :draft
+  enum :form_source, { web: 0, mobile: 1, paper: 2, phone: 3 }, default: :web
+
+  # ============================================================
+  # VALIDACIONES
+  # ============================================================
+  validates :agent_id, presence: true
+  validates :status, presence: true
+  
+  with_options if: :completed? do
+    validate :general_conditions_complete
+    validate :property_info_complete
+  end
+  
+  validate :ensure_operation_type_present, if: :completed?
+  validate :ensure_acquisition_method_present, if: :completed?
+  validate :validate_acquisition_method_requirements, if: -> { completed? }
+
+  # ============================================================
+  # SCOPES
+  # ============================================================
+  scope :pending_conversion, -> { where(status: :completed, business_transaction_id: nil) }
+  scope :by_agent, ->(agent_id) { where(agent_id: agent_id) }
+  scope :recent, -> { order(created_at: :desc) }
+  scope :this_month, -> { where('created_at >= ?', Time.current.beginning_of_month) }
+  scope :with_owner_name, ->(name) { where("general_conditions->>'owner_or_representative_name' ILIKE ?", "%#{name}%") }
+  scope :by_state, ->(state) { where("acquisition_details->>'state' = ?", state) }
+  scope :by_acquisition_method, ->(method_id) { where(property_acquisition_method_id: method_id) }
+  scope :with_active_mortgage, -> { where("current_status->>'has_active_mortgage' = ?", 'true') }
+  scope :pending_documents, -> { completed.where.not(status: :converted) }
+
+  attr_accessor :auto_generated_identifier
+
+  # ============================================================
+  # CALLBACKS - ORDEN CRÍTICO
+  # ============================================================
+  before_validation :generate_folio_if_missing
+  before_validation :generate_opportunity_identifier
+  before_validation :generate_opportunity_identifier_if_blank
+  before_validation :validate_acquisition_method_details
+  before_validation :build_owner_or_representative_name
+  before_save :set_completed_at, if: -> { status_changed? && completed? }
+  before_save :set_converted_at, if: -> { status_changed? && converted? }
+  before_save :auto_generate_opportunity_identifier
+  before_save :auto_generate_property_id
+
+  # ============================================================
+  # MÉTODOS PÚBLICOS - HELPERS PARA VISTAS
+  # ============================================================
+  
+  def acquisition_method_display
+    return unless property_acquisition_method
+    property_acquisition_method.name
+  end
+
+  def requires_clarification?
+    property_acquisition_method&.requires_heirs? || 
+    property_acquisition_method&.requires_judicial_sentence?
+  end
+
+  def suggest_new_acquisition_method!(name, legal_basis)
+    AcquisitionMethodSuggestion.create!(
+      user: agent.user,
+      initial_contact_form: self,
+      suggested_name: name,
+      legal_basis: legal_basis
+    )
+  end
+
+  def is_inheritance?
+    general_conditions['property_acquisition_method'] == 'herencia' ||
+    inheritance_info['is_inheritance'] == true
+  end
+
+  def has_co_owners?
+    (acquisition_details['co_owners_count']&.to_i || 1) > 1
+  end
+
+  def co_owners_count
+    acquisition_details['co_owners_count'] || 1
+  end
+
+  def has_mortgage?
+    current_status['has_active_mortgage'] == true ||
+    current_status['has_active_mortgage'] == 'true'
+  end
+
+  def qualifies_for_tax_exemption?
+    tax_exemption['qualifies_for_exemption'] == true
+  end
+
+  def completion_percentage
+    total_fields = 6
+    completed_sections = 0
+    
+    completed_sections += 1 if general_conditions.present? && general_conditions.any?
+    completed_sections += 1 if property_info.present? && property_info.any?
+    completed_sections += 1 if inheritance_info.present? && inheritance_info.any?
+    completed_sections += 1 if current_status.present? && current_status.any?
+    completed_sections += 1 if tax_exemption.present? && tax_exemption.any?
+    completed_sections += 1 if promotion_preferences.present? && promotion_preferences.any?
+    
+    ((completed_sections.to_f / total_fields) * 100).round(0)
+  end
+
+  def conversion_requirements_status
+    {
+      completed: completed?,
+      has_owner_name: general_conditions['owner_or_representative_name'].present?,
+      has_acquisition_method: property_acquisition_method_id.present?,
+      has_operation_type: operation_type_id.present?,
+      has_state: acquisition_details['state'].present?,
+      has_land_use: acquisition_details['land_use'].present?,
+      has_co_owners_count: acquisition_details['co_owners_count'].present?
+    }
+  end
+
+  def normalize_for_search(text)
+    text.to_s.downcase.gsub(/[^a-z0-9]/, '')
+  end
+
+  # ============================================================
+  # MÉTODOS PÚBLICOS - LÓGICA DE CONVERSIÓN
+  # ============================================================
+
+  def detect_transaction_scenario
+    return nil unless operation_type.present?
+    operation_name = operation_type.name.downcase
+    acquisition_code = property_acquisition_method&.code
+
+    scenario_name = case operation_name
+    when 'venta', 'sale'
+      case acquisition_code
+      when 'compraventa', 'compra_directa' then 'Venta por Compra Directa'
+      when 'herencia' then 'Venta por Herencia'
+      else 'Venta por Compra Directa'
+      end
+    when 'renta', 'rent', 'arrendamiento'
+      land_use_code = acquisition_details['land_use']
+      case land_use_code
+      when 'COM', 'COM_LOCAL' then 'Renta Local Comercial'
+      when 'IND', 'IND_BODEGA' then 'Renta Bodega Industrial'
+      when 'HAB', 'HAB_PLURI' then 'Renta Apartamento'
+      when 'HAB_UNI' then 'Renta Casa Habitacional'
+      else 'Renta Casa Habitacional'
+      end
+    else nil
+    end
+
+    return nil unless scenario_name
+    scenario = TransactionScenario.find_by(name: scenario_name)
+    Rails.logger.info "✅ Escenario: #{scenario_name}" if scenario
+    scenario
+  end
+
+  def valid_for_conversion?
+    return false unless completed?
+    return false unless general_conditions.present? && 
+                        general_conditions['owner_or_representative_name'].present?
+    return false unless property_acquisition_method_id.present?
+    return false unless operation_type_id.present?
+    return false unless acquisition_details.present? && 
+                        acquisition_details['state'].present? &&
+                        acquisition_details['land_use'].present? &&
+                        acquisition_details['co_owners_count'].present?
+    return false unless property_info.present? &&
+                        property_info['street'].present? &&
+                        property_info['exterior_number'].present? &&
+                        property_info['neighborhood'].present? &&
+                        property_info['postal_code'].present? &&
+                        property_info['municipality'].present? &&
+                        property_info['city'].present?
+    true
+  end
+
+  def find_or_create_client!
+    return client if client.present?
+
+    first_names = general_conditions['first_names'].to_s.strip.presence || ''
+    first_surname = general_conditions['first_surname'].to_s.strip.presence || ''
+    second_surname = general_conditions['second_surname'].to_s.strip.presence || ''
+    email = general_conditions['owner_email'].to_s.strip.presence
+    phone = general_conditions['owner_phone'].to_s.strip.presence
+    civil_status = general_conditions['civil_status'].to_s.strip.downcase.presence || 'soltero'
+
+    if email
+      existing_client = Client.where('LOWER(email) = ?', email.downcase).first
+      return existing_client if existing_client.present?
+      
+      Client.create!(
+        first_names: first_names,
+        first_surname: first_surname,
+        second_surname: second_surname,
+        email: email,
+        phone: phone,
+        civil_status: civil_status
+      )
+    else
+      Client.create!(
+        first_names: first_names,
+        first_surname: first_surname,
+        second_surname: second_surname,
+        phone: phone,
+        email: "temp_#{SecureRandom.hex(6)}@sin-correo.local",
+        civil_status: civil_status
+      )
+    end
+  rescue ActiveRecord::RecordNotUnique
+    Client.find_by!(email: email)
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "❌ Error creando cliente: #{e.message}"
+    false
+  end
+
+  def find_or_create_property!(client)
+    return property if property.present?
+
+    street = property_info['street'].to_s.strip
+    exterior = property_info['exterior_number'].to_s.strip
+    interior = property_info['interior_number'].to_s.strip
+    neighborhood = property_info['neighborhood'].to_s.strip
+    postal_code = property_info['postal_code'].to_s.strip
+    municipality = property_info['municipality'].to_s.strip
+    city = property_info['city'].to_s.strip
+    country = property_info['country'].to_s.strip
+
+    Property.create_or_find_by!(
+      street: street,
+      exterior_number: exterior,
+      postal_code: postal_code
+    ) do |property|
+      property.interior_number = interior
+      property.neighborhood = neighborhood
+      property.municipality = municipality
+      property.city = city
+      property.country = country
+      property.client = client
+    end
+  rescue ActiveRecord::RecordNotUnique
+    Property.find_by!(street: street, exterior_number: exterior, postal_code: postal_code)
+  end
+
+  def convert_to_transaction!
+    return false if converted? || business_transaction.present?
+
+    Rails.logger.info "🔄 [#{id}] Iniciando conversión a transacción..."
+
+    begin
+      ActiveRecord::Base.transaction do
+        client = find_or_create_client!
+        raise "❌ No se pudo obtener cliente" unless client.present?
+
+        prop = find_or_create_property!(client)
+        raise "❌ No se pudo obtener propiedad" unless prop.present?
+
+        transaction = create_business_transaction!(client, prop)
+        raise "❌ No se pudo crear transacción" unless transaction.present?
+
+        update!(
+          status: :converted,
+          converted_at: Time.current,
+          client: client,
+          property: prop,
+          business_transaction: transaction
+        )
+
+        Rails.logger.info "✅ [#{id}] Conversión exitosa: TX #{transaction.id}"
+        transaction
+      end
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "❌ [#{id}] Validación falló: #{e.message}"
+      false
+    rescue StandardError => e
+      Rails.logger.error "❌ [#{id}] Error en conversión: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      false
+    end
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - GENERACIÓN DE IDENTIFICADORES
+  # ============================================================
+  private
+
+  def should_generate_identifier?
+    general_conditions['owner_or_representative_name'].present? &&
+    property_info['street'].present? &&
+    property_info['exterior_number'].present?
+  end
+
+  def generate_opportunity_identifier
+    return if opportunity_identifier.present?
+    
+    return unless property_info.present? && 
+                 property_info['street'].present? &&
+                 property_info['exterior_number'].present? &&
+                 acquisition_details.present? &&
+                 acquisition_details['state'].present?
+    
+    state_code = extract_state_code_for_property
+    municipality_code = extract_municipality_code
+    street_code = extract_full_street_code
+    exterior = property_info['exterior_number'].to_s.rjust(5, '0')
+    interior = property_info['interior_number'].to_s.rjust(5, '0')
+    neighborhood_code = extract_neighborhood_code
+    
+    base_id = [
+      state_code,
+      municipality_code,
+      neighborhood_code,
+      street_code,
+      exterior,
+      interior
+    ].compact.join('-')
+    
+    counter = 0
+    final_id = base_id
+    
+    while InitialContactForm
+      .where(opportunity_identifier: final_id)
+      .where.not(id: id)
+      .exists?
+      counter += 1
+      final_id = "#{base_id}-#{counter}"
+    end
+    
+    self.opportunity_identifier = final_id
+    self.opportunity_identifier_generated_at = Time.current
+    
+    Rails.logger.info "✅ Property ID: #{final_id}"
+    Rails.logger.info "   Ubicación: #{full_address}"
+  end
+
+  def build_owner_or_representative_name
+    return unless general_conditions.present?
+
+    if general_conditions['owner_or_representative_name'].blank?
+      first_names = general_conditions['first_names'].to_s.strip
+      first_surname = general_conditions['first_surname'].to_s.strip
+      second_surname = general_conditions['second_surname'].to_s.strip
+
+      full_name = [first_names, first_surname, second_surname]
+        .compact
+        .reject(&:empty?)
+        .join(' ')
+        .strip
+
+      if full_name.present?
+        general_conditions['owner_or_representative_name'] = full_name
+      end
+    end
+  end
+
+  def auto_generate_opportunity_identifier
+    return if self.opportunity_identifier.present? && self.opportunity_identifier.strip.length > 0
+    return unless self.general_conditions.present? && self.property_info.present?
+
+    first_surname = self.general_conditions['first_surname'].to_s.strip
+    street = self.property_info['street'].to_s.strip
+    exterior = self.property_info['exterior_number'].to_s.strip
+
+    return unless first_surname.present? && street.present? && exterior.present?
+
+    op_code = extract_operation_code
+
+    last_name_clean = clean_for_identifier(first_surname).upcase[0..10]
+    street_clean = clean_for_identifier(street).upcase[0..15]
+    exterior_clean = exterior[0..5]
+    interior_clean = self.property_info['interior_number'].to_s.strip[0..3]
+    date_str = Date.today.strftime('%Y%m%d')
+
+    identifier = "#{op_code}-#{last_name_clean}-#{street_clean}-#{exterior_clean}"
+    identifier += "-#{interior_clean}" if interior_clean.present?
+    identifier += "-#{date_str}"
+
+    self.opportunity_identifier = identifier
+    self.auto_generated_identifier = true
+
+    Rails.logger.info "✅ AUTO-GENERATED IDENTIFIER: #{identifier}"
+  end
+
+  def auto_generate_property_id
+    return if property_id.present?
+    return unless property_info.present? && acquisition_details.present?
+
+    street = property_info['street'].to_s.strip
+    exterior = property_info['exterior_number'].to_s.strip
+    interior = property_info['interior_number'].to_s.strip
+    neighborhood = property_info['neighborhood'].to_s.strip
+    municipality = property_info['municipality'].to_s.strip
+    state = acquisition_details['state'].to_s.strip
+
+    return unless street.present? && exterior.present? && municipality.present?
+
+    Rails.logger.info "🔍 BUSCANDO PROPIEDAD: #{street} #{exterior}, #{interior}, #{municipality}"
+
+    existing_property = Property.where(
+      street: street,
+      exterior_number: exterior,
+      interior_number: interior,
+      neighborhood: neighborhood,
+      municipality: municipality
+    ).first
+
+    if existing_property.present?
+      self.property_id = existing_property.id
+      Rails.logger.info "✅ PROPERTY LINKED (EXISTENTE): #{existing_property.id} - #{existing_property.address}"
+      return
+    end
+
+    begin
+      Rails.logger.info "➕ CREANDO NUEVA PROPIEDAD..."
+
+      property_type_name = determine_property_type
+      property_type_obj = PropertyType.find_by(name: property_type_name) || PropertyType.first
+      
+      unless property_type_obj
+        Rails.logger.warn "⚠️ No hay PropertyType en BD. Creando 'otros'..."
+        property_type_obj = PropertyType.create!(name: 'otros', description: 'Otros tipos')
+      end
+      
+      default_price = 1.0
+      default_area = 1.0
+      default_land_use = acquisition_details['land_use'].to_s.presence || 'HAB'
+
+      new_property = Property.create!(
+        user_id: agent&.user_id,
+        property_type: property_type_obj,
+        address: build_property_address(street, exterior, interior, neighborhood, municipality),
+        street: street,
+        exterior_number: exterior,
+        interior_number: interior,
+        neighborhood: neighborhood,
+        city: property_info['city'].to_s,
+        municipality: municipality,
+        state: state,
+        postal_code: property_info['postal_code'].to_s,
+        country: property_info['country'].to_s || 'México',
+        price: default_price,
+        built_area_m2: default_area,
+        lot_area_m2: default_area,
+        bedrooms: 0,
+        bathrooms: 0,
+        title: "Propiedad en #{street} #{exterior}",
+        description: "Propiedad capturada desde Formulario de Contacto Inicial #{self.opportunity_identifier}",
+        land_use: LandUseType.find_by(code: acquisition_details['land_use'].to_s.presence || 'HAB')&.property_category || 'habitacional',
+        contact_email: general_conditions['owner_email'].to_s,
+        contact_phone: general_conditions['owner_phone'].to_s
+      )
+
+      self.property_id = new_property.id
+      Rails.logger.info "✅ PROPERTY CREATED (NUEVA): #{new_property.id} - #{new_property.address}"
+
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "❌ ERROR VALIDACIÓN PROPIEDAD: #{e.message}"
+      Rails.logger.error e.record.errors.full_messages.inspect
+    rescue StandardError => e
+      Rails.logger.error "⚠️ ERROR CREANDO PROPIEDAD: #{e.class} - #{e.message}"
+      Rails.logger.error e.backtrace.first(5).join("\n")
+    end
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - CALLBACKS INTERNOS
+  # ============================================================
+
+  def generate_folio_if_missing
+    return if initial_contact_folio.present?
+    return unless agent.present? && agent.user.present?
+    
+    initials = extract_initials_from_name(agent.user.name || agent.user.email)
+    date = (created_at || Time.current)
+    self.initial_contact_folio = generate_contact_folio(initials, date)
+  end
+
+  def generate_contact_folio(initials, date)
+    date_str = date.strftime('%d%m%y')
+    base_folio = "#{initials}#{date_str}"
+    
+    last_folio = InitialContactForm
+      .where("initial_contact_folio LIKE ?", "#{base_folio}%")
+      .maximum('initial_contact_folio')
+    
+    sequence = if last_folio.present?
+                (last_folio.split('_').last.to_i + 1).to_s.rjust(2, '0')
+              else
+                '01'
+              end
+    
+    "#{base_folio}_#{sequence}"
+  end
+
+  def generate_opportunity_identifier_if_blank
+    return if opportunity_identifier.present?
+    return unless should_generate_identifier?
+    generate_opportunity_identifier
+  end
+
+  def set_completed_at
+    self.completed_at = Time.current
+  end
+
+  def set_converted_at
+    self.converted_at = Time.current
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - UTILIDADES Y HELPERS
+  # ============================================================
+
+  def extract_full_street_code
+    street = property_info['street'].to_s.strip
+    return 'STREET' if street.blank?
+    
+    clean_street = street.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+    
+    nomenclaturas = ['AVENIDA', 'AV', 'PASEO', 'CALZADA', 'CALLE', 'BOULEVARD', 
+                     'BLVD', 'CIRCUITO', 'PROLONGACION', 'CARRERA', 'PLAZA',
+                     'PASAJE', 'CERRADA', 'ANDADOR', 'BOSQUE', 'LOMA', 'LOMAS']
+    
+    words = clean_street.split(/\s+/).compact
+    start_idx = nomenclaturas.include?(words[0]) ? 1 : 0
+    
+    significant = words[start_idx..-1]&.join('') || 'STREET'
+    code = significant.gsub(/[^A-Z0-9]/, '').slice(0, 30).presence || 'STREET'
+  end
+
+  def extract_municipality_code
+    municipality = property_info['municipality'].to_s.strip
+    return 'MUN' if municipality.blank?
+    
+    clean = municipality.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 8)
+    
+    (clean || 'MUN').ljust(8, '0')[0..7]
+  end
+
+  def extract_state_code_for_property
+    state = acquisition_details['state'].to_s.strip
+    return 'EDO' if state.blank?
+    
+    state_map = {
+      'Ciudad de México' => 'CDMX', 'Ciudad De México' => 'CDMX', 'CDMX' => 'CDMX',
+      'Estado de México' => 'EDOMEX', 'Jalisco' => 'JAL', 'Nuevo León' => 'NL',
+      'Guanajuato' => 'GTO', 'Puebla' => 'PUE', 'Veracruz' => 'VER',
+      'Sinaloa' => 'SIN', 'Chihuahua' => 'CHIH', 'Coahuila' => 'COAH',
+      'Durango' => 'DGO', 'Querétaro' => 'QTO', 'Yucatán' => 'YUC',
+      'Quintana Roo' => 'QROO'
+    }
+    
+    state_map[state] || state.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 6)
+  end
+
+  def extract_neighborhood_code
+    neighborhood = property_info['neighborhood'].to_s.strip
+    return 'NEIGH' if neighborhood.blank?
+    
+    clean = neighborhood.upcase
+      .gsub(/á|à|ä/, 'A').gsub(/é|è|ë/, 'E').gsub(/í|ì|ï/, 'I')
+      .gsub(/ó|ò|ö/, 'O').gsub(/ú|ù|ü/, 'U').gsub(/ñ/, 'N')
+      .gsub(/[^A-Z0-9]/, '').slice(0, 8)
+    
+    (clean || 'NEIGH').ljust(8, '0')[0..7]
+  end
+
+  def extract_operation_code
+    return 'X' unless self.operation_type.present?
+
+    case self.operation_type.name.to_s.downcase
+    when /venta|sale/
+      'V'
+    when /renta|rental|rent/
+      'R'
+    when /traspaso/
+      'T'
+    when /permuta|exchange/
+      'P'
+    else
+      'X'
+    end
+  rescue
+    'X'
+  end
+
+  def clean_for_identifier(text)
+    text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/, '')
+      .gsub(/[^a-zA-Z0-9]/, '')
+  rescue
+    'UNKNOWN'
+  end
+
+  def extract_initials_from_name(full_name)
+    return full_name.split('@').first.upcase[0..2] if full_name.include?('@')
+    
+    parts = full_name.strip.split(/\s+/)
+    
+    case parts.length
+    when 1 then parts[0].upcase[0..2]
+    when 2 then "#{parts[0][0]}#{parts[1][0]}#{parts[0][1]}".upcase
+    else "#{parts[0][0]}#{parts[1][0]}#{parts[2][0]}".upcase
+    end
+  end
+
+  def extract_client_code
+    name = general_conditions['owner_or_representative_name'].to_s.strip
+    return 'XXXX' if name.blank?
+    
+    clean_name = name
+      .downcase
+      .gsub(/á|à|ä/, 'a').gsub(/é|è|ë/, 'e').gsub(/í|ì|ï/, 'i')
+      .gsub(/ó|ò|ö/, 'o').gsub(/ú|ù|ü/, 'u').gsub(/ñ/, 'n')
+      .gsub(/[^a-z0-9\s]/, '').gsub(/\s+/, ' ').strip
+    
+    parts = clean_name.split(' ')
+    return 'XXXX' if parts.empty?
+    
+    code = if parts.length == 1
+             parts[0][0..3]
+           elsif parts.length == 2
+             parts[0][0] + parts[1][0..2]
+           else
+             first_surname = parts[1]
+             second_char = 'X'
+             (2...parts.length).each do |i|
+               unless ['de', 'la', 'las', 'los', 'el', 'y'].include?(parts[i])
+                 second_char = parts[i][0]
+                 break
+               end
+             end
+             parts[0][0] + first_surname[0..2] + second_char
+           end
+    
+    code.upcase.ljust(6, 'X')[0..5]
+  end
+
+  def determine_property_type
+    land_use = acquisition_details['land_use']
+    case land_use
+    when 'VIVIENDA_UNIFAMILIAR', 'CASA' then 'casa'
+    when 'VIVIENDA_MULTIFAMILIAR', 'DEPARTAMENTOS', 'EDIFICIO' then 'apartment'
+    when 'LOCAL_COMERCIAL', 'COMERCIO' then 'comercial'
+    when 'OFICINA' then 'oficina'
+    when 'BODEGA', 'INDUSTRIAL', 'NAVE' then 'industrial'
+    when 'TERRENO', 'LOTE' then 'lote'
+    when 'ESTACIONAMIENTO' then 'estacionamiento'
+    when 'HOTEL', 'MOTEL' then 'hotel'
+    else 'otros'
+    end
+  end
+
+  def build_property_address(street, exterior, interior, neighborhood, municipality)
+    parts = [street, exterior]
+    parts << "Apt/Int: #{interior}" if interior.present?
+    parts << neighborhood if neighborhood.present?
+    parts << municipality if municipality.present?
+    parts.compact.join(', ')
+  end
+
+  def generate_property_title
+    street = property_info['street'].to_s
+    number = [property_info['exterior_number'].to_s,
+              property_info['interior_number'].to_s]
+              .reject(&:blank?)
+              .join('-')
+    city = property_info['city'].to_s
+    "#{street} #{number} - #{city}"
+  end
+
+  def generate_property_description
+    desc_parts = []
+    
+    desc_parts << "**Método:** #{property_acquisition_method.name}" if property_acquisition_method
+    desc_parts << "• Hipoteca activa" if current_status['has_active_mortgage'] == 'true'
+    desc_parts << "• Condominio" if current_status['is_in_condominium'] == 'true'
+    desc_parts << "• Ampliaciones" if current_status['has_extensions'] == 'true'
+    desc_parts << "• Remodelaciones" if current_status['has_renovations'] == 'true'
+    
+    desc_parts.empty? ? 'Propiedad sin características especiales' : desc_parts.join("\n")
+  end
+
+  def compile_property_notes
+    notes = []
+    notes << "📋 Desde ICF ##{id}"
+    notes << "🏷️ ID: #{opportunity_identifier}"
+    notes << "👤 Agente: #{agent.user.name}"
+    notes.join("\n")
+  end
+
+  def full_address
+    parts = [
+      property_info['street'],
+      "Núm. #{property_info['exterior_number']}"
+    ]
+    
+    parts << "Int. #{property_info['interior_number']}" if property_info['interior_number'].present?
+    
+    parts += [
+      property_info['neighborhood'],
+      "C.P. #{property_info['postal_code']}",
+      property_info['municipality'],
+      acquisition_details['state'],
+      property_info['country'] || 'México'
+    ]
+    
+    parts.compact.join(', ')
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - VALIDACIONES
+  # ============================================================
+
+  def general_conditions_complete
+    errors.add(:general_conditions, "falta nombre del propietario") if general_conditions['owner_or_representative_name'].blank?
+    errors.add(:acquisition_details, "debe especificar estado") if acquisition_details['state'].blank?
+    errors.add(:acquisition_details, "debe especificar uso de suelo") if acquisition_details['land_use'].blank?
+    errors.add(:base, "debe seleccionar método de adquisición") if property_acquisition_method_id.blank?
+    errors.add(:base, "debe seleccionar quién firmará") if contract_signer_type_id.blank?
+  end
+
+  def property_info_complete
+    if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
+      errors.add(:base, 'especifique copropietarios (mínimo 1)')
+    end
+  end
+
+  def ensure_operation_type_present
+    errors.add(:operation_type, "debe estar especificado") if operation_type_id.blank?
+  end
+
+  def ensure_acquisition_method_present
+    errors.add(:property_acquisition_method, "debe estar especificado") if property_acquisition_method_id.blank?
+  end
+
+  def validate_acquisition_method_requirements
+    return unless property_acquisition_method.present?
+    
+    if property_acquisition_method.requires_heirs? && 
+       acquisition_details['heirs_count'].blank?
+      errors.add(:base, "El método #{property_acquisition_method.name} requiere información de herederos")
+    end
+  end
+
+  def validate_acquisition_method_details
+    method = property_acquisition_method
+    return unless method.present? && completed?
+    
+    case method.code.to_s.upcase
+    when 'COMPRAVENTA'
+      if acquisition_details['co_owners_count'].blank? || acquisition_details['co_owners_count'].to_i < 1
+        errors.add(:acquisition_details, 'requiere número válido de copropietarios')
+      end
+    when 'HERENCIA'
+      if acquisition_details['heirs_count'].blank? || acquisition_details['heirs_count'].to_i < 1
+        errors.add(:acquisition_details, 'requiere número válido de herederos')
+      end
+    when 'DONACION'
+      if acquisition_details['donor_name'].blank?
+        errors.add(:acquisition_details, 'requiere nombre completo del donante')
+      end
+    end
+  end
+
+  # ============================================================
+  # MÉTODOS PRIVADOS - TRANSACCIONES Y DOCUMENTOS
+  # ============================================================
+
+  def create_business_transaction!(client, property)
+    scenario = detect_transaction_scenario
+    
+    bt = BusinessTransaction.create!(
+      listing_agent_id: agent&.user_id,
+      current_agent_id: agent&.user_id,
+      offering_client: client,
+      property: property,
+      operation_type_id: operation_type_id,
+      business_status: BusinessStatus.find_by(name: 'prospecto') || BusinessStatus.first,
+      transaction_scenario: scenario,
+      price: property_info['asking_price'] || property.price || 1,
+      commission_percentage: 0,
+      start_date: Date.current,
+      property_acquisition_method_id: property_acquisition_method_id,
+      acquisition_legal_act: property_acquisition_method&.name,
+      initial_contact_folio: initial_contact_folio,
+      notes: compile_transaction_notes,
+      inheritance_details: build_inheritance_details,
+      property_status: build_property_status,
+      tax_information: build_tax_information,
+      legal_representation: build_legal_representation
+    )
+
+    create_co_owners!(bt, client)
+    create_required_documents!(bt, scenario) if scenario
+    Rails.logger.info "✅ BT creada (ID: #{bt.id})"
+    bt
+  end
+
+  def create_co_owners!(business_transaction, primary_client)
+    heirs_count = acquisition_details['heirs_count'].to_i
+    
+    if heirs_count <= 1
+      BusinessTransactionCoOwner.create!(
+        business_transaction: business_transaction,
+        client: primary_client,
+        percentage: 100,
+        person_name: primary_client.full_name,
+        role: 'propietario',
+        active: true
+      )
+    else
+      percentage_per_heir = 100 / heirs_count
+      
+      BusinessTransactionCoOwner.create!(
+        business_transaction: business_transaction,
+        client: primary_client,
+        percentage: percentage_per_heir,
+        person_name: primary_client.full_name,
+        role: 'propietario',
+        active: true
+      )
+      
+      (heirs_count - 1).times do |index|
+        BusinessTransactionCoOwner.create!(
+          business_transaction: business_transaction,
+          client: nil,
+          percentage: percentage_per_heir,
+          person_name: "Heredero #{index + 2}",
+          role: 'copropietario',
+          active: true
+        )
+      end
+    end
+    
+    Rails.logger.info "✅ #{business_transaction.business_transaction_co_owners.count} copropietarios creados"
+  end
+
+
+def create_required_documents!(business_transaction, scenario)
+  return unless scenario.present?
+
+  # USAR LA NUEVA VERSIÓN V2
+  business_transaction.create_required_documents_v2!(scenario)
+end
+
+
+
+
+  def create_required_documents_anterior!(business_transaction, scenario)
+    return unless scenario.present?
+    
+    Rails.logger.info "=" * 80
+    Rails.logger.info "📋 CREANDO DOCUMENTOS - DEBUG INTENSO"
+    Rails.logger.info "Scenario: #{scenario.name} (ID: #{scenario.id})"
+    Rails.logger.info "BT ID: #{business_transaction.id}"
+    Rails.logger.info "=" * 80
+    
+    scenario.scenario_documents.each do |scenario_doc|
+      doc_name = scenario_doc.document_type.name
+      only_principal = scenario_doc.only_for_principal?
+      party_type = scenario_doc.party_type
+      
+      Rails.logger.info "🔍 Doc: #{doc_name}"
+      Rails.logger.info "   only_for_principal: #{only_principal} (#{only_principal.class})"
+      Rails.logger.info "   party_type: #{party_type.inspect}"
+      Rails.logger.info "   DB valores: #{scenario_doc.inspect}"
+      
+      if only_principal
+        Rails.logger.info "   ✅ Usando: SOLO PROPIETARIO (only_for_principal=true)"
+        target_co_owners = business_transaction.business_transaction_co_owners
+                                                .where(role: 'propietario')
+      else
+        Rails.logger.info "   ❌ Usando: map_party_type_to_co_owners(#{party_type})"
+        target_co_owners = map_party_type_to_co_owners(
+          business_transaction, 
+          party_type
+        )
+      end
+      
+      Rails.logger.info "   → Creando para #{target_co_owners.count} copropietarios:"
+      target_co_owners.each do |co_owner|
+        Rails.logger.info "      - #{co_owner.person_name} (role: #{co_owner.role})"
+        
+        DocumentSubmission.create!(
+          business_transaction: business_transaction,
+          business_transaction_co_owner: co_owner,
+          document_type: scenario_doc.document_type,
+          party_type: scenario_doc.party_type,
+          notes: "Documento requerido por escenario: #{scenario.name}"
+        )
+      end
+      Rails.logger.info ""
+    end
+    
+    Rails.logger.info "✅ #{business_transaction.document_submissions.count} documentos creados"
+    Rails.logger.info "=" * 80
+  end
+
+  def compile_transaction_notes
+    notes = "=== ICF ===\nFolio: #{initial_contact_folio}\n"
+    notes += "ID: #{opportunity_identifier}\n"
+    notes += "Completado: #{completed_at&.strftime('%d/%m/%Y %H:%M')}\n\n"
+    notes += "=== NOTAS ===\n#{agent_notes}" if agent_notes.present?
+    notes
+  end
+
+  def build_inheritance_details
+    return {} unless property_acquisition_method&.code == 'herencia'
+    
+    {
+      'heirs_count' => acquisition_details['heirs_count']&.to_i,
+      'all_living' => convert_to_bool(acquisition_details['all_living']),
+      'deceased_count' => acquisition_details['deceased_count']&.to_i,
+      'all_married' => convert_to_bool(acquisition_details['all_married']),
+      'single_heirs_count' => acquisition_details['single_heirs_count']&.to_i,
+      'deceased_civil_status' => acquisition_details['deceased_civil_status'],
+      'inheritance_from' => acquisition_details['inheritance_from'],
+      'inheritance_from_other' => acquisition_details['inheritance_from_other'],
+      'parents_were_married' => convert_to_bool(acquisition_details['parents_were_married']),
+      'parents_marriage_regime' => acquisition_details['parents_marriage_regime'],
+      'has_testamentary_succession' => convert_to_bool(acquisition_details['has_testamentary_succession']),
+      'succession_planned_date' => acquisition_details['succession_planned_date'],
+      'succession_authority' => acquisition_details['succession_authority'],
+      'succession_type' => acquisition_details['succession_type']
+    }.reject { |_, v| v.blank? }
+  end
+
+  def build_property_status
+    {
+      'has_active_mortgage' => current_status['has_active_mortgage'],
+      'mortgage_balance' => current_status['mortgage_balance'],
+      'is_in_condominium' => current_status['is_in_condominium'],
+      'has_extensions' => current_status['has_extensions'],
+      'has_renovations' => current_status['has_renovations'],
+      'has_rental_units' => current_status['has_rental_units']
+    }.compact
+  end
+
+  def build_tax_information
+    {
+      'first_home_sale' => tax_exemption['first_home_sale'],
+      'lived_last_5_years' => tax_exemption['lived_last_5_years'],
+      'qualifies_for_exemption' => tax_exemption['qualifies_for_exemption']
+    }.compact
+  end
+
+  def build_legal_representation
+    {
+      'owner_name' => general_conditions['owner_or_representative_name'],
+      'civil_status' => general_conditions['civil_status'],
+      'contract_signer_type' => contract_signer_type&.name
+    }.compact
+  end
+
+  def map_party_type_to_co_owners(business_transaction, party_type)
+    case party_type
+    when 'copropietario_principal'
+      business_transaction.business_transaction_co_owners.where(role: 'propietario')
+    when 'copropietario'
+      business_transaction.business_transaction_co_owners
+                          .where(role: ['propietario', 'copropietario'])
+    when 'ambos'
+      business_transaction.business_transaction_co_owners
+    when 'adquiriente'
+      []
+    else
+      []
+    end
+  end
+
+  def convert_to_bool(value)
+    return value if [true, false].include?(value)
+    value.to_s.strip.downcase == 'true'
+  end
+
+end
+
+*******
+app/models/document_submission.rb
+*******
+
+# app/models/document_submission.rb
+
+class DocumentSubmission < ApplicationRecord
+  # ========================================================================
+  # RELACIONES
+  # ========================================================================
+  
+  belongs_to :business_transaction
+  belongs_to :document_type
+  belongs_to :document_status, optional: true
+  belongs_to :submitted_by, polymorphic: true, optional: true
+  belongs_to :validated_by, class_name: 'User', optional: true
+  belongs_to :uploaded_by, class_name: 'User', optional: true, 
+             foreign_key: 'uploaded_by_id'
+  belongs_to :business_transaction_co_owner, optional: true
+  belongs_to :validation_user, class_name: 'User', optional: true, 
+             foreign_key: 'validation_user_id'
+
+  has_many :document_notes, dependent: :destroy
+  has_many :document_reviews, dependent: :destroy
+
+  # Active Storage
+  has_one_attached :document_file do |attachable|
+    attachable.variant :thumb, resize_to_limit: [200, 200]
+    attachable.variant :medium, resize_to_limit: [800, 800]
+  end
+
+  # ========================================================================
+  # VALIDACIONES
+  # ========================================================================
+  
+  validates :party_type, presence: true, inclusion: { 
+    in: %w[oferente adquiriente copropietario copropietario_principal]
+  }
+  
+  validates :business_transaction_co_owner_id, 
+    presence: true, 
+    if: -> { party_type.in?(%w[copropietario copropietario_principal]) }
+  
+  validates :analysis_status, 
+    inclusion: { in: %w[pending processing completed failed] },
+    allow_nil: true
+  
+  validates :validation_status, presence: true, inclusion: {
+    in: %w[pending_review approved rejected expired]
+  }, allow_nil: true
+
+  validates :business_transaction_id, presence: true
+  validates :document_type_id, presence: true
+
+  # Active Storage validations
+  validate :validate_document_file_type
+  validate :validate_document_file_size
+
+  # ========================================================================
+  # SCOPES - SIN DUPLICADOS
+  # ========================================================================
+  
+  # Por partido (oferente/adquiriente/copropietario)
+  scope :for_oferente, -> { where(party_type: 'oferente') }
+  scope :for_adquiriente, -> { where(party_type: 'adquiriente') }
+  scope :for_copropietario, -> { where(party_type: ['copropietario', 'copropietario_principal']) }
+  scope :for_co_owner, ->(co_owner) { where(business_transaction_co_owner: co_owner) }
+  scope :by_party, ->(party) { where(party_type: party) }
+
+  # Por estado del documento
+  scope :pending, -> { 
+    joins(:document_status).where(document_statuses: { name: 'pendiente_solicitud' }) 
+  }
+  scope :completed, -> { 
+    joins(:document_status).where(document_statuses: { name: 'validado_vigente' }) 
+  }
+  scope :validated, -> { 
+    where.not(validated_at: nil).where(validation_status: 'approved')
+  }
+  scope :rejected, -> { 
+    where(validation_status: 'rejected')
+  }
+
+  # Por carga del documento
+  scope :pending_upload, -> { where(submitted_at: nil) }
+  scope :uploaded, -> { where.not(submitted_at: nil) }
+
+  # Por análisis
+  scope :pending_analysis, -> { where(analysis_status: 'pending') }
+  scope :analyzed, -> { where.not(analysis_status: 'pending') }
+  scope :auto_validated, -> { where(auto_validated: true) }
+  scope :pending_validation, -> { where(validation_status: ['pending_review', nil]) }
+
+  # Por fecha de expiración
+  scope :expired, -> { where('expiry_date < ?', Date.current) }
+  scope :expiring_soon, -> { where('expiry_date BETWEEN ? AND ?', Date.current, 30.days.from_now) }
+  scope :valid_date, -> { where('expiry_date IS NULL OR expiry_date >= ?', Date.current) }
+
+  # ========================================================================
+  # CALLBACKS
+  # ========================================================================
+  
+  before_create :set_default_status
+  after_create_commit :schedule_analysis, if: :document_file_attached?
+  after_update :notify_status_change, if: :saved_change_to_document_status_id?
+
+  # ========================================================================
+  # MÉTODOS DE ESTADO - SIN DUPLICADOS
+  # ========================================================================
+
+  # Verifica si el documento ha sido analizado
+  def analyzed?
+    analysis_status.present? && analysis_status != 'pending'
+  end
+
+  # Verifica si el documento está expirado
+  def expired?
+    return false unless expiry_date.present?
+    expiry_date < Date.current
+  end
+
+  # Verifica si está próximo a expirar (30 días)
+  def expiring_soon?
+    return false unless expiry_date.present?
+    days_until_expiry = (expiry_date - Date.current).to_i
+    days_until_expiry >= 0 && days_until_expiry <= 30
+  end
+
+  # Verifica si fue validado
+  def validated?
+    validated_at.present? && validation_status == 'approved'
+  end
+
+  # Verifica si el documento es válido para usar (MÉTODO CRÍTICO)
+  def valid_for_use?
+    uploaded? && validated? && !expired?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE ESTADO - COMPATIBILIDAD
+  # ========================================================================
+
+  def pending?
+    document_status&.name == 'pendiente_solicitud'
+  end
+  
+  def completed?
+    document_status&.name.in?(['validado_vigente', 'validado'])
+  end
+  
+  def uploaded?
+    submitted_at.present?
+  end
+  
+  def pending_validation?
+    uploaded? && validation_status.in?(['pending_review', nil])
+  end
+  
+  def has_files?
+    document_file.attached?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE LEGIBILIDAD Y ANÁLISIS
+  # ========================================================================
+
+  def legibility_status
+    return 'unknown' if legibility_score.nil? || legibility_score.zero?
+    
+    case legibility_score
+    when 0...40 then 'poor'
+    when 40...70 then 'fair'
+    when 70...90 then 'good'
+    else 'excellent'
+    end
+  end
+
+  def analysis_status_label
+    case analysis_status
+    when 'pending' then 'Pendiente'
+    when 'processing' then 'Procesando'
+    when 'completed' then 'Completado'
+    when 'failed' then 'Error'
+    else 'Desconocido'
+    end
+  end
+
+  # ========================================================================
+  # MÉTODOS DE CAMBIO DE ESTADO
+  # ========================================================================
+  
+  def mark_as_received!
+    return unless document_status
+    
+    update!(
+      document_status: DocumentStatus.find_by(name: 'recibido_revision'),
+      submitted_at: Time.current
+    )
+  end
+  
+  def mark_as_validated!(user, notes: nil)
+    update!(
+      document_status: DocumentStatus.find_by(name: 'validado'),
+      validated_by: user,
+      validated_at: Time.current,
+      validation_notes: notes,
+      validation_status: 'approved'
+    )
+  end
+  
+  def reject!(reason, user)
+    document_reviews.create!(
+      user: user,
+      action: 'rechazado',
+      notes: reason
+    )
+    
+    update!(
+      document_status: DocumentStatus.find_by(name: 'rechazado'),
+      validated_by: user,
+      validated_at: Time.current,
+      validation_notes: reason,
+      validation_status: 'rejected'
+    )
+  end
+
+  # ========================================================================
+  # MÉTODOS DE VISUALIZACIÓN Y FORMATO
+  # ========================================================================
+
+  def status_badge_class
+    return 'bg-secondary' unless uploaded?
+    
+    case validation_status
+    when 'approved' then 'bg-success'
+    when 'rejected' then 'bg-danger'
+    when 'expired' then 'bg-dark'
+    when 'pending_review' then 'bg-warning'
+    else 'bg-info'
+    end
+  end
+
+  def party_display_name
+    case party_type
+    when 'oferente'
+      business_transaction_co_owner.present? ? 
+        "#{business_transaction_co_owner.person_name} (Copropietario)" : 
+        'Oferente'
+    when 'adquiriente'
+      'Adquiriente'
+    when 'copropietario', 'copropietario_principal'
+      business_transaction_co_owner.present? ? 
+        business_transaction_co_owner.person_name : 
+        'Copropietario'
+    else
+      party_type.titleize
+    end
+  end
+
+  def download_url
+    Rails.application.routes.url_helpers.rails_blob_path(
+      document_file, 
+      disposition: 'attachment'
+    ) if uploaded?
+  end
+  
+  def can_reupload?
+    validation_status.in?(['rejected', 'expired']) || submitted_at.blank?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE NOTAS Y REVIEWS
+  # ========================================================================
+
+  def latest_review
+    document_reviews.recent.first
+  end
+
+  def reviews_count
+    document_reviews.count
+  end
+
+  def reviewed_by?(user)
+    document_reviews.exists?(user: user)
+  end
+
+  def review_history
+    document_reviews.recent.includes(:user)
+  end
+
+  def last_note
+    document_notes.recent.first
+  end
+
+  def add_note(user, content, note_type = 'comment')
+    document_notes.create!(
+      user: user,
+      content: content,
+      note_type: note_type
+    )
+  end
+
+  # ========================================================================
+  # MÉTODOS PRIVADOS
+  # ========================================================================
+  
+  private
+  
+  def validate_document_file_type
+    return unless document_file.attached?
+    
+    allowed_types = %w[image/png image/jpg image/jpeg application/pdf image/heic]
+    unless allowed_types.include?(document_file.content_type)
+      errors.add(:document_file, 'debe ser PNG, JPG, HEIC o PDF')
+    end
+  end
+  
+  def validate_document_file_size
+    return unless document_file.attached?
+    
+    if document_file.byte_size > 10.megabytes
+      errors.add(:document_file, 'no debe exceder 10MB')
+    end
+  end
+  
+  def schedule_analysis
+    DocumentAnalysisJob.perform_later(id) if defined?(DocumentAnalysisJob)
+  end
+  
+  def document_file_attached?
+    document_file.attached?
+  end
+
+  def set_default_status
+    self.document_status ||= DocumentStatus.find_by(name: 'pendiente_solicitud')
+    self.analysis_status ||= 'pending'
+    self.validation_status ||= 'pending_review'
+  end
+
+  def notify_status_change
+    # DocumentStatusNotificationJob.perform_later(self.id)
+  end
+end
+
+*******
+app/controllers/admin/document_types_controller.rb
+*******
+
+class Admin::DocumentTypesController < Admin::BaseController
+  before_action :authenticate_user!
+
+  def index
+    @document_types = policy_scope(DocumentType)
+    authorize DocumentType
+  end
+
+  def show
+    @document_type = DocumentType.find(params[:id])
+    authorize @document_type
+  end
+
+  def new
+    @document_type = DocumentType.new
+    authorize @document_type
+  end
+
+  def create
+    @document_type = DocumentType.new(document_type_params)
+    authorize @document_type
+
+    if @document_type.save
+      redirect_to admin_document_types_path, notice: "Tipo de documento creado exitosamente."
+    else
+      render :new
+    end
+  end
+
+  def edit
+    @document_type = DocumentType.find(params[:id])
+    authorize @document_type
+  end
+
+  def update
+    @document_type = DocumentType.find(params[:id])
+    authorize @document_type
+
+    if @document_type.update(document_type_params)
+      redirect_to admin_document_types_path, notice: "Tipo de documento actualizado exitosamente."
+    else
+      render :edit
+    end
+  end
+
+  def destroy
+    @document_type = DocumentType.find(params[:id])
+    authorize @document_type
+    @document_type.destroy
+    redirect_to admin_document_types_path, notice: "Tipo de documento eliminado exitosamente."
+  end
+
+  private
+
+  def document_type_params
+    params.require(:document_type).permit(:name, :description, :category, :valid_from, :valid_until, :is_active)
+  end
+end
+
+*******
+app/views/admin/document_types/index.html.erb
+*******
+
+<h1>Tipos de Documento</h1>
+<%= link_to 'Nuevo Tipo', new_admin_document_type_path, class: 'btn btn-primary mb-3' %>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Categoría</th>
+      <th>Vigencia</th>
+      <th>Activo</th>
+      <th class="text-end">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @document_types.each do |dt| %>
+      <tr>
+        <td><%= dt.name %></td>
+        <td><%= dt.category %></td>
+        <td><%= dt.valid_from %> – <%= dt.valid_until.presence || '∞' %></td>
+        <td><%= dt.is_active ? 'Sí' : 'No' %></td>
+        <td class="text-end">
+          <%= link_to 'Ver', admin_document_type_path(dt), class: 'btn btn-sm btn-outline-primary' %>
+          <%= link_to 'Editar', edit_admin_document_type_path(dt), class: 'btn btn-sm btn-outline-secondary' %>
+          <%= link_to 'Eliminar', admin_document_type_path(dt),
+                      method: :delete,
+                      data: { confirm: '¿Eliminar este tipo?' },
+                      class: 'btn btn-sm btn-outline-danger' %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+*******
+app/views/layouts/application.html.erb
+*******
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>
+      <%= content_for?(:title) ? yield(:title) : "Centinel 21" %>
+    </title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    
+    <%= stylesheet_link_tag "application", media: "all", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+
+  </head>
+
+  <body class="<%= superadmin_area? ? 'superadmin-area' : (admin_area? ? 'admin-area' : 'main-area') %>">
+    <%= render "shared/navbar" %>
+    
+    <% if superadmin_area? %>
+      <!-- Layout SuperAdmin con Sidebar Oscuro -->
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-2 bg-dark text-light">
+            <%= render "superadmin/shared/sidebar" %>
+          </div>
+          <div class="col-md-10">
+            <main class="superadmin-content py-4">
+              <%= render "shared/flash_messages" if flash.any? %>
+              <%= yield %>
+            </main>
+          </div>
+        </div>
+      </div>
+    <% elsif admin_area? %>
+      <!-- Layout Admin con Sidebar -->
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-2 bg-light">
+            <%= render "shared/admin_sidebar" %>
+          </div>
+          <div class="col-md-10">
+            <main class="admin-content py-4">
+              <%= render "shared/flash_messages" if flash.any? %>
+              <%= yield %>
+            </main>
+          </div>
+        </div>
+      </div>
+    <% else %>
+      <!-- Layout Normal -->
+      <div class="container mt-4">
+        <main>
+          <%= render "shared/flash_messages" if flash.any? %>
+          <%= yield %>
+        </main>
+      </div>
+    <% end %>
+  </body>
+</html>
+
+*******
+app/views/shared/_navbar.html.erb
+*******
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    
+    <!-- Brand -->
+    <%= link_to root_path, class: "navbar-brand d-flex align-items-center" do %>
+      <i class="bi bi-building me-2"></i>
+      <span>Centinel 21</span>
+    <% end %>
+
+    <!-- DEBUG: Mostrar info del usuario -->
+    <% if user_signed_in? %>
+      <span class="navbar-text text-warning">
+        <%= current_user.role.name %>
+      </span>
+    <% end %>
+
+    <!-- Mobile toggle button -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Navbar content -->
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <% if user_signed_in? %>
+
+        <!-- MENÚS DINÁMICOS -->
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <% MenuItem.main_navigation(current_user).each do |menu_item| %>
+            <% children = menu_item.accessible_children_for_user(current_user) %>
+
+            <% if children.any? %>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle text-white"
+                   href="#"
+                   role="button"
+                   data-bs-toggle="dropdown"
+                   aria-expanded="false">
+                  🔸 <%= menu_item.display_name %> (<%= children.count %>)
+                </a>
+                <ul class="dropdown-menu">
+                  <% children.each do |child| %>
+                    <% grandchildren = child.accessible_children_for_user(current_user) %>
+                    <% if grandchildren.any? %>
+                      <li class="dropend">
+                        <a class="dropdown-item dropdown-toggle"
+                           href="#"
+                           aria-expanded="false">
+                          🔹 <%= child.display_name %>
+                        </a>
+                        <ul class="dropdown-menu">
+                          <% grandchildren.each do |gc| %>
+                            <li>
+                              <%= link_to gc.path.presence || "#", class: "dropdown-item" do %>
+                                ▪️ <%= gc.display_name %>
+                              <% end %>
+                            </li>
+                          <% end %>
+                        </ul>
+                      </li>
+                    <% else %>
+                      <li>
+                        <%= link_to child.path.presence || "#", class: "dropdown-item" do %>
+                          🔹 <%= child.display_name %>
+                        <% end %>
+                      </li>
+                    <% end %>
+                  <% end %>
+                </ul>
+              </li>
+            <% else %>
+              <li class="nav-item">
+                <%= link_to(menu_item.path.presence || "#",
+                           class: "nav-link text-white") do %>
+                  🔹 <%= menu_item.display_name %>
+                <% end %>
+              </li>
+            <% end %>
+          <% end %>
+        </ul>
+
+        <!-- ✅ DROPDOWN DEL USUARIO RESTAURADO -->
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-white" 
+               href="#" 
+               id="userDropdown" 
+               role="button" 
+               data-bs-toggle="dropdown" 
+               aria-expanded="false">
+              <i class="bi bi-person-circle me-1"></i>
+              <%= current_user.email %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li>
+                <h6 class="dropdown-header">
+                  <i class="bi bi-shield-check"></i> 
+                  <%= current_user.role.name.humanize %>
+                </h6>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              
+              <!-- Configuración del usuario -->
+              <li>
+                <%= link_to edit_user_registration_path, class: "dropdown-item" do %>
+                  <i class="bi bi-gear me-2"></i>Mi Configuración
+                <% end %>
+              </li>
+
+              <!-- Si hay más opciones de settings, agrégalas aquí -->
+              <% if current_user.role.name == 'superadmin' %>
+                <li>
+                  <%= link_to admin_instance_settings_edit_path, class: "dropdown-item" do %>
+                    <i class="bi bi-sliders me-2"></i>Configuración de Instancia
+                  <% end %>
+                </li>
+              <% end %>
+
+              <li><hr class="dropdown-divider"></li>
+              
+              <!-- Salir -->
+              <li>
+                <%= link_to destroy_user_session_path, 
+                    method: :delete, 
+                    class: "dropdown-item text-danger",
+                    data: { turbo_method: :delete, turbo_confirm: "¿Cerrar sesión?" } do %>
+                  <i class="bi bi-box-arrow-right me-2"></i>Salir
+                <% end %>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
+      <% else %>
+        <!-- Guest menu -->
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <%= link_to "Iniciar Sesión", new_user_session_path, class: "nav-link" %>
+          </li>
+        </ul>
+      <% end %>
+    </div>
+  </div>
+</nav>
+
+*******
+app/views/shared/_admin_sidebar.html.erb
+*******
+
+<div class="col-md-2 d-none d-md-block bg-light sidebar">
+  <div class="position-sticky pt-3">
+    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+      <span>Administración</span>
+    </h6>
+
+    <!-- USAR TU SISTEMA DE MENÚS DINÁMICOS -->
+    <ul class="nav nav-pills flex-column mb-2">
+      <% if user_signed_in? %>
+        <% MenuItem.main_navigation(current_user).each do |menu_item| %>
+          <% if menu_item.display_name.in?(['Administración']) %>
+            <% children = menu_item.accessible_children_for_user(current_user) %>
+            <% children.each do |child| %>
+              <li class="nav-item">
+                <%= link_to child.path, class: "nav-link text-dark" do %>
+                  <i class="bi bi-circle"></i>
+                  <%= child.display_name %>
+                <% end %>
+              </li>
+            <% end %>
+          <% end %>
+        <% end %>
+      <% end %>
+      
+      <!-- Enlaces adicionales de admin -->
+      <li class="nav-item">
+        <%= link_to admin_users_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-people"></i> Usuarios
+        <% end %>
+      </li>
+      <li class="nav-item">
+        <%= link_to admin_property_types_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-house-gear"></i> Tipos de Propiedad
+        <% end %>
+      </li>
+      <li class="nav-item">
+        <%= link_to admin_operation_types_path, class: "nav-link text-dark" do %>
+          <i class="bi bi-gear"></i> Tipos de Operación
+        <% end %>
+      </li>
+    </ul>
+
+    <hr>
+
+    <div class="px-3">
+      <small class="text-muted">
+        <i class="bi bi-person-badge"></i>
+        <%= current_user&.role&.name&.humanize || 'Usuario' %>
+      </small>
+    </div>
+  </div>
+</div>
+
+*******
+config/routes.rb
+*******
+
+Rails.application.routes.draw do
+  devise_for :users
+
+  namespace :client do
+    root "dashboard#index"
+    resources :transactions, only: [:index, :show]
+  end
+
+  resources :clients, only: [:index, :new, :create, :edit, :update, :show, :destroy]
+
+  root "properties#index"
+  resources :properties
+  
+  resources :initial_contact_forms do
+    member do
+      post :convert_to_transaction
+      get :edit_property_modal
+      patch :update_property_from_modal
+      post :update_property_from_modal  
+      
+      get :new_client_for_form     
+      get :new_property_for_form   
+
+      
+      get :edit_client_modal
+      patch :update_client_from_modal
+      post :update_client_from_modal
+      
+      get :edit_co_owners_modal
+      post :create_co_owner
+    end
+  end
+
+
+  resources :business_transactions do
+    patch :transfer_agent, on: :member
+    post :export_documents, on: :member
+    resources :agent_transfers, only: [:create, :index]
+    resources :document_submissions, only: [:index, :show, :destroy] do
+      # Acciones a nivel de documento (member)
+      member do
+        get :preview
+        post :upload
+        post :validate_document
+        post :reject_document
+        get :download
+        post :approve
+        post :reject
+        post :mark_expired
+        post :add_note
+        delete :delete_note
+      end
+      
+      # Acciones a nivel de colección (no necesitan documento_submission ID)
+      collection do
+        get :export_checklist  # ← Export de TODA la colección
+      end
+    end
+  end
+
+  namespace :admin do
+    get 'instance-settings/edit', to: 'instance_settings#edit'
+    patch 'instance-settings', to: 'instance_settings#update'
+    resources :co_ownership_types
+    resources :co_ownership_roles
+    resources :property_types
+    resources :operation_types
+    resources :business_statuses
+    resources :users
+    resources :document_types
+    resources :document_requirements
+    resources :document_validity_rules
+    resources :property_documents
+    resources :business_transactions do
+      resources :co_owners, controller: 'business_transaction_co_owners' do
+        collection do
+          post :auto_setup
+        end
+      end
+    end
+  end
+
+  namespace :superadmin do
+    root "base#index"
+    resources :roles
+    resources :menu_items
+    get "dashboard", to: "base#index"
+  end
+
+  namespace :agent do
+    # SIN ROOT - Los agentes usan el root global /properties
+    resources :business_transactions, only: [:index, :show, :edit, :update] do
+      resources :co_owners, controller: 'business_transaction_co_owners', except: [:destroy]
+    end
+  end
+end

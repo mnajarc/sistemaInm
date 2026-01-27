@@ -1,0 +1,45 @@
+<!-- ✅ REMOVER "Sin comentarios aún" si existe -->
+<%= turbo_stream.remove("no_notes_message") %>
+
+<!-- ✅ INSERTAR la nueva nota AL INICIO -->
+<%= turbo_stream.prepend("document_notes_list") do %>
+  <div class="mb-3 pb-3 border-bottom">
+    <div class="d-flex justify-content-between align-items-start">
+      <div class="flex-grow-1">
+        <small class="text-muted">
+          <span class="badge bg-info"><%= @note.note_type %></span>
+          <strong><%= @note.user.email %></strong> • 
+          ahora mismo
+        </small>
+        <p class="mb-0 mt-2"><%= simple_format(@note.content) %></p>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- ✅ LIMPIAR el textarea -->
+<%= turbo_stream.replace("document_submission_content") do %>
+  <textarea class="form-control form-control-sm" 
+    rows="2" 
+    placeholder="Escribe tu comentario..." 
+    required="required" 
+    id="document_submission_content" 
+    name="document_submission[content]"></textarea>
+<% end %>
+
+<!-- ✅ MOSTRAR alert de éxito -->
+<%= turbo_stream.prepend("form_note_container") do %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert" id="note_success_<%= @note.id %>" style="margin-bottom: 15px;">
+    ✅ Comentario agregado exitosamente
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<% end %>
+
+<!-- ✅ Auto-remove alert después de 3 segundos -->
+<script>
+  setTimeout(() => {
+    const alert = document.getElementById('note_success_<%= @note.id %>');
+    if (alert) alert.remove();
+  }, 3000);
+</script>
+

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_12_16_083217) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_24_061704) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -420,14 +420,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_16_083217) do
     t.datetime "analyzed_at"
     t.bigint "uploaded_by_id"
     t.bigint "business_transaction_co_owner_id"
-    t.string "validation_status", default: "pending_review"
     t.text "validated_notes"
     t.datetime "last_note_at"
+    t.bigint "validation_user_id"
     t.index ["analysis_status"], name: "index_document_submissions_on_analysis_status"
     t.index ["auto_validated"], name: "index_document_submissions_on_auto_validated"
     t.index ["business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_co_owner_id"
     t.index ["business_transaction_id", "business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_id_and_co_owner_id"
     t.index ["business_transaction_id", "document_type_id", "party_type"], name: "idx_submissions_transaction_document_party"
+    t.index ["business_transaction_id", "document_type_id"], name: "idx_on_business_transaction_id_document_type_id_834da31061"
     t.index ["business_transaction_id", "party_type"], name: "idx_doc_sub_on_bt_id_and_party"
     t.index ["business_transaction_id"], name: "index_document_submissions_on_business_transaction_id"
     t.index ["document_status_id"], name: "index_document_submissions_on_document_status_id"
@@ -439,7 +440,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_16_083217) do
     t.index ["submitted_by_type", "submitted_by_id"], name: "index_document_submissions_on_submitted_by"
     t.index ["uploaded_by_id"], name: "index_document_submissions_on_uploaded_by_id"
     t.index ["validated_by_id"], name: "index_document_submissions_on_validated_by_id"
-    t.index ["validation_status"], name: "index_document_submissions_on_validation_status"
+    t.index ["validation_user_id"], name: "index_document_submissions_on_validation_user_id"
   end
 
   create_table "document_types", force: :cascade do |t|
@@ -1054,6 +1055,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_12_16_083217) do
   add_foreign_key "document_submissions", "document_types"
   add_foreign_key "document_submissions", "users", column: "uploaded_by_id"
   add_foreign_key "document_submissions", "users", column: "validated_by_id"
+  add_foreign_key "document_submissions", "users", column: "validation_user_id", on_delete: :nullify
   add_foreign_key "document_validity_rules", "document_types"
   add_foreign_key "initial_contact_forms", "agents"
   add_foreign_key "initial_contact_forms", "business_transactions"

@@ -24,7 +24,7 @@ class DocumentChecklistService
                           .count
     
     # ✅ Estados específicos
-    validated = by_status['validado'] || 0
+    validated = by_status['validado_vigente'] || 0
     rejected = by_status['rechazado'] || 0
     expired = by_status['vencido'] || 0
     expiring_soon = by_status['por_vencer'] || 0
@@ -70,7 +70,7 @@ class DocumentChecklistService
     return 0 if active.empty?
     
     # Contar validados dentro de activos
-    validated = active.count { |s| s.document_status&.name == 'validado' }
+    validated = active.count { |s| s.document_status&.name == 'validado_vigente' }
     ((validated.to_f / active.count) * 100).round(2)
   end
 
@@ -98,7 +98,7 @@ def summary_stats_anterior
     # Estados mutuamente excluyentes (basados en document_status.name)
     pending: (by_status['pendiente_solicitud'] || 0) + 
              (by_status['pendiente_validacion'] || 0),
-    validated: by_status['validado'] || 0,
+    validated: by_status['validado_vigente'] || 0,
     rejected: by_status['rechazado'] || 0,
     
     # ☠️ MUERTOS (fuera del flujo activo)

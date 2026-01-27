@@ -91,5 +91,16 @@ Rails.application.configure do
   # Allow external IPs
   # OR whitelist specific IPs:
   # config.hosts << "192.168.0.27:3000"
-  # config.hosts << "0.0.0.0:3000"
+  config.hosts << "0.0.0.0:3000"
+
+  if defined?(WebConsole)
+    config.web_console.allowed_ips = %w(
+      127.0.0.1
+      ::1
+      192.168.0.0/16
+      0.0.0.0/0
+    )
+  end
+
+
 end

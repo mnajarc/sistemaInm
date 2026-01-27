@@ -1,0 +1,41 @@
+<!-- app/views/document_submissions/_validate_modal.html.erb -->
+<div id="validate-modal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">✅ Validar Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      
+      <%= form_with(
+        model: @document_submission,
+
+        url: validate_business_transaction_document_submission_path(@business_transaction, @document_submission),
+        method: :patch,
+        local: true
+      ) do |f| %>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <strong>Documento:</strong> <%= @document_submission.document_type.name %>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :notes, "Notas de Validación (Opcional)" %>
+            <%= f.text_area :notes, rows: 4, class: "form-control",
+                placeholder: "Ej: Documento claro y legible. PDF de buena calidad." %>
+            <small class="text-muted">
+              Estas notas se guardarán en el historial
+            </small>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <%= f.submit "✅ Validar", class: "btn btn-success" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

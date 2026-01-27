@@ -1,0 +1,1592 @@
+
+*******
+app/controllers/document_submissions_controller.rb
+*******
+
+# app/controllers/document_submissions_controller.rb
+class DocumentSubmissionsController < ApplicationController
+  before_action :authenticate_user!
+  before_action :set_business_transaction
+  before_action :set_document_submission, only: [:show, :upload, :validate_document, :reject_document, :download, :destroy, :preview]
+
+  # GET /business_transactions/:business_transaction_id/document_submissions
+  def index
+    @checklist = DocumentChecklistService.new(@business_transaction).checklist
+    
+    respond_to do |format|
+      format.html
+      format.json { render json: @checklist }
+    end
+  end
+
+  # GET /business_transactions/:business_transaction_id/document_submissions/:id
+  def show
+    respond_to do |format|
+      format.html
+      format.json { render json: @document_submission.as_json(include: :document_type) }
+    end
+  end
+
+
+  def approve
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission, :approve?
+    
+    notes = params[:notes].presence
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      service.approve!(current_user, notes)
+      
+      respond_to do |format|
+        format.turbo_stream { render :update_submission }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '✅ Documento aprobado' }
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.turbo_stream { render :error, locals: { error: e.message } }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
+      end
+    end
+  end
+
+  def reject
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission
+    
+    reason = params[:reason]
+    raise "Motivo requerido" if reason.blank?
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      service.reject!(current_user, reason)
+      
+      respond_to do |format|
+        format.turbo_stream { render :update_submission }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '❌ Documento rechazado - pedir re-subida' }
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.turbo_stream { render :error, locals: { error: e.message } }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
+      end
+    end
+  end
+
+  def mark_expired
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission
+    
+    reason = params[:reason].presence || "Vigencia vencida"
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      service.mark_expired!(current_user, reason)
+      
+      respond_to do |format|
+        format.turbo_stream { render :update_submission }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), notice: '⏰ Documento marcado como expirado' }
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.turbo_stream { render :error, locals: { error: e.message } }
+        format.html { redirect_to business_transaction_document_submissions_path(@submission.business_transaction), alert: "❌ Error: #{e.message}" }
+      end
+    end
+  end
+
+
+  def add_note
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission
+    
+    content = params[:content]
+    raise "Contenido requerido" if content.blank?
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      @note = service.add_note(current_user, content)
+      
+      respond_to do |format|
+        format.json { render json: @note, status: :created }
+        # 🔴 QUITAMOS format.turbo_stream
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+
+  def add_note_anterior
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission
+    
+    content = params[:content]
+    raise "Contenido requerido" if content.blank?
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      @note = service.add_note(current_user, content)
+      
+      respond_to do |format|
+        format.turbo_stream { render :update_notes }
+        format.json { render json: @note, status: :created }
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.turbo_stream { render :error, locals: { error: e.message } }
+        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  
+  def delete_note
+    @note = DocumentNote.find(params[:id])
+    @submission = @note.document_submission
+    authorize @submission
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      service.delete_last_note(current_user)
+      
+      respond_to do |format|
+        format.json { render json: { success: true }, status: :ok }
+        # 🔴 QUITAMOS format.turbo_stream
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+
+  def delete_note_anterior
+    @note = DocumentNote.find(params[:id])
+    @submission = @note.document_submission
+    authorize @submission
+    
+    begin
+      service = DocumentValidationService.new(@submission)
+      service.delete_last_note(current_user)
+      
+      respond_to do |format|
+        format.turbo_stream { render :update_notes }
+        format.json { render json: { success: true }, status: :ok }
+      end
+    rescue StandardError => e
+      respond_to do |format|
+        format.turbo_stream { render :error, locals: { error: e.message } }
+        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # AGREGAR en las rutas privadas (al final del archivo):
+
+  def authorize_submission
+    @submission = DocumentSubmission.find(params[:id])
+    authorize @submission
+  end
+
+
+
+
+
+
+  def preview
+    @submission = @document_submission
+    
+    respond_to do |format|
+      format.html { render layout: false } # Sin layout para modal
+      format.json do
+        render json: {
+          id: @submission.id,
+          document_type: @submission.document_type.name,
+          status: @submission.document_status&.name,
+          uploaded_at: @submission.submitted_at&.strftime('%d/%m/%Y %H:%M'),
+          uploaded_by: @submission.uploaded_by&.email,
+          file_url: @submission.document_file.attached? ? url_for(@submission.document_file) : nil,
+          content_type: @submission.document_file.content_type,
+          analysis: {
+            status: @submission.analysis_status,
+            legibility_score: @submission.legibility_score,
+            ocr_text: @submission.ocr_text,
+            auto_validated: @submission.auto_validated
+          }
+        }
+      end
+    end
+  end
+
+
+  def upload
+    if params[:document_file].present?
+      @document_submission.document_file.attach(params[:document_file])
+      @document_submission.update!(
+        submitted_at: Time.current,
+        uploaded_by: current_user,
+        document_status: DocumentStatus.find_by(name: 'pendiente_validacion')
+      )
+      DocumentAnalysisJob.perform_later(@document_submission.id)
+
+      redirect_to business_transaction_document_submissions_path(@business_transaction),
+                  notice: 'Documento cargado exitosamente. Se está analizando...'
+    else
+      redirect_to business_transaction_document_submissions_path(@business_transaction),
+                  alert: 'Debe seleccionar un archivo'
+    end
+  end
+
+  def validate_document
+    authorize_validation!
+    
+    @document_submission.update!(
+      document_status: DocumentStatus.find_by(name: 'validado'),
+      validated_by: current_user,
+      validated_at: Time.current,
+      validation_notes: params[:validation_notes]
+    )
+    
+    # Agregar nota
+    DocumentNote.create!(
+      document_submission: @document_submission,
+      user: current_user,
+      content: params[:validation_notes].presence || 'Documento aprobado',
+      note_type: 'status change'
+    )
+
+
+
+    redirect_to business_transaction_document_submissions_path(@business_transaction),
+                notice: 'Documento validado correctamente'
+  end
+
+  def reject_document
+    authorize_validation!
+    
+    @document_submission.update!(
+      document_status: DocumentStatus.find_by(name: 'rechazado'),
+      validated_by: current_user,
+      validated_at: Time.current,
+      validation_notes: params[:rejection_reason]
+    )
+    
+    # Agregar nota con el motivo
+    DocumentNote.create!(
+      document_submission: @document_submission,
+      user: current_user,
+      content: params[:rejection_reason],
+      note_type: 'status change'
+    )
+    
+
+
+    redirect_to business_transaction_document_submissions_path(@business_transaction),
+                alert: 'Documento rechazado'
+  end
+
+  def download
+    if @document_submission.document_file.attached?
+      redirect_to rails_blob_path(@document_submission.document_file, disposition: 'attachment')
+    else
+      redirect_to business_transaction_document_submissions_path(@business_transaction),
+                  alert: 'No hay archivo adjunto'
+    end
+  end
+
+  def destroy
+    authorize_deletion!
+    
+    @document_submission.document_file.purge if @document_submission.document_file.attached?
+    @document_submission.update!(
+      submitted_at: nil,
+      uploaded_by: nil,
+      document_status: DocumentStatus.find_by(name: 'pendiente_solicitud')
+    )
+    
+    redirect_to business_transaction_document_submissions_path(@business_transaction),
+                notice: 'Documento eliminado'
+  end
+
+  
+  def export_checklist
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+    @checklist = DocumentChecklistService.new(@business_transaction).checklist
+
+    respond_to do |format|
+      format.html { render layout: false }
+      
+      format.pdf do
+        pdf = Prawn::Document.new(page_size: 'A4', margin: [20, 20, 20, 20])
+        
+        # Define la fuente que soporta UTF-8
+        pdf.font_families.update(
+          'DejaVuSans' => {
+            normal: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            bold: '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            italic: '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'
+          }
+        )
+        pdf.font 'DejaVuSans'
+        
+        # Título
+        pdf.text "CHECKLIST DOCUMENTAL", size: 18, style: :bold
+        pdf.move_down 10
+        
+        # Encabezado
+        pdf.text "Transacción: ##{@business_transaction.id}", size: 11
+        pdf.text "Propiedad: #{@business_transaction.property.address}", size: 11
+        pdf.text "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}", size: 11
+        pdf.text "Fecha: #{I18n.l(Date.today, format: :long)}", size: 11
+        pdf.move_down 15
+        
+        # Resumen
+        pdf.text "RESUMEN GENERAL", size: 14, style: :bold
+        pdf.move_down 8
+        
+        summary_data = [
+          ["Total", "Cargados", "Pendientes", "Validados", "Rechazados", "Progreso"],
+          [
+            @checklist[:summary][:total].to_s,
+            @checklist[:summary][:uploaded].to_s,
+            @checklist[:summary][:pending].to_s,
+            @checklist[:summary][:validated].to_s,
+            @checklist[:summary][:rejected].to_s,
+            "#{@checklist[:summary][:progress]}%"
+          ]
+        ]
+        
+        pdf.table(summary_data, width: pdf.bounds.width, cell_style: { size: 10, padding: 5 }) do |t|
+          t.header = true
+        end
+        
+        pdf.move_down 15
+        
+        # Documentos por copropietario
+        pdf.text "DOCUMENTOS POR COPROPIETARIO", size: 14, style: :bold
+        pdf.move_down 8
+        
+        co_owner_data = [["Copropietario", "Rol", "%", "Total", "Cargados", "Pendientes"]]
+        
+        @checklist[:copropietarios].each do |co_data|
+          co_owner_data << [
+            co_data[:co_owner][:name],
+            co_data[:co_owner][:role].titleize,
+            "#{co_data[:co_owner][:percentage]}%",
+            co_data[:documents][:total].to_s,
+            co_data[:documents][:uploaded].to_s,
+            (co_data[:documents][:total] - co_data[:documents][:uploaded]).to_s
+          ]
+        end
+        
+        pdf.table(co_owner_data, width: pdf.bounds.width, cell_style: { size: 9, padding: 4 }) do |t|
+          t.header = true
+        end
+        
+        pdf.move_down 15
+        
+        # Detalle de documentos
+        pdf.text "DETALLE DE DOCUMENTOS", size: 14, style: :bold
+        pdf.move_down 10
+        
+        @checklist[:copropietarios].each do |co_data|
+          pdf.text "#{co_data[:co_owner][:name]} (#{co_data[:co_owner][:percentage]}%)", size: 12, style: :bold
+          pdf.move_down 5
+          
+          co_data[:documents][:list].each do |category|
+            pdf.text "#{category[:category_display]}", size: 11, style: :italic
+            pdf.move_down 3
+            
+            category[:documents].each do |doc|
+              status = doc[:uploaded] ? "[X]" : "[ ]"
+              pdf.text "   #{status} #{doc[:document_type][:name]}", size: 10
+            end
+            
+            pdf.move_down 5
+          end
+          
+          pdf.move_down 10
+        end
+        
+        send_data pdf.render, 
+                  filename: "checklist_#{@business_transaction.id}.pdf",
+                  type: 'application/pdf',
+                  disposition: 'attachment'
+      end
+      
+      format.text do
+        text_content = generate_checklist_text
+        send_data text_content,
+                  filename: "checklist_#{@business_transaction.id}.txt",
+                  type: 'text/plain',
+                  disposition: 'attachment'
+      end
+    end
+  end
+
+  private
+
+  def generate_checklist_text
+    output = "CHECKLIST DOCUMENTAL\n"
+    output += "═" * 60 + "\n\n"
+    
+    output += "Transacción: ##{@business_transaction.id}\n"
+    output += "Propiedad: #{@business_transaction.property.address}\n"
+    output += "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}\n"
+    output += "Fecha: #{I18n.l(Date.today, format: :long)}\n\n"
+    
+    output += "RESUMEN\n"
+    output += "─" * 60 + "\n"
+    output += "Total de documentos: #{@checklist[:summary][:total]}\n"
+    output += "Cargados: #{@checklist[:summary][:uploaded]}\n"
+    output += "Pendientes: #{@checklist[:summary][:pending]}\n"
+    output += "Validados: #{@checklist[:summary][:validated]}\n"
+    output += "Rechazados: #{@checklist[:summary][:rejected]}\n"
+    output += "Progreso: #{@checklist[:summary][:progress]}%\n\n"
+    
+    @checklist[:copropietarios].each do |co_data|
+      output += "#{co_data[:co_owner][:name]}\n"
+      output += "   Rol: #{co_data[:co_owner][:role].titleize}\n"
+      output += "   Porcentaje: #{co_data[:co_owner][:percentage]}%\n"
+      output += "   Documentos: #{co_data[:documents][:total]} | Cargados: #{co_data[:documents][:uploaded]} | Pendientes: #{co_data[:documents][:total] - co_data[:documents][:uploaded]}\n"
+      output += "   " + ("─" * 50) + "\n\n"
+      
+      co_data[:documents][:list].each do |category|
+        output += "   #{category[:category_display]}\n"
+        category[:documents].each do |doc|
+          status = doc[:uploaded] ? "✅" : "☐"
+          output += "       #{status} #{doc[:document_type][:name]}\n"
+        end
+        output += "\n"
+      end
+    end
+    
+    output
+  end
+
+
+
+  def document_submission_params
+    # params.require(:document_submission).permit(:document_type_id)
+    { document_file: params[:file] }
+
+  end
+
+
+  def set_business_transaction
+    @business_transaction = BusinessTransaction.find(params[:business_transaction_id])
+  end
+
+  def set_document_submission
+    @document_submission = @business_transaction.document_submissions.find(params[:id])
+  end
+
+  def authorize_validation!
+    unless current_user.admin? || current_user.agent?
+      redirect_to business_transaction_document_submissions_path(@business_transaction),
+                  alert: 'No tiene permisos para validar documentos' and return
+    end
+  end
+
+  def authorize_deletion!
+    unless current_user.admin? || @document_submission.uploaded_by == current_user
+      redirect_to business_transaction_document_submissions_path(@business_transaction),
+                  alert: 'No tiene permisos para eliminar este documento' and return
+    end
+  end
+end
+
+*******
+app/views/document_submissions/preview.html.erb
+*******
+
+<!-- app/views/document_submissions/preview.html.erb -->
+
+<%= render 'preview', submission: @submission %>
+
+*******
+app/views/document_submissions/update_notes.turbo_stream.erb
+*******
+
+<!-- app/views/document_submissions/update_notes.turbo_stream.erb -->
+
+<%= turbo_stream.update "notes-container-#{@submission.id}" do %>
+  <%= render 'document_notes_panel', submission: @submission, current_user: current_user %>
+<% end %>
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-chat-dots"></i> 
+    Nota agregada
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+*******
+app/views/document_submissions/export_checklist.html.erb
+*******
+
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    h2 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+    h3 { color: #0066cc; margin-top: 20px; }
+    h4 { color: #666; margin-top: 15px; }
+    .summary { background: #f0f8ff; padding: 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; }
+    .co-owner-header { background: #e6f2ff; padding: 10px; margin-top: 20px; border-left: 4px solid #0066cc; }
+    .category { margin-left: 20px; }
+    .doc-item { margin: 5px 0; padding: 5px 0; border-bottom: 1px solid #eee; }
+    .doc-item.uploaded { color: green; }
+    .doc-item.pending { color: #999; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    table th, table td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+    table th { background: #0066cc; color: white; }
+    .progress-bar { width: 100%; height: 20px; background: #eee; border-radius: 5px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #0066cc; }
+  </style>
+</head>
+<body>
+  <h2>📋 CHECKLIST DOCUMENTAL</h2>
+  
+  <div class="summary">
+    <p><strong>Transacción:</strong> #<%= @business_transaction.id %></p>
+    <p><strong>Propiedad:</strong> <%= @business_transaction.property.address %></p>
+    <p><strong>Escenario:</strong> <%= @business_transaction.initial_contact_form.transaction_scenario.name %></p>
+    <p><strong>Fecha:</strong> <%= I18n.l(Date.today, format: :long) %></p>
+  </div>
+
+  <h3>📊 Resumen General</h3>
+  <table>
+    <tr>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+      <th>Validados</th>
+      <th>Rechazados</th>
+      <th>Progreso</th>
+    </tr>
+    <tr>
+      <td><%= @checklist[:summary][:total] %></td>
+      <td><%= @checklist[:summary][:uploaded] %></td>
+      <td><%= @checklist[:summary][:pending] %></td>
+      <td><%= @checklist[:summary][:validated] %></td>
+      <td><%= @checklist[:summary][:rejected] %></td>
+      <td>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: <%= @checklist[:summary][:progress] %>%"></div>
+        </div>
+        <%= @checklist[:summary][:progress] %>%
+      </td>
+    </tr>
+  </table>
+
+  <h3>👥 Documentos por Copropietario</h3>
+  <table>
+    <tr>
+      <th>Copropietario</th>
+      <th>Rol</th>
+      <th>%</th>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+    </tr>
+    <% @checklist[:copropietarios].each do |co_data| %>
+      <tr>
+        <td><strong><%= co_data[:co_owner][:name] %></strong></td>
+        <td><%= co_data[:co_owner][:role].titleize %></td>
+        <td><%= co_data[:co_owner][:percentage] %>%</td>
+        <td><%= co_data[:documents][:total] %></td>
+        <td><%= co_data[:documents][:uploaded] %></td>
+        <td><%= co_data[:documents][:total] - co_data[:documents][:uploaded] %></td>
+      </tr>
+    <% end %>
+  </table>
+
+  <h3>📄 Detalle de Documentos</h3>
+  
+  <% @checklist[:copropietarios].each do |co_data| %>
+    <div class="co-owner-header">
+      <h4>👤 <%= co_data[:co_owner][:name] %></h4>
+      <p style="margin: 5px 0;"><small>Rol: <%= co_data[:co_owner][:role].titleize %> | Documentos: <%= co_data[:documents][:total] %></small></p>
+    </div>
+    
+    <% co_data[:documents][:list].each do |category| %>
+      <div class="category">
+        <h5>📁 <%= category[:category_display] %></h5>
+        <% category[:documents].each do |doc| %>
+          <div class="doc-item <%= doc[:uploaded] ? 'uploaded' : 'pending' %>">
+            <% if doc[:uploaded] %>
+              ✅ <strong><%= doc[:document_type][:name] %></strong> (Cargado)
+            <% else %>
+              ☐ <%= doc[:document_type][:name] %> (Pendiente)
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</body>
+</html>
+
+*******
+app/views/document_submissions/_document_notes_panel.html.erb
+*******
+
+<!-- app/views/document_submissions/_document_notes_panel.html.erb -->
+<!-- 
+  Uso: render 'document_notes_panel', submission: @submission, current_user: current_user
+-->
+
+<div class="notes-panel">
+  <!-- Historial de notas -->
+  <div class="notes-list mb-3" style="max-height: 400px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 0.375rem; padding: 1rem;">
+    <% if submission.document_notes.any? %>
+      <% submission.document_notes.recent.each do |note| %>
+        <div class="note-item mb-3 pb-3 border-bottom" data-note-id="<%= note.id %>">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong class="d-block"><%= note.user.full_name %></strong>
+              <small class="text-muted">
+                <%= note.created_at.strftime('%d/%m/%Y %H:%M') %>
+                <% if note.note_type == 'status_change' %>
+                  <span class="badge bg-info ms-2">Cambio de estado</span>
+                <% end %>
+              </small>
+            </div>
+            
+            <!-- Botón eliminar (solo si es la última nota propia) -->
+            <% if note.deletable_by?(current_user) %>
+              <%= button_to delete_business_transaction_document_submission_path(submission.business_transaction, note.id),
+                  method: :delete,
+                  class: 'btn btn-sm btn-outline-danger',
+                  title: 'Eliminar esta nota',
+                  data: { bs_toggle: 'tooltip' } do %>
+                <i class="bi bi-trash"></i>
+              <% end %>
+            <% end %>
+          </div>
+          
+          <p class="mt-2 mb-0" style="white-space: pre-wrap; word-break: break-word;">
+            <%= simple_format(note.content) %>
+          </p>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-chat-dots"></i>
+        <p>Sin notas aún</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Agregar nota -->
+  <div class="add-note-form">
+    <form id="noteForm-<%= submission.id %>" 
+          data-submission-id="<%= submission.id %>"
+          class="add-note-form-submit">
+      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+      
+      <div class="mb-3">
+        <label for="noteContent-<%= submission.id %>" class="form-label">Agregar nota</label>
+        <textarea 
+          class="form-control form-control-sm"
+          id="noteContent-<%= submission.id %>"
+          name="content"
+          rows="3"
+          placeholder="Escribe una nota sobre este documento..."
+          required></textarea>
+      </div>
+      
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle"></i> Agregar nota
+        </button>
+        <button type="reset" class="btn btn-sm btn-secondary">
+          <i class="bi bi-x-circle"></i> Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .note-item {
+    animation: slideIn 0.3s ease-in-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+*******
+app/views/document_submissions/error.turbo_stream.erb
+*******
+
+<!-- app/views/document_submissions/error.turbo_stream.erb -->
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle"></i> 
+    <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+*******
+app/views/document_submissions/index.html.erb
+*******
+
+<!-- app/views/document_submissions/index.html.erb -->
+<div class="container-fluid py-4" data-business-transaction-id="<%= @business_transaction.id %>">
+
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>
+          <i class="bi bi-file-earmark-check"></i>
+          Checklist Documental
+        </h2>
+        <%= link_to business_transaction_path(@business_transaction), class: 'btn btn-outline-secondary' do %>
+          <i class="bi bi-arrow-left"></i> Volver a Transacción
+        <% end %>
+      </div>
+      <div class="text-muted mt-2">
+        <strong>Transacción:</strong> <%= @business_transaction.id %> |
+        <strong>Escenario:</strong> <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %> |
+        <strong>Propiedad:</strong> <%= @business_transaction.property.address %>
+      </div>
+    </div>
+  </div>
+
+  <%= render 'shared/document_progress_summary', checklist: @checklist %>
+
+  <div class="mb-3 d-flex gap-2">
+    <button id="copy-whatsapp-btn" class="btn btn-success">
+      <i class="bi bi-whatsapp"></i> Copiar para WhatsApp
+    </button>
+
+    <button id="send-whatsapp-btn" class="btn btn-success">
+      <i class="bi bi-whatsapp"></i> Abrir en WhatsApp
+    </button>
+
+    <a href="<%= export_checklist_business_transaction_document_submissions_path(@business_transaction, format: :pdf) %>"
+       class="btn btn-primary" target="_blank">
+      <i class="bi bi-download"></i> Descargar PDF
+    </a>
+    <a href="<%= export_checklist_business_transaction_document_submissions_path(@business_transaction, format: :text) %>"
+       class="btn btn-info" download="checklist_<%= @business_transaction.id %>.txt">
+      <i class="bi bi-file-text"></i> Descargar TXT
+    </a>
+  </div>
+
+
+
+  <script>
+    // Función auxiliar para generar el texto (así no repetimos lógica)
+    function generateChecklistText() {
+      const transactionId = <%= @business_transaction.id %>;
+      const checklist = <%= @checklist.to_json.html_safe %>;
+
+      let text = '📋 CHECKLIST DOCUMENTAL\n';
+      text += '═'.repeat(40) + '\n\n'; // Reduje un poco el ancho para móviles
+      text += `Transacción: #${transactionId}\n`;
+      text += `Propiedad: <%= @business_transaction.property.address %>\n`;
+      text += `Escenario: <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %>\n`;
+      text += `Fecha: <%= I18n.l(Date.today, format: :long) %>\n\n`;
+
+      text += '📊 RESUMEN\n';
+      text += '─'.repeat(40) + '\n';
+      text += `Total: ${checklist.summary.total} | `;
+      text += `Cargados: ${checklist.summary.uploaded} | `;
+      text += `Validados: ${checklist.summary.validated} | `;
+      text += `Rechazados: ${checklist.summary.rejected} | `;
+      text += `Progreso: ${checklist.summary.progress}%\n\n`;
+
+      text += '👤 PERSONAS\n';
+      text += '═'.repeat(40) + '\n\n';
+
+      if (checklist.copropietarios && checklist.copropietarios.length > 0) {
+        checklist.copropietarios.forEach(co => {
+          const coOwner = co.co_owner;
+          const documents = co.documents;
+          
+          let totalDocs = 0;
+          if (documents && documents.list) {
+            documents.list.forEach(cat => totalDocs += cat.documents.length);
+          }
+          
+          // Ajuste para móviles: nombres más limpios
+          text += `👨 ${coOwner.name}\n`; 
+          text += `   (${coOwner.role || 'Rol'} - ${coOwner.percentage || 0}%)\n`;
+          text += `   Documentos requeridos: ${totalDocs}\n`;
+          text += '─'.repeat(40) + '\n\n';
+
+          if (documents && documents.list) {
+            documents.list.forEach(category => {
+              if (category.documents && category.documents.length > 0) {
+                text += `📍 ${category.category} (${category.documents.length})\n`;
+                
+                category.documents.forEach(doc => {
+                  // Check logic: si está uploaded (aunque no validado) cuenta como check visual
+                  // O puedes poner status === 'validated' para ser más estricto
+                  const isUploaded = (doc.submission && doc.submission.document_file_attached);
+                  const status = isUploaded ? '✅' : '☐';
+                  const docName = doc.document_type ? doc.document_type.name : 'Documento';
+                  
+                  text += `   ${status} ${docName}\n`;
+                });
+                text += '\n';
+              }
+            });
+          }
+          text += '\n';
+        });
+      } else {
+        text += "No hay copropietarios registrados.\n";
+      }
+      
+      return text;
+    }
+
+    // EVENTO: COPIAR AL PORTAPAPELES
+    document.getElementById('copy-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      navigator.clipboard.writeText(text).then(() => {
+        // Feedback visual temporal en el botón
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> ¡Copiado!';
+        btn.classList.replace('btn-outline-success', 'btn-success');
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHtml;
+          btn.classList.replace('btn-success', 'btn-outline-success');
+        }, 2000);
+      }).catch(err => alert('Error al copiar: ' + err.message));
+    });
+
+    // EVENTO: ABRIR EN WHATSAPP (LA CEREZA 🍒)
+    document.getElementById('send-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      // encodeURIComponent es vital para que saltos de línea y emojis viajen bien en la URL
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    });
+  </script>
+
+
+
+
+
+
+
+
+  <!-- PESTAÑAS POR COPROPIETARIO -->
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= 'active' if index == 0 %>" 
+                id="tab-<%= co_data[:co_owner][:id] %>" 
+                data-bs-toggle="tab" 
+                data-bs-target="#pane-<%= co_data[:co_owner][:id] %>" 
+                type="button" 
+                role="tab">
+          <%= co_data[:co_owner][:name] %>
+          <span class="badge bg-primary ms-2"><%= co_data[:documents][:list].sum { |cat| cat[:documents].count } %></span>
+        </button>
+      </li>
+    <% end %>
+  </ul>
+
+  <!-- CONTENIDO DE LAS PESTAÑAS -->
+  <div class="tab-content">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <div class="tab-pane fade <%= 'show active' if index == 0 %>" 
+           id="pane-<%= co_data[:co_owner][:id] %>" 
+           role="tabpanel">
+        
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Documento</th>
+                <th>Estado</th>
+                <th>Cargado</th>
+                <th>Validado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% co_data[:documents][:list].each do |category| %>
+                <% category[:documents].each do |doc| %>
+                  <% submission = doc[:submission] %>
+                  <tr id="document-row-<%= submission.id %>">
+                    <td>
+                      <strong><%= doc[:document_type][:name] %></strong>
+                    </td>
+                    <td>
+                      <% if submission.document_file.attached? %>
+                        <span class="badge bg-<%= submission.document_status&.name || 'secondary' %>">
+                          <%= submission.document_status&.name || 'Desconocido' %>
+                        </span>
+                      <% else %>
+                        <span class="badge bg-secondary">Pendiente Solicitud</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.submitted_at %>
+                        <small><%= submission.submitted_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.validated_at %>
+                        <small><%= submission.validated_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <% if submission.document_file.attached? %>
+                          <button class="btn btn-outline-primary preview-btn" 
+                                  data-submission-id="<%= submission.id %>"
+                                  data-document-type="<%= submission.document_type&.name %>"
+                                  title="Ver previsualización">
+                            <i class="bi bi-eye"></i>
+                          </button>
+                          <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
+                             class="btn btn-outline-info"
+                             title="Descargar">
+                            <i class="bi bi-download"></i>
+                          </a>
+                        <% end %>
+
+                        <% if current_user.admin? || current_user.agent? %>
+                          <% if submission.document_file.attached? && !submission.validated? %>
+                            <button class="btn btn-outline-success validate-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Validar documento">
+                              <i class="bi bi-check-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-danger reject-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Rechazar documento">
+                              <i class="bi bi-x-circle"></i>
+                            </button>
+                          <% end %>
+                        <% end %>
+
+                        <% if !submission.document_file.attached? || (current_user == submission.uploaded_by || current_user.admin?) %>
+                          <button class="btn btn-outline-warning upload-btn"
+                                  data-submission-id="<%= submission.id %>"
+                                  title="Cargar/Recargar documento">
+                            <i class="bi bi-upload"></i>
+                          </button>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- MODALES (sin cambios) -->
+  <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="previewModalLabel">Previsualización</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="previewContent" style="max-height: 70vh; overflow-y: auto;">
+          <div class="text-center">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="uploadModalLabel">Cargar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="documentFile" class="form-label">Selecciona un archivo:</label>
+              <input type="file" class="form-control" id="documentFile" name="document_file" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Cargar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="validateModalLabel">Validar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="validateForm" method="POST">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="validationNotes" class="form-label">Notas (opcional):</label>
+              <textarea class="form-control" id="validationNotes" name="validation_notes" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Validar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rejectModalLabel">Rechazar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="rejectForm" method="POST">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="rejectionReason" class="form-label">Motivo del rechazo:</label>
+              <textarea class="form-control" id="rejectionReason" name="rejection_reason" rows="3" required></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Rechazar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
+
+  // PREVIEW - Cargar HTML completo desde preview.html.erb
+  document.querySelectorAll('.preview-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      const previewContent = document.getElementById('previewContent');
+
+      // Spinner mientras carga
+      previewContent.innerHTML = `
+        <div class="text-center my-4">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      `;
+
+      // PEDIMOS HTML, NO JSON
+      fetch(`/business_transactions/${btxId}/document_submissions/${submissionId}/preview`, {
+        headers: { 'Accept': 'text/html' }
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then(html => {
+        previewContent.innerHTML = html;   // Aquí se inyecta tu _preview.html.erb completo
+      })
+      .catch(err => {
+        previewContent.innerHTML = `
+          <div class="alert alert-danger">
+            Error al cargar la previsualización: ${err.message}
+          </div>
+        `;
+      });
+
+      const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+      modal.show();
+    });
+  });
+
+
+
+
+
+
+  // UPLOAD
+  document.querySelectorAll('.upload-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('uploadForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/upload`;
+      const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+
+  // VALIDATE
+  document.querySelectorAll('.validate-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('validateForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/validate_document`;
+      const modal = new bootstrap.Modal(document.getElementById('validateModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('validateForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('validateModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+
+  // REJECT
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('rejectForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/reject_document`;
+      const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('rejectForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+});
+</script>
+
+<style>
+.preview-wrapper {
+  padding: 20px;
+  max-height: 70vh;
+  overflow: auto;
+  text-align: center;
+  position: relative;
+}
+
+.preview-wrapper img {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+  transform-origin: center;
+  zoom: 1;
+}
+
+.preview-wrapper img.zoomed {
+  cursor: zoom-out;
+  zoom: 1.5;
+}
+
+.preview-wrapper img.zoomed-2x {
+  cursor: zoom-out;
+  zoom: 2;
+}
+
+.preview-wrapper embed {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
+}
+
+.modal-dialog {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  max-width: 90vw !important;
+}
+
+.modal-lg {
+  max-width: 90vw !important;
+}
+
+.modal-backdrop.show {
+  opacity: 0.99;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+body.modal-open {
+  transition: none !important;
+}
+
+/* ESTILOS PARA LAS PESTAÑAS */
+.nav-tabs {
+  border-bottom: 2px solid #e9ecef;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6c757d;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.nav-tabs .nav-link.active {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+  background: none;
+}
+
+.nav-tabs .badge {
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+/* BADGES DE ESTADOS PERSONALIZADOS */
+.badge.bg-rechazado {
+  background-color: #dc3545 !important; /* Rojo */
+  color: white;
+}
+
+.badge.bg-validado {
+  background-color: #28a745 !important; /* Verde */
+  color: white;
+}
+
+.badge.bg-pendiente {
+  background-color: #ffc107 !important; /* Amarillo */
+  color: #333;
+}
+
+.badge.bg-desconocido {
+  background-color: #6c757d !important; /* Gris */
+  color: white;
+}
+
+</style>
+
+*******
+app/views/document_submissions/_document_status_badge.html.erb
+*******
+
+<!-- app/views/document_submissions/_document_status_badge.html.erb -->
+
+<% validation_status = submission.validation_status %>
+<% 
+  case validation_status
+  when 'pending_review'
+    badge_class = 'bg-warning text-dark'
+    icon = 'bi-hourglass-split'
+    text = 'Pendiente revisión'
+  when 'approved'
+    badge_class = 'bg-success'
+    icon = 'bi-check-circle'
+    text = 'Aprobado'
+  when 'rejected'
+    badge_class = 'bg-danger'
+    icon = 'bi-x-circle'
+    text = 'Rechazado'
+  when 'expired'
+    badge_class = 'bg-secondary'
+    icon = 'bi-exclamation-triangle'
+    text = 'Expirado'
+  else
+    badge_class = 'bg-secondary'
+    icon = 'bi-question-circle'
+    text = 'Sin estado'
+  end
+%>
+
+<span class="badge <%= badge_class %>">
+  <i class="bi <%= icon %>"></i>
+  <%= text %>
+</span>
+
+*******
+app/views/document_submissions/_preview.html.erb
+*******
+
+<!-- app/views/document_submissions/_preview.html.erb -->
+
+<div class="preview-container" data-turbo="false">
+
+
+  <div class="document-preview mb-4">
+    <% if submission.document_file&.attached? %>
+      <% if submission.document_file.content_type.include?('pdf') %>
+        <embed src="<%= url_for(submission.document_file) %>"
+              type="application/pdf"
+              style="width: 100%; height: 600px;">
+      <% else %>
+        <img src="<%= url_for(submission.document_file) %>"
+            alt="<%= submission.document_type.name %>"
+            class="img-fluid border rounded">
+      <% end %>
+    <% else %>
+      <div class="alert alert-warning text-center mb-0">
+        No hay archivo cargado para este documento.
+      </div>
+    <% end %>
+  </div>
+
+
+  <!-- Análisis de calidad -->
+  <% if submission.analysis_result.present? %>
+    <div class="analysis-results card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="bi bi-bar-chart"></i> Análisis de Calidad
+        </h6>
+      </div>
+      <div class="card-body">
+        <% analysis = submission.analysis_result %>
+        <% if analysis['legibility'].present? %>
+          <div class="mb-3">
+            <small class="text-muted">Legibilidad</small>
+            <div class="progress" style="height: 25px;">
+              <div class="progress-bar" role="progressbar" 
+                   style="width: <%= analysis['legibility']['score'] %>%"
+                   aria-valuenow="<%= analysis['legibility']['score'] %>" 
+                   aria-valuemin="0" 
+                   aria-valuemax="100">
+                <%= analysis['legibility']['score'].round(1) %>%
+              </div>
+            </div>
+          </div>
+        <% end %>
+        
+        <% if analysis['metadata'].present? %>
+          <div class="metadata-section">
+            <small class="fw-bold">Datos extraídos:</small>
+            <ul class="small">
+              <% analysis['metadata'].each do |key, value| %>
+                <% if value.present? && value != [] %>
+                  <li><strong><%= key.humanize %>:</strong> <%= value.inspect %></li>
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Notas -->
+  <div class="notes-section card">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <i class="bi bi-chat-dots"></i> Notas
+      </h6>
+    </div>
+    <div class="card-body">
+      <% if submission.document_notes.any? %>
+        <div class="notes-list" style="max-height: 200px; overflow-y: auto;">
+          <% submission.document_notes.order(created_at: :desc).each do |note| %>
+            <div class="note-item mb-3 p-3 border rounded" style="background: #f8f9fa;">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <small class="fw-bold"><%= note.user.email %></small>
+                <small class="text-muted"><%= time_ago_in_words(note.created_at) %> ago</small>
+              </div>
+              <p class="mb-2"><%= simple_format(note.content) %></p>
+              
+              <% if current_user.admin? || note.user == current_user %>
+                <form action="<%= delete_note_business_transaction_document_submission_path(@business_transaction, submission, note_id: note.id) %>" 
+                      method="POST" 
+                      style="display: inline;"
+                      data-turbo="false"
+                      onsubmit="return confirm('¿Eliminar nota?')">
+                  <input type="hidden" name="_method" value="delete">
+                  <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-muted text-center py-3">Sin notas aún</p>
+      <% end %>
+
+      <!-- Agregar nota - FETCH SIN RELOAD -->
+      <div class="add-note mt-3">
+        <form id="addNoteForm-<%= submission.id %>" data-turbo="false">
+          <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+          <div class="input-group">
+            <input type="text" 
+                   name="content" 
+                   class="form-control form-control-sm"
+                   placeholder="Agregar nota..."
+                   required>
+            <button type="submit" class="btn btn-sm btn-primary">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de decisión -->
+  <% if (current_user.admin? || current_user.superadmin?) && submission.document_status&.name != 'validado' %>
+    <div class="preview-actions p-3 border-top bg-white mt-4 d-flex gap-2">
+      <form action="<%= validate_document_business_transaction_document_submission_path(@business_transaction, submission) %>" 
+            method="POST" 
+            style="flex: 1;"
+            data-turbo="false"
+            onsubmit="return confirm('¿Validar este documento?')">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-check-circle"></i> Aceptar
+        </button>
+      </form>
+
+      <button type="button" 
+              class="btn btn-danger flex-grow-1"
+              data-bs-toggle="modal" 
+              data-bs-target="#rejectModal"
+              data-turbo="false"
+              onclick="document.getElementById('rejectForm').action = '<%= reject_document_business_transaction_document_submission_path(@business_transaction, submission) %>'">
+        <i class="bi bi-x-circle"></i> Rechazar
+      </button>
+    </div>
+  <% end %>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Usar event delegation para formularios que se cargan dinámicamente
+  document.addEventListener('submit', function(e) {
+    if (e.target.matches('[id^="addNoteForm-"]')) {
+      e.preventDefault();
+      
+      const form = e.target;
+      const submissionId = form.id.replace('addNoteForm-', '');
+      const businessTransactionId = document.body.dataset.businessTransactionId || window.location.pathname.split('/')[2];
+      
+      const formData = new FormData(form);
+      const url = `/business_transactions/${businessTransactionId}/document_submissions/${submissionId}/add_note`;
+      
+      fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': formData.get('authenticity_token'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        form.reset();
+        alert('✅ Nota agregada');
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al agregar nota');
+      });
+    }
+  });
+});
+</script>
+
+<style>
+.note-item { 
+  transition: background-color 0.2s ease; 
+}
+
+.preview-container {
+  /* Prevenir que Turbo actualice esto */
+  transition: none !important;
+}
+</style>

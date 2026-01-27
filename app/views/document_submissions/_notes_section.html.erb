@@ -1,0 +1,73 @@
+<!-- app/views/document_submissions/_notes_section.html.erb -->
+<div class="notes-section mt-4">
+  <h5>📝 Notas y Comentarios</h5>
+  
+  <div class="notes-list">
+    <% if @document_submission.document_notes.any? %>
+      <% @document_submission.document_notes.order(created_at: :desc).each do |note| %>
+        <div class="note-item card mb-2">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <span class="badge bg-<%= note.status_change? ? 'success' : 'primary' %>">
+                  <%= note.note_type.titleize %>
+                </span>
+                <span class="text-muted">
+                  <%= note.user.email %> • <%= time_ago_in_words(note.created_at) %> ago
+                </span>
+              </div>
+              
+              <% if current_user == note.user || current_user.admin? %>
+                <%= button_to "🗑️", 
+                    document_submission_delete_note_path(@document_submission, note),
+                    method: :delete,
+                    data: { confirm: "¿Eliminar esta nota?" },
+                    class: "btn btn-sm btn-outline-danger"
+                %>
+              <% end %>
+            </div>
+            
+            <div class="mt-2">
+              <%= simple_format(note.content) %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-muted">Sin notas aún</p>
+    <% end %>
+  </div>
+  
+  <!-- Formulario para agregar nota -->
+  <% if policy(@document_submission).add_note? %>
+    <div class="card mt-3">
+      <div class="card-body">
+        <%= form_with(
+          url: business_transaction_document_submission_add_note_path(@business_transaction, @document_submission),
+          method: :post,
+          local: true
+        ) do |f| %>
+          <div class="mb-3">
+            <%= f.label :content, "Agregar Nota" %>
+            <%= f.text_area :content, rows: 3, class: "form-control", required: true,
+                placeholder: "Escribe tu comentario..." %>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :note_type, "Tipo" %>
+            <%= f.select :note_type, 
+                options_for_select([
+                  ["Comentario", "comment"],
+                  ["Validación", "validation"],
+                  ["Rechazo", "rejection"]
+                ], "comment"),
+                {}, { class: "form-select" }
+            %>
+          </div>
+          
+          <%= f.submit "📝 Agregar Nota", class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

@@ -23,7 +23,7 @@
       <div class="col-md-2">
         <div class="d-flex flex-column align-items-center">
           <i class="bi bi-check-circle-fill text-success fs-1"></i>
-          <h3 class="mb-0"><%= summary[:validated] %></h3>
+          <h3 class="mb-0" id="validated_count"><%= summary[:validated] %></h3>
           <span class="text-muted">Validados</span>
         </div>
       </div>
@@ -32,7 +32,7 @@
       <div class="col-md-2">
         <div class="d-flex flex-column align-items-center">
           <i class="bi bi-hourglass-split text-warning fs-1"></i>
-          <h3 class="mb-0"><%= summary[:pending] %></h3>
+          <h3 class="mb-0" id="pending_count"><%= summary[:pending] %></h3>
           <span class="text-muted">Pendientes</span>
         </div>
       </div>
@@ -41,7 +41,7 @@
       <div class="col-md-2">
         <div class="d-flex flex-column align-items-center">
           <i class="bi bi-x-circle-fill text-danger fs-1"></i>
-          <h3 class="mb-0"><%= summary[:rejected] %></h3>
+          <h3 class="mb-0" id="rejected_count"><%= summary[:rejected] %></h3>
           <span class="text-muted">Rechazados</span>
         </div>
       </div>
@@ -50,7 +50,7 @@
       <div class="col-md-2">
         <div class="d-flex flex-column align-items-center">
           <i class="bi bi-exclamation-triangle-fill text-dark fs-1"></i>
-          <h3 class="mb-0"><%= summary[:expired] %></h3>
+          <h3 class="mb-0" id="expired_count"><%= summary[:expired] %></h3>
           <span class="text-muted">Vencidos</span>
         </div>
       </div>

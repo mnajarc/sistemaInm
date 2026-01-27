@@ -1,344 +1,248 @@
 <!-- app/views/document_submissions/preview.html.erb -->
-<script>
-  // 🔴 DESACTIVA TURBO globalmente en modales
-  document.addEventListener('show.bs.modal', function() {
-    Turbo.session.drive = false;
-    console.log('Modal abierto - Turbo DESACTIVADO');
-  });
+<!-- 🔥 ACTUALIZADA - SIN validation_status, SOLO document_status -->
 
-  document.addEventListener('hidden.bs.modal', function() {
-    // No reactive Turbo - mantén it off
-    console.log('Modal cerrado - Turbo SIGUE DESACTIVADO');
-  });
-
-  // También bloquea Turbo Frame updates
-  document.addEventListener('turbo:load', function() {
-    Turbo.session.drive = false;
-  });
-
-  document.addEventListener('turbo:frame-load', function() {
-    Turbo.session.drive = false;
-  });
-</script>
-
-<div class="document-preview-container">
-  <!-- Header con info del documento -->
-  <div class="preview-header bg-light p-3 border-bottom">
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <h5 class="mb-1">
-          <i class="bi bi-file-earmark-text"></i>
-          <%= @submission.document_type.name %>
-        </h5>
-        <small class="text-muted">
-          Subido: <%= @submission.submitted_at&.strftime('%d/%m/%Y %H:%M') %> |
-          Por: <%= @submission.uploaded_by&.email %>
-        </small>
-      </div>
-      <div class="col-md-4 text-end">
-        <span class="badge <%= @submission.document_status&.name == 'validado' ? 'bg-success' : @submission.document_status&.name == 'rechazado' ? 'bg-danger' : 'bg-warning' %> fs-6">
-          <%= @submission.document_status&.name&.titleize %>
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="h3">📄 <%= @document_submission.document_type.name %></h1>
+      <p class="text-muted">
+        Cargado: <%= @document_submission.submitted_at&.strftime("%d/%m/%Y %H:%M") || "Aún no cargado" %>
+      </p>
+      <!-- 🔥 ID CRÍTICO PARA TURBO STREAM -->
+      <span id="document_status_<%= @document_submission.id %>">
+        <% status = @document_submission.document_status&.name %>
+        <span class="badge <%= @document_submission.status_badge_class %>">
+          <%= status || "Sin Estado" %>
         </span>
-      </div>
+      </span>
+
+
+
     </div>
   </div>
 
-  <!-- Análisis IA -->
-  <% if @submission.analyzed? %>
-    <div class="preview-analysis bg-info bg-opacity-10 p-3 border-bottom">
-      <h6><i class="bi bi-robot"></i> Análisis de Calidad (OCR)</h6>
-
-      <div class="row mb-3">
-        <div class="col-md-3">
-          <strong>Legibilidad:</strong>
-          <div class="progress mt-1" style="height: 25px;">
-            <div class="progress-bar <%= @submission.legibility_score.to_i >= 80 ? 'bg-success' : @submission.legibility_score.to_i >= 60 ? 'bg-warning' : 'bg-danger' %>"
-                 role="progressbar"
-                 style="width: <%= @submission.legibility_score %>%"
-                 aria-valuenow="<%= @submission.legibility_score %>"
-                 aria-valuemin="0"
-                 aria-valuemax="100">
-              <%= @submission.legibility_score&.round(1) %>%
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <strong>Auto-validado:</strong>
-          <div class="mt-1">
-            <% if @submission.auto_validated? %>
-              <span class="badge bg-success"><i class="bi bi-check-lg"></i> Sí</span>
-            <% else %>
-              <span class="badge bg-secondary"><i class="bi bi-dash-lg"></i> No</span>
+  <div class="row">
+    <!-- Preview -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body p-0" style="height: 600px; overflow: auto;">
+          <% if @document_submission.document_file.attached? %>
+            <% file = @document_submission.document_file.blob %>
+            <% case File.extname(file.filename.to_s).downcase %>
+              <% when '.pdf' %>
+                <iframe src="<%= rails_blob_path(file, disposition: 'inline') %>"
+                  style="width: 100%; height: 600px; border: none;"></iframe>
+              <% when '.png', '.jpg', '.jpeg', '.gif', '.heic' %>
+                <%= image_tag rails_blob_path(file), class: "img-fluid" %>
+              <% else %>
+                <p class="p-3">Formato no soportado</p>
             <% end %>
-          </div>
+          <% else %>
+            <p class="p-3 text-danger">❌ Sin archivo cargado</p>
+          <% end %>
         </div>
-
-        <div class="col-md-3">
-          <strong>Estado:</strong>
-          <div class="mt-1">
-            <span class="badge bg-info"><%= @submission.analysis_status&.titleize %></span>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <strong>Analizado:</strong>
-          <div class="mt-1">
-            <small class="text-muted"><%= @submission.analyzed_at&.strftime('%d/%m/%Y %H:%M') %></small>
-          </div>
+        <div class="p-3 border-top">
+          <% if @document_submission.document_file.attached? %>
+            <%= link_to download_business_transaction_document_submission_path(@business_transaction, @document_submission),
+                class: "btn btn-primary w-100" do %>
+              ⬇️ Descargar
+            <% end %>
+          <% else %>
+            <button class="btn btn-primary w-100" disabled>⬇️ Descargar</button>
+          <% end %>
         </div>
       </div>
-
-      <!-- Detalles del análisis -->
-      <% if @submission.analysis_result.present? %>
-        <div class="mt-2 pt-2 border-top">
-          <strong>Detalles:</strong>
-          <div class="bg-white p-2 border rounded mt-2" style="max-height: 120px; overflow-y: auto;">
-            <% @submission.analysis_result.each do |key, value| %>
-              <small class="d-block">
-                <strong><%= key.humanize %>:</strong>
-                <%= value.is_a?(Hash) || value.is_a?(Array) ? value.to_json : value %>
-              </small>
-            <% end %>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- OCR extraído -->
-      <% if @submission.ocr_text.present? %>
-        <div class="mt-2 pt-2 border-top">
-          <strong>Texto (OCR):</strong>
-          <div class="bg-white p-2 border rounded mt-1" style="max-height: 100px; overflow-y: auto;">
-            <small><%= @submission.ocr_text %></small>
-          </div>
-        </div>
-      <% end %>
     </div>
-  <% else %>
-    <div class="alert alert-info mt-3">
-      <i class="bi bi-info-circle"></i> Documento aún no ha sido analizado
-    </div>
-  <% end %>
 
-  <!-- Documento principal -->
-  <div class="preview-document p-3">
-    <% if @submission.document_file.attached? %>
-      <% if @submission.document_file.content_type.start_with?('image/') %>
-        <div class="text-center">
-          <%= image_tag @submission.document_file,
-                        class: 'img-fluid border shadow-sm preview-image',
-                        style: 'max-height: 70vh; cursor: zoom-in;',
-                        data: { bs_toggle: 'modal', bs_target: '#imageZoomModal' } %>
+    <!-- Actions & Info -->
+    <div class="col-lg-4">
+      <!-- Información del documento -->
+      <div class="card mb-3">
+        <div class="card-header bg-info bg-opacity-10">
+          <strong>ℹ️ Información</strong>
         </div>
-      <% elsif @submission.document_file.content_type == 'application/pdf' %>
-        <div class="pdf-viewer">
-          <embed src="<%= url_for(@submission.document_file) %>"
-                 type="application/pdf"
-                 width="100%"
-                 height="600px">
-          <p class="text-center mt-3">
-            <a href="<%= url_for(@submission.document_file) %>"
-               target="_blank"
-               class="btn btn-outline-primary">
-              <i class="bi bi-file-pdf"></i> Abrir PDF
-            </a>
+        <div class="card-body small">
+          <p><strong>Tipo:</strong> <%= @document_submission.document_type.name %></p>
+          <p><strong>Parte:</strong> <%= @document_submission.party_display_name %></p>
+          <% if @document_submission.uploaded_by %>
+            <p><strong>Por:</strong> <%= @document_submission.uploaded_by&.email %></p>
+          <% end %>
+          <p><strong>Estado:</strong>
+            <span class="badge <%= "bg-success" if @document_submission.validated? %>">
+              <%= @document_submission.document_status&.name || "Sin Estado" %>
+            </span>
           </p>
+          <% if @document_submission.expiry_date %>
+            <p><strong>Vencimiento:</strong>
+              <span class="<%= "text-danger" if @document_submission.expired? %>">
+                <%= @document_submission.expiry_date.strftime("%d/%m/%Y") %>
+              </span>
+            </p>
+          <% end %>
         </div>
-      <% else %>
-        <div class="text-center p-5">
-          <i class="bi bi-file-earmark display-1 text-muted"></i>
-          <p class="mt-3">Tipo: <%= @submission.document_file.content_type %></p>
-          <a href="<%= download_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
-             class="btn btn-primary">
-            <i class="bi bi-download"></i> Descargar
-          </a>
+      </div>
+
+      <!-- ✅ VALIDAR DOCUMENTO - Solo Agent/Admin -->
+      <% if policy(@document_submission).validate? %>
+        <div class="card border-success mb-3">
+          <div class="card-header bg-success bg-opacity-10">
+            <strong>✅ Validar Documento</strong>
+          </div>
+          <div class="card-body">
+          <%= form_with url: validate_business_transaction_document_submission_path(
+                @business_transaction, @document_submission),
+                method: :patch, local: true, data: { turbo: true } do |f| %>
+
+            <div class="mb-3">
+              <textarea name="notes" rows="2" placeholder="Notas (opcional)..."
+                  class="form-control form-control-sm"></textarea>
+            </div>
+            <%= f.submit "✅ Validar", class: "btn btn-success btn-sm w-100" %>
+          <% end %>
+          </div>
         </div>
       <% end %>
-    <% else %>
-      <div class="text-center p-5 text-muted">
-        <i class="bi bi-file-x display-1"></i>
-        <p class="mt-3">No hay archivo</p>
-      </div>
-    <% end %>
+
+      <!-- ❌ RECHAZAR DOCUMENTO - Solo Agent/Admin -->
+      <% if policy(@document_submission).reject? %>
+        <div class="card border-danger mb-3">
+          <div class="card-header bg-danger bg-opacity-10">
+            <strong>❌ Rechazar Documento</strong>
+          </div>
+          <div class="card-body">
+            <p class="small text-muted mb-2">
+              <em>Puedes rechazar este documento incluso si ya fue validado (en caso de error).</em>
+            </p>
+            <%= form_with url: reject_business_transaction_document_submission_path(
+                  @business_transaction, @document_submission),
+                  method: :patch, local: true, data: { turbo: true } do |f| %>
+
+              <div class="mb-3">
+                <%= f.text_area :reason, rows: 2, placeholder: "Motivo del rechazo (requerido)...",
+                    class: "form-control form-control-sm", required: true %>
+              </div>
+              <%= f.submit "❌ Rechazar", class: "btn btn-danger btn-sm w-100" %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- ⏰ MARCAR EXPIRADO - Solo Agent/Admin (en caso de error manual) -->
+      <% if policy(@document_submission).mark_expired? %>
+        <div class="card border-warning mb-3">
+          <div class="card-header bg-warning bg-opacity-10">
+            <strong>⏰ Marcar Expirado (Error Manual)</strong>
+          </div>
+          <div class="card-body">
+            <p class="small text-muted mb-2">
+              <em>La expiración es normalmente automática. Usa esto solo en caso de error manual.</em>
+            </p>
+            <%= form_with url: mark_expired_business_transaction_document_submission_path(
+                  @business_transaction, @document_submission),
+                  method: :patch, local: true, data: { turbo: true } do |f| %>
+
+              <div class="mb-3">
+                <%= f.text_area :reason, rows: 2, placeholder: "Motivo de expiración (requerido)...",
+                    class: "form-control form-control-sm", required: true %>
+              </div>
+              <%= f.submit "⏰ Marcar Expirado", class: "btn btn-warning btn-sm w-100" %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Volver -->
+      <%= link_to business_transaction_document_submissions_path(@business_transaction),
+          class: "btn btn-outline-secondary btn-sm w-100" do %>
+        ⬅️ Volver
+      <% end %>
+    </div>
   </div>
 
-  <!-- NOTAS -->
-  <% if current_user.admin? || current_user.agent? %>
-    <div class="preview-notes p-3 border-top bg-light">
-      <h6 class="mb-3">
-        <i class="bi bi-chat-dots"></i> Diálogo
-        <span class="badge bg-secondary"><%= @submission.document_notes.count %></span>
-      </h6>
+  <!-- 📝 Notas y Comentarios - VISIBLES PARA TODOS -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <strong>📝 Comentarios y Notas</strong>
+          <!-- ✅ ACTUALIZADO - SIN validation_status, SOLO document_status -->
+          <% if @document_submission.document_status&.name == 'rechazado' %>
+            <span class="badge bg-danger float-end">⚠️ Documento Rechazado</span>
+          <% elsif @document_submission.document_status&.name == 'expirado' %>
+            <span class="badge bg-warning float-end">⏰ Documento Expirado</span>
+          <% elsif @document_submission.validated? %>
+            <span class="badge bg-success float-end">✅ Documento Validado</span>
+          <% end %>
+        </div>
+        <div class="card-body">
+          <!-- ✅ CONTENEDOR CON ID para Turbo Stream (CRÍTICO) -->
+          <div id="form_note_container"></div>
 
-      <!-- Historial notas -->
-      <div class="notes-container mb-3" style="max-height: 250px; overflow-y: auto; background: white; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
-        <% if @submission.document_notes.any? %>
-          <% @submission.document_notes.order(created_at: :asc).each do |note| %>
-            <div class="note-item mb-2 pb-2 border-bottom">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <strong class="text-primary"><%= note.user.email %></strong>
-                  <% if note.note_type == 'acceptance' %>
-                    <span class="badge bg-success ms-1">Aprobó</span>
-                  <% elsif note.note_type == 'rejection' %>
-                    <span class="badge bg-danger ms-1">Rechazó</span>
-                  <% elsif note.note_type == 'comment' %>
-                    <span class="badge bg-info ms-1">Comentario</span>
-                  <% end %>
-                  <br>
-                  <small class="text-muted"><%= note.created_at.strftime('%d/%m/%Y %H:%M') %></small>
+          <!-- Formulario para agregar nota - TODOS PUEDEN si tienen permiso -->
+          <% if policy(@document_submission).add_note? %>
+            <div class="mt-4 pt-3 border-top">
+              <h6>💬 Agregar Comentario</h6>
+
+              <!-- Info contextual -->
+              <% if @document_submission.uploaded_by_id == current_user.id %>
+                <p class="small text-info mb-2">
+                  <strong>ℹ️</strong> Estás viendo un documento que <strong>enviaste tú</strong>.
+                </p>
+              <% elsif @document_submission.document_status&.name == 'rechazado' %>
+                <p class="small text-warning mb-2">
+                  <strong>⚠️</strong> Este documento fue <strong>rechazado</strong>.
+                  Puedes comentar para defender o replantear tu envío.
+                </p>
+              <% end %>
+              <!-- ✅ CORRECTO - El formulario debe ser así: -->
+              <%= form_with url: add_note_business_transaction_document_submission_path(
+                    @business_transaction, @document_submission),
+                    method: :post, local: true do |f| %>
+                <div class="mb-2">
+                  <%= f.text_area :content, rows: 2, placeholder: "Escribe tu comentario...",
+                      class: "form-control form-control-sm", required: true, id: "document_submission_content" %>
                 </div>
-              </div>
-              <p class="mb-0 mt-1 small"><%= simple_format(note.content) %></p>
+                <div class="mb-2">
+                  <%= f.hidden_field :note_type, value: 'comment' %>
+                </div>
+                <%= f.submit "💬 Agregar Comentario", class: "btn btn-primary btn-sm" %>
+              <% end %>
             </div>
           <% end %>
-        <% else %>
-          <p class="text-muted text-center py-3 mb-0">Sin comentarios</p>
-        <% end %>
-      </div>
 
-      <!-- FORM AGREGAR NOTA - SIN TURBO -->
-      <div class="add-note-form">
-        <form action="<%= add_note_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
-              method="POST"
-              data-turbo="false"
-              style="display: none;" id="noteForm"></form>
-
-        <input type="text"
-               name="content"
-               class="form-control form-control-sm mb-2"
-               id="noteInput"
-               placeholder="Escribe tu comentario aquí..."
-               required>
-        <button type="button"
-                class="btn btn-sm btn-primary w-100"
-                onclick="submitNoteForm()">
-          Agregar nota
-        </button>
-      </div>
-    </div>
-  <% end %>
-
-  <!-- ACCIONES -->
-  <% if current_user.admin? || current_user.agent? %>
-    <div class="preview-actions p-3 border-top bg-white">
-      <div class="row g-2">
-        <!-- VALIDAR -->
-        <div class="col-md-6">
-          <form action="<%= validate_document_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
-                method="POST"
-                data-turbo="false"
-                onsubmit="return confirm('¿Validar este documento?')" style="display: inline;">
-            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
-            <button type="submit" class="btn btn-success w-100">
-              <i class="bi bi-check-circle"></i> Aceptar
-            </button>
-          </form>
+          <div id="document_notes_list">
+            <!-- Lista de notas existentes -->
+            <% if @document_submission.document_notes.any? %>
+              <% @document_submission.document_notes.order(created_at: :desc).each do |note| %>
+                <div class="mb-3 pb-3 border-bottom">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <small class="text-muted">
+                        <span class="badge bg-info"><%= note.note_type %></span>
+                        <strong><%= note.user&.email || "Usuario" %></strong> •
+                        <%= time_ago_in_words(note.created_at) %>
+                      </small>
+                      <p class="mb-0 mt-2"><%= simple_format(note.content) %></p>
+                    </div>
+                    <% if policy(@document_submission).delete_note? %>
+                      <%= button_to delete_note_business_transaction_document_submission_path(
+                            @business_transaction, @document_submission),
+                          method: :delete,
+                          form_class: "d-inline ms-2",
+                          class: "btn btn-sm btn-outline-danger",
+                          data: { confirm: "¿Eliminar nota?" } do %>
+                        🗑️
+                      <% end %>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            <% else %>
+              <p class="text-muted text-center py-3" id="no_notes_message">Sin comentarios aún</p>
+            <% end %>
+          </div>
         </div>
-
-        <!-- RECHAZAR -->
-        <div class="col-md-6">
-          <button type="button"
-                  class="btn btn-danger w-100"
-                  data-bs-toggle="modal"
-                  data-bs-target="#rejectModal"
-                  data-turbo="false"
-                  onclick="document.getElementById('rejectForm').action = '<%= reject_document_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>'">
-            <i class="bi bi-x-circle"></i> Rechazar
-          </button>
-        </div>
-      </div>
-
-      <!-- Notas de validación -->
-      <% if @submission.validation_notes.present? %>
-        <div class="mt-3 alert alert-info">
-          <strong>Notas:</strong>
-          <p class="mb-0 mt-2"><%= simple_format(@submission.validation_notes) %></p>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
-
-</div>
-
-<!-- Modal Zoom Imagen -->
-<div class="modal fade" id="imageZoomModal" tabindex="-1" data-turbo="false">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Vista ampliada</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-center">
-        <% if @submission.document_file.attached? && @submission.document_file.content_type.start_with?('image/') %>
-          <%= image_tag @submission.document_file, class: 'img-fluid' %>
-        <% end %>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-function submitNoteForm() {
-  const noteInput = document.getElementById('noteInput');
-  const content = noteInput.value.trim();
-
-  if (!content) {
-    alert('Por favor escribe una nota');
-    return;
-  }
-
-  const form = document.querySelector('#noteForm');
-  const formData = new FormData();
-  formData.append('content', content);
-  formData.append('authenticity_token', document.querySelector('input[name="authenticity_token"]').value);
-
-  fetch('<%= add_note_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>', {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'X-CSRF-Token': document.querySelector('input[name="authenticity_token"]').value,
-      'Accept': 'application/json'
-    }
-  })
-  .then(response => {
-    if (response.ok) {
-      noteInput.value = '';
-      alert('✅ Nota agregada');
-      // 🚀 SIN location.reload() - solo limpiar y mostrar mensaje
-    } else {
-      alert('Error al agregar nota');
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    alert('Error al agregar nota');
-  });
-}
-</script>
-
-<style>
-.preview-image {
-  transition: transform 0.2s;
-}
-.preview-image:hover {
-  transform: scale(1.02);
-}
-
-.note-item {
-  border-radius: 4px;
-}
-
-.note-item:hover {
-  background-color: #f8f9fa;
-}
-
-.notes-container {
-  font-size: 0.9rem;
-}
-
-.preview-document {
-  min-height: 400px;
-  background: #f8f9fa;
-}
-</style>

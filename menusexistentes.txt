@@ -1,0 +1,440 @@
+*****************
+app/controllers/superadmin/menu_items_controller.rb
+*****************
+class Superadmin::MenuItemsController < Superadmin::BaseController
+  before_action :ensure_superadmin
+  before_action :set_menu_item, only: [ :show, :edit, :update, :destroy ]
+  def index
+    @menu_items = policy_scope(MenuItem)
+                   .where(active: true)
+                   .where('minimum_role_level >= ?', current_user.role_level)
+                   .order(:sort_order)
+    @root_items = MenuItem.roots.by_sort_order
+    # authorize MenuItem  # ✅ COMENTAR TEMPORALMENTE
+  end
+
+  def show
+    authorize @menu_item
+  end
+
+  def new
+    @menu_item = MenuItem.new
+    @parent_options = parent_menu_options
+    @role_levels = available_role_levels
+    authorize MenuItem
+  end
+
+  def create
+    @menu_item = MenuItem.new(menu_item_params)
+    authorize @menu_item
+    if @menu_item.save
+      create_default_permissions(@menu_item)
+      redirect_to superadmin_menu_items_path,
+                 notice: "Menú '#{@menu_item.display_name}' creado exitosamente"
+    else
+      render :new, status: :unprocessable_content
+    end
+  end
+
+  def edit
+    authorize @menu_item
+    @parent_options = parent_menu_options(@menu_item)
+    @role_levels = available_role_levels
+  end
+
+  def update
+    authorize @menu_item
+    if @menu_item.update(menu_item_params)
+      update_permissions(@menu_item) if params[:menu_item][:minimum_role_level_changed]
+      redirect_to superadmin_menu_items_path,
+                 notice: "Menú '#{@menu_item.display_name}' actualizado exitosamente"
+    else
+      render :edit, status: :unprocessable_content
+    end
+  end
+
+  def destroy
+    authorize @menu_item
+    if @menu_item.system_menu?
+      redirect_to superadmin_menu_items_path,
+                 alert: "No se pueden eliminar menús del sistema"
+      return
+    end
+
+    if @menu_item.children.any?
+      redirect_to superadmin_menu_items_path,
+                 alert: "No se puede eliminar un menú que tiene submenús"
+      return
+    end
+
+    name = @menu_item.display_name
+    @menu_item.destroy
+    redirect_to superadmin_menu_items_path,
+               notice: "Menú '#{name}' eliminado exitosamente"
+  end
+
+  # Acción AJAX para reordenar menús
+  def reorder
+    authorize @menu_item
+    params[:menu_items].each_with_index do |id, index|
+      MenuItem.find(id).update(sort_order: (index + 1) * 10)
+    end
+
+    render json: { success: true, message: "Orden actualizado" }
+  end
+
+  private
+
+  def set_menu_item
+    @menu_item = MenuItem.find(params[:id])
+  end
+
+  def menu_item_params
+    params.require(:menu_item).permit(
+      :name, :display_name, :path, :icon, :parent_id,
+      :sort_order, :minimum_role_level, :active
+    )
+  end
+
+  def parent_menu_options(current_item = nil)
+    items = MenuItem.where.not(id: current_item&.id)
+
+    # No permitir que un menú sea hijo de sí mismo o de sus propios hijos
+    if current_item
+      descendant_ids = current_item.children.pluck(:id)
+      descendant_ids << current_item.id
+      items = items.where.not(id: descendant_ids)
+    end
+
+    [ [ "Sin padre (menú raíz)", nil ] ] +
+    items.roots.map { |item| [ item.display_name, item.id ] } +
+    items.where.not(parent_id: nil).map { |item| [ "└─ #{item.display_name}", item.id ] }
+  end
+
+  def available_role_levels
+    [
+      [ "SuperAdmin (0)", 0 ],
+      [ "Admin (10)", 10 ],
+      [ "Agente (20)", 20 ],
+      [ "Cliente (30)", 30 ]
+    ]
+  end
+
+  def create_default_permissions(menu_item)
+    Role.active.each do |role|
+      if role.level <= menu_item.minimum_role_level
+        RoleMenuPermission.create!(
+          role: role,
+          menu_item: menu_item,
+          can_view: true,
+          can_edit: role.admin_or_above?
+        )
+      end
+    end
+  end
+
+  def update_permissions(menu_item)
+    # Eliminar permisos existentes
+    menu_item.role_menu_permissions.destroy_all
+
+    # Crear nuevos permisos basados en el nuevo nivel
+    create_default_permissions(menu_item)
+  end
+end
+*****************
+app/models/menu_item.rb
+*****************
+class MenuItem < ApplicationRecord
+     include AutoSluggable
+  belongs_to :parent, class_name: "MenuItem", optional: true
+  has_many :children, class_name: "MenuItem", foreign_key: "parent_id", dependent: :destroy
+  has_many :role_menu_permissions, dependent: :destroy
+  has_many :roles, through: :role_menu_permissions
+
+  validates :name, presence: true, uniqueness: true
+  validates :display_name, presence: true
+  validates :minimum_role_level, presence: true
+  validates :sort_order, presence: true
+
+  scope :active, -> { where(active: true) }
+  scope :roots, -> { where(parent_id: nil) }
+  scope :by_sort_order, -> { order(:sort_order, :display_name) }
+  scope :visible_for_level, ->(level) { where("minimum_role_level >= ?", level) }
+  scope :parent_items, -> { where(parent_id: nil) }
+  # MÉTODO CRÍTICO para menús dinámicos
+  scope :accessible_for_user, ->(user) {
+    return none unless user&.role
+    
+    where(active: true)
+      .where('minimum_role_level >= ?', user.role.level)
+      .joins(:role_menu_permissions)
+      .where(role_menu_permissions: { role: user.role, can_view: true })
+      .distinct
+      .order(:sort_order)
+  }
+
+  before_validation :set_default_sort_order, on: :create
+  
+  def visible_for_role?(role_level)
+    return false unless active?
+    return false if role_level > minimum_role_level
+    
+    # Verificar permisos específicos
+    permission = role_menu_permissions.joins(:role)
+                                    .where('roles.level = ?', role_level)
+                                    .where(can_view: true)
+                                    .first
+    
+    permission.present?
+  end
+
+  def has_children?
+    children.where(active: true).any?
+  end
+
+  def accessible_children_for_user(user)
+    children.accessible_for_user(user).order(:sort_order)
+  end
+  def breadcrumb
+    items = []
+    current = self
+    while current
+      items.unshift(current)
+      current = current.parent
+    end
+    items
+  end
+
+  def depth
+    breadcrumb.length - 1
+  end
+
+  def to_s
+    display_name
+  end
+
+  def self.main_navigation(user)
+    accessible_for_user(user).parent_items.includes(:children)
+  end
+
+  private
+
+  def set_default_sort_order
+    return if sort_order.present?
+
+    if parent_id
+      max_order = MenuItem.where(parent_id: parent_id).maximum(:sort_order) || 0
+    else
+      max_order = MenuItem.roots.maximum(:sort_order) || 0
+    end
+
+    self.sort_order = max_order + 10
+  end
+end
+*****************
+app/models/role_menu_permission.rb
+*****************
+class RoleMenuPermission < ApplicationRecord
+    belongs_to :role
+    belongs_to :menu_item
+
+    validates :role_id, uniqueness: { scope: :menu_item_id }
+
+    scope :viewable, -> { where(can_view: true) }
+    scope :editable, -> { where(can_edit: true) }
+end
+*****************
+app/views/superadmin/menu_items/_form.html.erb
+*****************
+<%= form_with model: [:superadmin, menu_item], local: true, class: "needs-validation", novalidate: true do |form| %>
+  <% if menu_item.errors.any? %>
+    <div class="alert alert-danger">
+      <h6><%= pluralize(menu_item.errors.count, "error") %> impidieron guardar:</h6>
+      <ul class="mb-0">
+        <% menu_item.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :name, "Clave del Sistema", class: "form-label" %>
+        <%= form.text_field :name, class: "form-control", placeholder: "ej: properties, admin" %>
+        <div class="form-text">Identificador único (sin espacios, en minúsculas)</div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :display_name, "Nombre Visible", class: "form-label" %>
+        <%= form.text_field :display_name, class: "form-control", placeholder: "ej: Propiedades" %>
+        <div class="form-text">Nombre que verán los usuarios en el menú</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :parent_id, "Menú Padre", class: "form-label" %>
+        <%= form.collection_select :parent_id,
+            MenuItem.roots.order(:sort_order),
+            :id, :display_name,
+            { prompt: 'Sin padre (menú principal)', include_blank: true },
+            { class: "form-select" } %>
+        <div class="form-text">Si es submenú, selecciona el menú padre</div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="mb-3">
+        <%= form.label :path, "Ruta/URL", class: "form-label" %>
+        <%= form.text_field :path, class: "form-control", placeholder: "/admin/properties" %>
+        <div class="form-text">URL del menú. Usa '#' para menús con submenús</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :icon, "Icono Bootstrap", class: "form-label" %>
+        <%= form.text_field :icon, class: "form-control", placeholder: "bi-house-door" %>
+        <div class="form-text">
+          Clase de icono Bootstrap 
+          <a href="https://icons.getbootstrap.com/" target="_blank">Ver iconos</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :sort_order, "Orden", class: "form-label" %>
+        <%= form.number_field :sort_order, class: "form-control", min: 0, step: 10 %>
+        <div class="form-text">Orden de aparición (10, 20, 30...)</div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="mb-3">
+        <%= form.label :minimum_role_level, "Nivel Mínimo", class: "form-label" %>
+        <%= form.select :minimum_role_level,
+            options_for_select([
+              ['SuperAdmin (0)', 0],
+              ['Admin (10)', 10],
+              ['Agente (20)', 20],
+              ['Cliente (30)', 30]
+            ], menu_item.minimum_role_level),
+            {},
+            { class: "form-select" } %>
+        <div class="form-text">Rol mínimo para ver este menú</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-check form-switch mb-3">
+        <%= form.check_box :active, class: "form-check-input" %>
+        <%= form.label :active, "Menú Activo", class: "form-check-label" %>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="form-check form-switch mb-3">
+        <%= form.check_box :system_menu, class: "form-check-input" %>
+        <%= form.label :system_menu, "Menú del Sistema", class: "form-check-label" %>
+        <div class="form-text">Los menús del sistema no se pueden eliminar</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="d-flex gap-2">
+    <%= form.submit menu_item.persisted? ? "Actualizar Menú" : "Crear Menú", 
+        class: "btn btn-primary" %>
+    <%= link_to "Cancelar", superadmin_menu_items_path, class: "btn btn-secondary" %>
+  </div>
+<% end %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const parentSelect = document.getElementById('menu_item_parent_id');
+    const pathInput = document.getElementById('menu_item_path');
+    
+    parentSelect.addEventListener('change', function() {
+      if (this.value) {
+        // Si tiene padre, sugerir # como path
+        if (!pathInput.value || pathInput.value === '#') {
+          pathInput.value = '#';
+        }
+      }
+    });
+  });
+</script>
+*****************
+app/views/superadmin/menu_items/create.html.erb
+*****************
+<h1>Superadmin::MenuItems#create</h1>
+<p>Find me in app/views/superadmin/menu_items/create.html.erb</p>
+*****************
+app/views/superadmin/menu_items/destroy.html.erb
+*****************
+<h1>Superadmin::MenuItems#destroy</h1>
+<p>Find me in app/views/superadmin/menu_items/destroy.html.erb</p>
+*****************
+app/views/superadmin/menu_items/edit.html.erb
+*****************
+<h1>Editar menú <%= @menu_item.display_name %></h1>
+<%= render 'form', menu_item: @menu_item, parent_options: @parent_options, role_levels: @role_levels %>
+*****************
+app/views/superadmin/menu_items/index.html.erb
+*****************
+<h1>Menús del Sistema</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Display Name</th>
+      <th>Ruta</th>
+      <th>Orden</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @menu_items.each do |item| %>
+      <tr>
+        <td><%= item.name %></td>
+        <td><%= item.display_name %></td>
+        <td><%= item.path || '—' %></td>
+        <td><%= item.sort_order %></td>
+        <td>
+          <%= link_to 'Editar', edit_superadmin_menu_item_path(item) %> |
+          <%= link_to 'Eliminar', superadmin_menu_item_path(item), method: :delete, data: { confirm: '¿Seguro?' } %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<%= link_to 'Nuevo Menú', new_superadmin_menu_item_path %>
+*****************
+app/views/superadmin/menu_items/new.html.erb
+*****************
+<h1>Crear nuevo menú</h1>
+<%= render 'form', menu_item: @menu_item, parent_options: @parent_options, role_levels: @role_levels %>
+*****************
+app/views/superadmin/menu_items/show.html.erb
+*****************
+<h1>Superadmin::MenuItems#show</h1>
+<p>Find me in app/views/superadmin/menu_items/show.html.erb</p>
+*****************
+app/views/superadmin/menu_items/update.html.erb
+*****************
+<h1>Superadmin::MenuItems#update</h1>
+<p>Find me in app/views/superadmin/menu_items/update.html.erb</p>

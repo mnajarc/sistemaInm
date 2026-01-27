@@ -1,0 +1,2545 @@
+
+*******
+app/views/document_submissions/_document_row.html.erb
+*******
+
+<!-- app/views/document_submissions/_document_row.html.erb -->
+    <div data-turbo="false">
+
+    <div class="btn-group btn-group-sm" role="group">
+    <% if submission.present? %>
+        
+        <!-- VER - CON data-turbo="false" EN BOTÓN -->
+        <% if submission.document_file&.attached? %>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#previewModal<%= submission.id %>"
+                data-turbo="false"
+                onclick="event.stopPropagation(); event.stopImmediatePropagation();"
+                title="Ver">
+            <i class="bi bi-eye"></i>
+        </button>
+        <% end %>
+
+
+        
+
+        <!-- CARGAR/RE-CARGAR (solo si NO está validado) -->
+        <% if submission.document_status&.name != 'validado' %>
+        <button type="button" 
+                class="btn btn-outline-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#uploadModal<%= submission.id %>"
+                title="<%= submission.document_status&.name == 'rechazado' ? 'Re-subir' : 'Subir' %>">
+            <i class="bi bi-cloud-upload"></i>
+        </button>
+        <% end %>
+
+        <!-- DESCARGAR -->
+        <% if submission.document_file&.attached? %>
+        <a href="<%= business_transaction_document_submission_path(@business_transaction, submission, format: :download) %>"
+            class="btn btn-outline-secondary btn-sm"
+            title="Descargar"
+            download>
+            <i class="bi bi-download"></i>
+        </a>
+        <% end %>
+
+
+    <!-- MODAL PREVIEW -->
+    <div class="modal fade"
+         id="previewModal<%= submission.id %>"
+         tabindex="-1"
+         data-turbo="false"
+         data-bs-backdrop="static"
+         data-bs-keyboard="false">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" data-turbo="false">
+          <div class="modal-header" data-turbo="false">
+            <h5 class="modal-title"><%= submission.document_type.name %></h5>
+            <button type="button" 
+                    class="btn-close" 
+                    data-bs-dismiss="modal"
+                    data-turbo="false"
+                    onclick="Turbo.session.drive = true;"></button>
+          </div>
+          <div class="modal-body" data-turbo="false" style="pointer-events: none;">
+            <%= render 'preview', submission: submission %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // Solo agregar listener UNA VEZ a nivel de documento
+    if (!window._previewModalListenerAdded) {
+        window._previewModalListenerAdded = true;
+        
+        document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-bs-toggle="modal"]');
+        if (btn) {
+            const targetId = btn.getAttribute('data-bs-target');
+            const modal = document.querySelector(targetId);
+            
+            if (modal && targetId.includes('previewModal')) {
+            window.Turbo.session.drive = false;
+            
+            // Escuchar cuando se cierra el modal
+            modal.addEventListener('hidden.bs.modal', () => {
+                window.Turbo.session.drive = true;
+            }, { once: true });
+            }
+        }
+        }, true);
+    }
+    </script>
+
+
+
+
+        <!-- MODAL CARGAR/RE-CARGAR -->
+        <div class="modal fade" id="uploadModal<%= submission.id %>" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                    <% if submission.document_status&.name == 'rechazado' %>
+                        Re-cargar documento
+                    <% else %>
+                        Cargar documento
+                    <% end %>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="<%= upload_business_transaction_document_submission_path(@business_transaction, submission) %>"
+                        method="POST"
+                        enctype="multipart/form-data"
+                        data-turbo="false">
+                    <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                    
+                    <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="document_file_<%= submission.id %>" class="form-label">Seleccionar archivo</label>
+                        <input type="file"
+                            name="document_file"
+                            id="document_file_<%= submission.id %>"
+                            class="form-control"
+                            accept="image/*,application/pdf"
+                            required>
+                        <small class="form-text text-muted d-block mt-2">
+                        Formatos: JPG, PNG, PDF (máx. 10 MB)
+                        </small>
+                    </div>
+
+                    <% if submission.document_status&.name == 'rechazado' && submission.validation_notes.present? %>
+                        <div class="alert alert-warning mb-0">
+                        <strong>Motivo del rechazo anterior:</strong>
+                        <p class="mb-0 mt-2"><%= submission.validation_notes %></p>
+                        </div>
+                    <% end %>
+                    </div>
+
+                    <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <% if submission.document_status&.name == 'rechazado' %>
+                        Re-cargar
+                        <% else %>
+                        Cargar
+                        <% end %>
+                    </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Script LOCAL para este modal específico
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalElement = document.getElementById('uploadModal<%= submission.id %>');
+            if (modalElement) {
+            modalElement.addEventListener('show.bs.modal', function(event) {
+                const documentId = event.relatedTarget?.dataset.documentId;
+                const businessTxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
+                const form = modalElement.querySelector('form');
+                
+                if (form && documentId && businessTxId) {
+                form.action = `/business_transactions/${businessTxId}/document_submissions/${documentId}/upload`;
+                }
+            });
+            }
+        });
+        </script>
+
+    <% else %>
+        <!-- Si NO existe submission aún, mostrar botón para crear -->
+        <button type="button" 
+                class="btn btn-outline-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#uploadNewModal<%= document[:document_type][:id] %>"
+                title="Crear y subir">
+        <i class="bi bi-cloud-upload"></i> Subir
+        </button>
+
+        <!-- MODAL NUEVA CARGA -->
+        <div class="modal fade" id="uploadNewModal<%= document[:document_type][:id] %>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Cargar: <%= document[:document_type][:name] %></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<%= business_transaction_document_submissions_path(@business_transaction) %>"
+                    method="POST"
+                    enctype="multipart/form-data"
+                    data-turbo="false">
+                <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                <input type="hidden" name="document_type_id" value="<%= document[:document_type][:id] %>">
+                <input type="hidden" name="business_transaction_co_owner_id" value="<%= co_owner[:id] %>">
+                
+                <div class="modal-body">
+                <div class="mb-3">
+                    <label for="new_document_file" class="form-label">Seleccionar archivo</label>
+                    <input type="file"
+                        name="document_file"
+                        id="new_document_file"
+                        class="form-control"
+                        accept="image/*,application/pdf"
+                        required>
+                    <small class="form-text text-muted d-block mt-2">
+                    Formatos: JPG, PNG, PDF (máx. 10 MB)
+                    </small>
+                </div>
+                </div>
+
+                <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success">Cargar</button>
+                </div>
+            </form>
+            </div>
+        </div>
+        </div>
+    <% end %>
+    </div>
+</div>
+
+*******
+app/views/document_submissions/preview.html.erb
+*******
+
+<!-- app/views/document_submissions/preview.html.erb -->
+<script>
+  // 🔴 DESACTIVA TURBO globalmente en modales
+  document.addEventListener('show.bs.modal', function() {
+    Turbo.session.drive = false;
+    console.log('Modal abierto - Turbo DESACTIVADO');
+  });
+
+  document.addEventListener('hidden.bs.modal', function() {
+    // No reactive Turbo - mantén it off
+    console.log('Modal cerrado - Turbo SIGUE DESACTIVADO');
+  });
+
+  // También bloquea Turbo Frame updates
+  document.addEventListener('turbo:load', function() {
+    Turbo.session.drive = false;
+  });
+
+  document.addEventListener('turbo:frame-load', function() {
+    Turbo.session.drive = false;
+  });
+</script>
+
+<div class="document-preview-container">
+  <!-- Header con info del documento -->
+  <div class="preview-header bg-light p-3 border-bottom">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h5 class="mb-1">
+          <i class="bi bi-file-earmark-text"></i>
+          <%= @submission.document_type.name %>
+        </h5>
+        <small class="text-muted">
+          Subido: <%= @submission.submitted_at&.strftime('%d/%m/%Y %H:%M') %> |
+          Por: <%= @submission.uploaded_by&.email %>
+        </small>
+      </div>
+      <div class="col-md-4 text-end">
+        <span class="badge <%= @submission.document_status&.name == 'validado' ? 'bg-success' : @submission.document_status&.name == 'rechazado' ? 'bg-danger' : 'bg-warning' %> fs-6">
+          <%= @submission.document_status&.name&.titleize %>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Análisis IA -->
+  <% if @submission.analyzed? %>
+    <div class="preview-analysis bg-info bg-opacity-10 p-3 border-bottom">
+      <h6><i class="bi bi-robot"></i> Análisis de Calidad (OCR)</h6>
+
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <strong>Legibilidad:</strong>
+          <div class="progress mt-1" style="height: 25px;">
+            <div class="progress-bar <%= @submission.legibility_score.to_i >= 80 ? 'bg-success' : @submission.legibility_score.to_i >= 60 ? 'bg-warning' : 'bg-danger' %>"
+                 role="progressbar"
+                 style="width: <%= @submission.legibility_score %>%"
+                 aria-valuenow="<%= @submission.legibility_score %>"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+              <%= @submission.legibility_score&.round(1) %>%
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <strong>Auto-validado:</strong>
+          <div class="mt-1">
+            <% if @submission.auto_validated? %>
+              <span class="badge bg-success"><i class="bi bi-check-lg"></i> Sí</span>
+            <% else %>
+              <span class="badge bg-secondary"><i class="bi bi-dash-lg"></i> No</span>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <strong>Estado:</strong>
+          <div class="mt-1">
+            <span class="badge bg-info"><%= @submission.analysis_status&.titleize %></span>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <strong>Analizado:</strong>
+          <div class="mt-1">
+            <small class="text-muted"><%= @submission.analyzed_at&.strftime('%d/%m/%Y %H:%M') %></small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalles del análisis -->
+      <% if @submission.analysis_result.present? %>
+        <div class="mt-2 pt-2 border-top">
+          <strong>Detalles:</strong>
+          <div class="bg-white p-2 border rounded mt-2" style="max-height: 120px; overflow-y: auto;">
+            <% @submission.analysis_result.each do |key, value| %>
+              <small class="d-block">
+                <strong><%= key.humanize %>:</strong>
+                <%= value.is_a?(Hash) || value.is_a?(Array) ? value.to_json : value %>
+              </small>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- OCR extraído -->
+      <% if @submission.ocr_text.present? %>
+        <div class="mt-2 pt-2 border-top">
+          <strong>Texto (OCR):</strong>
+          <div class="bg-white p-2 border rounded mt-1" style="max-height: 100px; overflow-y: auto;">
+            <small><%= @submission.ocr_text %></small>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="alert alert-info mt-3">
+      <i class="bi bi-info-circle"></i> Documento aún no ha sido analizado
+    </div>
+  <% end %>
+
+  <!-- Documento principal -->
+  <div class="preview-document p-3">
+    <% if @submission.document_file.attached? %>
+      <% if @submission.document_file.content_type.start_with?('image/') %>
+        <div class="text-center">
+          <%= image_tag @submission.document_file,
+                        class: 'img-fluid border shadow-sm preview-image',
+                        style: 'max-height: 70vh; cursor: zoom-in;',
+                        data: { bs_toggle: 'modal', bs_target: '#imageZoomModal' } %>
+        </div>
+      <% elsif @submission.document_file.content_type == 'application/pdf' %>
+        <div class="pdf-viewer">
+          <embed src="<%= url_for(@submission.document_file) %>"
+                 type="application/pdf"
+                 width="100%"
+                 height="600px">
+          <p class="text-center mt-3">
+            <a href="<%= url_for(@submission.document_file) %>"
+               target="_blank"
+               class="btn btn-outline-primary">
+              <i class="bi bi-file-pdf"></i> Abrir PDF
+            </a>
+          </p>
+        </div>
+      <% else %>
+        <div class="text-center p-5">
+          <i class="bi bi-file-earmark display-1 text-muted"></i>
+          <p class="mt-3">Tipo: <%= @submission.document_file.content_type %></p>
+          <a href="<%= download_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
+             class="btn btn-primary">
+            <i class="bi bi-download"></i> Descargar
+          </a>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center p-5 text-muted">
+        <i class="bi bi-file-x display-1"></i>
+        <p class="mt-3">No hay archivo</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- NOTAS -->
+  <% if current_user.admin? || current_user.agent? %>
+    <div class="preview-notes p-3 border-top bg-light">
+      <h6 class="mb-3">
+        <i class="bi bi-chat-dots"></i> Diálogo
+        <span class="badge bg-secondary"><%= @submission.document_notes.count %></span>
+      </h6>
+
+      <!-- Historial notas -->
+      <div class="notes-container mb-3" style="max-height: 250px; overflow-y: auto; background: white; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+        <% if @submission.document_notes.any? %>
+          <% @submission.document_notes.order(created_at: :asc).each do |note| %>
+            <div class="note-item mb-2 pb-2 border-bottom">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <strong class="text-primary"><%= note.user.email %></strong>
+                  <% if note.note_type == 'acceptance' %>
+                    <span class="badge bg-success ms-1">Aprobó</span>
+                  <% elsif note.note_type == 'rejection' %>
+                    <span class="badge bg-danger ms-1">Rechazó</span>
+                  <% elsif note.note_type == 'comment' %>
+                    <span class="badge bg-info ms-1">Comentario</span>
+                  <% end %>
+                  <br>
+                  <small class="text-muted"><%= note.created_at.strftime('%d/%m/%Y %H:%M') %></small>
+                </div>
+              </div>
+              <p class="mb-0 mt-1 small"><%= simple_format(note.content) %></p>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-muted text-center py-3 mb-0">Sin comentarios</p>
+        <% end %>
+      </div>
+
+      <!-- FORM AGREGAR NOTA - SIN TURBO -->
+      <div class="add-note-form">
+        <form action="<%= add_note_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
+              method="POST"
+              data-turbo="false"
+              style="display: none;" id="noteForm"></form>
+
+        <input type="text"
+               name="content"
+               class="form-control form-control-sm mb-2"
+               id="noteInput"
+               placeholder="Escribe tu comentario aquí..."
+               required>
+        <button type="button"
+                class="btn btn-sm btn-primary w-100"
+                onclick="submitNoteForm()">
+          Agregar nota
+        </button>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- ACCIONES -->
+  <% if current_user.admin? || current_user.agent? %>
+    <div class="preview-actions p-3 border-top bg-white">
+      <div class="row g-2">
+        <!-- VALIDAR -->
+        <div class="col-md-6">
+          <form action="<%= validate_document_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>"
+                method="POST"
+                data-turbo="false"
+                onsubmit="return confirm('¿Validar este documento?')" style="display: inline;">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <button type="submit" class="btn btn-success w-100">
+              <i class="bi bi-check-circle"></i> Aceptar
+            </button>
+          </form>
+        </div>
+
+        <!-- RECHAZAR -->
+        <div class="col-md-6">
+          <button type="button"
+                  class="btn btn-danger w-100"
+                  data-bs-toggle="modal"
+                  data-bs-target="#rejectModal"
+                  data-turbo="false"
+                  onclick="document.getElementById('rejectForm').action = '<%= reject_document_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>'">
+            <i class="bi bi-x-circle"></i> Rechazar
+          </button>
+        </div>
+      </div>
+
+      <!-- Notas de validación -->
+      <% if @submission.validation_notes.present? %>
+        <div class="mt-3 alert alert-info">
+          <strong>Notas:</strong>
+          <p class="mb-0 mt-2"><%= simple_format(@submission.validation_notes) %></p>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+</div>
+
+<!-- Modal Zoom Imagen -->
+<div class="modal fade" id="imageZoomModal" tabindex="-1" data-turbo="false">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Vista ampliada</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <% if @submission.document_file.attached? && @submission.document_file.content_type.start_with?('image/') %>
+          <%= image_tag @submission.document_file, class: 'img-fluid' %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function submitNoteForm() {
+  const noteInput = document.getElementById('noteInput');
+  const content = noteInput.value.trim();
+
+  if (!content) {
+    alert('Por favor escribe una nota');
+    return;
+  }
+
+  const form = document.querySelector('#noteForm');
+  const formData = new FormData();
+  formData.append('content', content);
+  formData.append('authenticity_token', document.querySelector('input[name="authenticity_token"]').value);
+
+  fetch('<%= add_note_business_transaction_document_submission_path(@submission.business_transaction, @submission) %>', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRF-Token': document.querySelector('input[name="authenticity_token"]').value,
+      'Accept': 'application/json'
+    }
+  })
+  .then(response => {
+    if (response.ok) {
+      noteInput.value = '';
+      alert('✅ Nota agregada');
+      // 🚀 SIN location.reload() - solo limpiar y mostrar mensaje
+    } else {
+      alert('Error al agregar nota');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error al agregar nota');
+  });
+}
+</script>
+
+<style>
+.preview-image {
+  transition: transform 0.2s;
+}
+.preview-image:hover {
+  transform: scale(1.02);
+}
+
+.note-item {
+  border-radius: 4px;
+}
+
+.note-item:hover {
+  background-color: #f8f9fa;
+}
+
+.notes-container {
+  font-size: 0.9rem;
+}
+
+.preview-document {
+  min-height: 400px;
+  background: #f8f9fa;
+}
+</style>
+
+*******
+app/views/document_submissions/index.html
+*******
+
+⚠️ ARCHIVO NO ENCONTRADO: app/views/document_submissions/index.html
+
+*******
+copy.erb_copy
+*******
+
+⚠️ ARCHIVO NO ENCONTRADO: copy.erb_copy
+
+*******
+app/views/document_submissions/index.html.erb_bkp
+*******
+
+<!-- app/views/document_submissions/index.html.erb -->
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>
+          <i class="bi bi-file-earmark-check"></i>
+          Checklist Documental
+        </h2>
+        <%= link_to business_transaction_path(@business_transaction), class: 'btn btn-outline-secondary' do %>
+          <i class="bi bi-arrow-left"></i> Volver a Transacción
+        <% end %>
+      </div>
+      
+      <div class="text-muted mt-2">
+        <strong>Transacción:</strong> <%= @business_transaction.id %> |
+        <strong>Escenario:</strong> <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %> |
+        <strong>Propiedad:</strong> <%= @business_transaction.property.address %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de progreso -->
+  <%= render 'shared/document_progress_summary', checklist: @checklist %>
+
+  <!-- Tabs por parte (oferente/adquiriente/copropietarios) -->
+  <ul class="nav nav-tabs mb-4" id="partyTabs" role="tablist">
+    
+    <!-- Tabs Copropietarios -->
+    <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
+      <% @checklist[:copropietarios].each_with_index do |co_data, idx| %>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="co_owner-<%= idx %>-tab" data-bs-toggle="tab"
+                  data-bs-target="#co_owner-<%= idx %>" type="button" role="tab">
+            <i class="bi bi-person-vcard"></i>
+            <%= co_data[:co_owner][:name] %>
+            (<%= co_data[:documents][:total] %>)
+          </button>
+        </li>
+      <% end %>
+    <% end %>
+
+    <!-- Tab Adquiriente -->
+    <% if @business_transaction.acquiring_client.present? %>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="adquiriente-tab" data-bs-toggle="tab" 
+                data-bs-target="#adquiriente" type="button" role="tab">
+          <i class="bi bi-person-check"></i>
+          Adquiriente (<%= @checklist[:adquiriente][:total] %>)
+        </button>
+      </li>
+    <% end %>
+  </ul>
+
+  <!-- Contenido de tabs -->
+  <div class="tab-content" id="partyTabsContent">
+    <!-- Tab Oferente -->
+
+    <!-- Tabs Copropietarios -->
+    <% if @checklist[:copropietarios].present? && @checklist[:copropietarios].any? %>
+      <% @checklist[:copropietarios].each_with_index do |co_data, idx| %>
+        <div class="tab-pane fade" id="co_owner-<%= idx %>" role="tabpanel">
+          <div class="alert alert-info mb-3">
+            <strong><i class="bi bi-info-circle"></i> Copropietario:</strong>
+            <%= co_data[:co_owner][:name] %>
+            (<%= co_data[:co_owner][:percentage] %>% - <%= co_data[:co_owner][:role] %>)
+          </div>
+          <%= render 'shared/document_checklist_party',
+                     party: 'copropietario',
+                     documents: co_data[:documents][:list],
+                     business_transaction: @business_transaction %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <!-- Tab Adquiriente -->
+    <% if @business_transaction.acquiring_client.present? %>
+      <div class="tab-pane fade" id="adquiriente" role="tabpanel">
+        <%= render 'shared/document_checklist_party', 
+                   party: 'adquiriente', 
+                   documents: @checklist[:adquiriente][:documents],
+                   business_transaction: @business_transaction %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Modal para preview de documento (actualizar en index.html.erb) -->
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Vista Previa del Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="documentPreviewBody">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+*******
+app/views/document_submissions/update_notes.turbo_stream.erb
+*******
+
+<!-- app/views/document_submissions/update_notes.turbo_stream.erb -->
+
+<%= turbo_stream.update "notes-container-#{@submission.id}" do %>
+  <%= render 'document_notes_panel', submission: @submission, current_user: current_user %>
+<% end %>
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-chat-dots"></i> 
+    Nota agregada
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+*******
+app/views/document_submissions/export_checklist.html.erb
+*******
+
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    h2 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+    h3 { color: #0066cc; margin-top: 20px; }
+    h4 { color: #666; margin-top: 15px; }
+    .summary { background: #f0f8ff; padding: 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; }
+    .co-owner-header { background: #e6f2ff; padding: 10px; margin-top: 20px; border-left: 4px solid #0066cc; }
+    .category { margin-left: 20px; }
+    .doc-item { margin: 5px 0; padding: 5px 0; border-bottom: 1px solid #eee; }
+    .doc-item.uploaded { color: green; }
+    .doc-item.pending { color: #999; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    table th, table td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+    table th { background: #0066cc; color: white; }
+    .progress-bar { width: 100%; height: 20px; background: #eee; border-radius: 5px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #0066cc; }
+  </style>
+</head>
+<body>
+  <h2>📋 CHECKLIST DOCUMENTAL</h2>
+  
+  <div class="summary">
+    <p><strong>Transacción:</strong> #<%= @business_transaction.id %></p>
+    <p><strong>Propiedad:</strong> <%= @business_transaction.property.address %></p>
+    <p><strong>Escenario:</strong> <%= @business_transaction.initial_contact_form.transaction_scenario.name %></p>
+    <p><strong>Fecha:</strong> <%= I18n.l(Date.today, format: :long) %></p>
+  </div>
+
+  <h3>📊 Resumen General</h3>
+  <table>
+    <tr>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+      <th>Validados</th>
+      <th>Rechazados</th>
+      <th>Progreso</th>
+    </tr>
+    <tr>
+      <td><%= @checklist[:summary][:total] %></td>
+      <td><%= @checklist[:summary][:uploaded] %></td>
+      <td><%= @checklist[:summary][:pending] %></td>
+      <td><%= @checklist[:summary][:validated] %></td>
+      <td><%= @checklist[:summary][:rejected] %></td>
+      <td>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: <%= @checklist[:summary][:progress] %>%"></div>
+        </div>
+        <%= @checklist[:summary][:progress] %>%
+      </td>
+    </tr>
+  </table>
+
+  <h3>👥 Documentos por Copropietario</h3>
+  <table>
+    <tr>
+      <th>Copropietario</th>
+      <th>Rol</th>
+      <th>%</th>
+      <th>Total</th>
+      <th>Cargados</th>
+      <th>Pendientes</th>
+    </tr>
+    <% @checklist[:copropietarios].each do |co_data| %>
+      <tr>
+        <td><strong><%= co_data[:co_owner][:name] %></strong></td>
+        <td><%= co_data[:co_owner][:role].titleize %></td>
+        <td><%= co_data[:co_owner][:percentage] %>%</td>
+        <td><%= co_data[:documents][:total] %></td>
+        <td><%= co_data[:documents][:uploaded] %></td>
+        <td><%= co_data[:documents][:total] - co_data[:documents][:uploaded] %></td>
+      </tr>
+    <% end %>
+  </table>
+
+  <h3>📄 Detalle de Documentos</h3>
+  
+  <% @checklist[:copropietarios].each do |co_data| %>
+    <div class="co-owner-header">
+      <h4>👤 <%= co_data[:co_owner][:name] %></h4>
+      <p style="margin: 5px 0;"><small>Rol: <%= co_data[:co_owner][:role].titleize %> | Documentos: <%= co_data[:documents][:total] %></small></p>
+    </div>
+    
+    <% co_data[:documents][:list].each do |category| %>
+      <div class="category">
+        <h5>📁 <%= category[:category_display] %></h5>
+        <% category[:documents].each do |doc| %>
+          <div class="doc-item <%= doc[:uploaded] ? 'uploaded' : 'pending' %>">
+            <% if doc[:uploaded] %>
+              ✅ <strong><%= doc[:document_type][:name] %></strong> (Cargado)
+            <% else %>
+              ☐ <%= doc[:document_type][:name] %> (Pendiente)
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</body>
+</html>
+
+*******
+app/views/document_submissions/_document_notes_panel.html.erb
+*******
+
+<!-- app/views/document_submissions/_document_notes_panel.html.erb -->
+<!-- 
+  Uso: render 'document_notes_panel', submission: @submission, current_user: current_user
+-->
+
+<div class="notes-panel">
+  <!-- Historial de notas -->
+  <div class="notes-list mb-3" style="max-height: 400px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 0.375rem; padding: 1rem;">
+    <% if submission.document_notes.any? %>
+      <% submission.document_notes.recent.each do |note| %>
+        <div class="note-item mb-3 pb-3 border-bottom" data-note-id="<%= note.id %>">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong class="d-block"><%= note.user.full_name %></strong>
+              <small class="text-muted">
+                <%= note.created_at.strftime('%d/%m/%Y %H:%M') %>
+                <% if note.note_type == 'status_change' %>
+                  <span class="badge bg-info ms-2">Cambio de estado</span>
+                <% end %>
+              </small>
+            </div>
+            
+            <!-- Botón eliminar (solo si es la última nota propia) -->
+            <% if note.deletable_by?(current_user) %>
+              <%= button_to delete_business_transaction_document_submission_path(submission.business_transaction, note.id),
+                  method: :delete,
+                  class: 'btn btn-sm btn-outline-danger',
+                  title: 'Eliminar esta nota',
+                  data: { bs_toggle: 'tooltip' } do %>
+                <i class="bi bi-trash"></i>
+              <% end %>
+            <% end %>
+          </div>
+          
+          <p class="mt-2 mb-0" style="white-space: pre-wrap; word-break: break-word;">
+            <%= simple_format(note.content) %>
+          </p>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-chat-dots"></i>
+        <p>Sin notas aún</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Agregar nota -->
+  <div class="add-note-form">
+    <form id="noteForm-<%= submission.id %>" 
+          data-submission-id="<%= submission.id %>"
+          class="add-note-form-submit">
+      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+      
+      <div class="mb-3">
+        <label for="noteContent-<%= submission.id %>" class="form-label">Agregar nota</label>
+        <textarea 
+          class="form-control form-control-sm"
+          id="noteContent-<%= submission.id %>"
+          name="content"
+          rows="3"
+          placeholder="Escribe una nota sobre este documento..."
+          required></textarea>
+      </div>
+      
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle"></i> Agregar nota
+        </button>
+        <button type="reset" class="btn btn-sm btn-secondary">
+          <i class="bi bi-x-circle"></i> Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .note-item {
+    animation: slideIn 0.3s ease-in-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+*******
+app/views/document_submissions/error.turbo_stream.erb
+*******
+
+<!-- app/views/document_submissions/error.turbo_stream.erb -->
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle"></i> 
+    <%= error %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+*******
+app/views/document_submissions/update_submission.turbo_stream.erb
+*******
+
+<!-- app/views/document_submissions/update_submission.turbo_stream.erb -->
+
+<%= turbo_stream.update "document-row-#{@submission.id}" do %>
+  <tr data-document-id="<%= @submission.id %>">
+    <!-- Rerender la fila completa -->
+    <%= render 'document_row', doc: @submission, co_data: @co_data %>
+  </tr>
+<% end %>
+
+<%= turbo_stream.append "notifications" do %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle"></i> 
+    Documento actualizado correctamente
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+*******
+app/views/document_submissions/index.html.erb
+*******
+
+<!-- app/views/document_submissions/index.html.erb -->
+<div class="container-fluid py-4" data-business-transaction-id="<%= @business_transaction.id %>">
+
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>
+          <i class="bi bi-file-earmark-check"></i>
+          Checklist Documental
+        </h2>
+        <%= link_to business_transaction_path(@business_transaction), class: 'btn btn-outline-secondary' do %>
+          <i class="bi bi-arrow-left"></i> Volver a Transacción
+        <% end %>
+      </div>
+      <div class="text-muted mt-2">
+        <strong>Transacción:</strong> <%= @business_transaction.id %> |
+        <strong>Escenario:</strong> <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %> |
+        <strong>Propiedad:</strong> <%= @business_transaction.property.address %>
+      </div>
+    </div>
+  </div>
+
+  <%= render 'shared/document_progress_summary', checklist: @checklist %>
+
+  <div class="mb-3 d-flex gap-2">
+    <button id="copy-whatsapp-btn" class="btn btn-success">
+      <i class="bi bi-whatsapp"></i> Copiar para WhatsApp
+    </button>
+
+    <button id="send-whatsapp-btn" class="btn btn-success">
+      <i class="bi bi-whatsapp"></i> Abrir en WhatsApp
+    </button>
+
+    <a href="<%= export_checklist_business_transaction_document_submissions_path(@business_transaction, format: :pdf) %>"
+       class="btn btn-primary" target="_blank">
+      <i class="bi bi-download"></i> Descargar PDF
+    </a>
+    <a href="<%= export_checklist_business_transaction_document_submissions_path(@business_transaction, format: :text) %>"
+       class="btn btn-info" download="checklist_<%= @business_transaction.id %>.txt">
+      <i class="bi bi-file-text"></i> Descargar TXT
+    </a>
+  </div>
+
+
+
+  <script>
+    // Función auxiliar para generar el texto (así no repetimos lógica)
+    function generateChecklistText() {
+      const transactionId = <%= @business_transaction.id %>;
+      const checklist = <%= @checklist.to_json.html_safe %>;
+
+      let text = '📋 CHECKLIST DOCUMENTAL\n';
+      text += '═'.repeat(40) + '\n\n'; // Reduje un poco el ancho para móviles
+      text += `Transacción: #${transactionId}\n`;
+      text += `Propiedad: <%= @business_transaction.property.address %>\n`;
+      text += `Escenario: <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %>\n`;
+      text += `Fecha: <%= I18n.l(Date.today, format: :long) %>\n\n`;
+
+      text += '📊 RESUMEN\n';
+      text += '─'.repeat(40) + '\n';
+      text += `Total: ${checklist.summary.total} | `;
+      text += `Cargados: ${checklist.summary.uploaded} | `;
+      text += `Validados: ${checklist.summary.validated} | `;
+      text += `Rechazados: ${checklist.summary.rejected} | `;
+      text += `Progreso: ${checklist.summary.progress}%\n\n`;
+
+      text += '👤 PERSONAS\n';
+      text += '═'.repeat(40) + '\n\n';
+
+      if (checklist.copropietarios && checklist.copropietarios.length > 0) {
+        checklist.copropietarios.forEach(co => {
+          const coOwner = co.co_owner;
+          const documents = co.documents;
+          
+          let totalDocs = 0;
+          if (documents && documents.list) {
+            documents.list.forEach(cat => totalDocs += cat.documents.length);
+          }
+          
+          // Ajuste para móviles: nombres más limpios
+          text += `👨 ${coOwner.name}\n`; 
+          text += `   (${coOwner.role || 'Rol'} - ${coOwner.percentage || 0}%)\n`;
+          text += `   Documentos requeridos: ${totalDocs}\n`;
+          text += '─'.repeat(40) + '\n\n';
+
+          if (documents && documents.list) {
+            documents.list.forEach(category => {
+              if (category.documents && category.documents.length > 0) {
+                text += `📍 ${category.category} (${category.documents.length})\n`;
+                
+                category.documents.forEach(doc => {
+                  // Check logic: si está uploaded (aunque no validado) cuenta como check visual
+                  // O puedes poner status === 'validated' para ser más estricto
+                  const isUploaded = (doc.submission && doc.submission.document_file_attached);
+                  const status = isUploaded ? '✅' : '☐';
+                  const docName = doc.document_type ? doc.document_type.name : 'Documento';
+                  
+                  text += `   ${status} ${docName}\n`;
+                });
+                text += '\n';
+              }
+            });
+          }
+          text += '\n';
+        });
+      } else {
+        text += "No hay copropietarios registrados.\n";
+      }
+      
+      return text;
+    }
+
+    // EVENTO: COPIAR AL PORTAPAPELES
+    document.getElementById('copy-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      navigator.clipboard.writeText(text).then(() => {
+        // Feedback visual temporal en el botón
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> ¡Copiado!';
+        btn.classList.replace('btn-outline-success', 'btn-success');
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHtml;
+          btn.classList.replace('btn-success', 'btn-outline-success');
+        }, 2000);
+      }).catch(err => alert('Error al copiar: ' + err.message));
+    });
+
+    // EVENTO: ABRIR EN WHATSAPP (LA CEREZA 🍒)
+    document.getElementById('send-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      // encodeURIComponent es vital para que saltos de línea y emojis viajen bien en la URL
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    });
+  </script>
+
+
+
+
+
+
+
+
+  <!-- PESTAÑAS POR COPROPIETARIO -->
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= 'active' if index == 0 %>" 
+                id="tab-<%= co_data[:co_owner][:id] %>" 
+                data-bs-toggle="tab" 
+                data-bs-target="#pane-<%= co_data[:co_owner][:id] %>" 
+                type="button" 
+                role="tab">
+          <%= co_data[:co_owner][:name] %>
+          <span class="badge bg-primary ms-2"><%= co_data[:documents][:list].sum { |cat| cat[:documents].count } %></span>
+        </button>
+      </li>
+    <% end %>
+  </ul>
+
+  <!-- CONTENIDO DE LAS PESTAÑAS -->
+  <div class="tab-content">
+    <% @checklist[:copropietarios].each_with_index do |co_data, index| %>
+      <div class="tab-pane fade <%= 'show active' if index == 0 %>" 
+           id="pane-<%= co_data[:co_owner][:id] %>" 
+           role="tabpanel">
+        
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Documento</th>
+                <th>Estado</th>
+                <th>Cargado</th>
+                <th>Validado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% co_data[:documents][:list].each do |category| %>
+                <% category[:documents].each do |doc| %>
+                  <% submission = doc[:submission] %>
+                  <tr id="document-row-<%= submission.id %>">
+                    <td>
+                      <strong><%= doc[:document_type][:name] %></strong>
+                    </td>
+                    <td>
+                      <% if submission.document_file.attached? %>
+                        <span class="badge bg-<%= submission.document_status&.name || 'secondary' %>">
+                          <%= submission.document_status&.name || 'Desconocido' %>
+                        </span>
+                      <% else %>
+                        <span class="badge bg-secondary">Pendiente Solicitud</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.submitted_at %>
+                        <small><%= submission.submitted_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if submission.validated_at %>
+                        <small><%= submission.validated_at.strftime('%d/%m/%Y') %></small>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <% if submission.document_file.attached? %>
+                          <button class="btn btn-outline-primary preview-btn" 
+                                  data-submission-id="<%= submission.id %>"
+                                  data-document-type="<%= submission.document_type&.name %>"
+                                  title="Ver previsualización">
+                            <i class="bi bi-eye"></i>
+                          </button>
+                          <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
+                             class="btn btn-outline-info"
+                             title="Descargar">
+                            <i class="bi bi-download"></i>
+                          </a>
+                        <% end %>
+
+                        <% if current_user.admin? || current_user.agent? %>
+                          <% if submission.document_file.attached? && !submission.validated? %>
+                            <button class="btn btn-outline-success validate-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Validar documento">
+                              <i class="bi bi-check-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-danger reject-btn"
+                                    data-submission-id="<%= submission.id %>"
+                                    title="Rechazar documento">
+                              <i class="bi bi-x-circle"></i>
+                            </button>
+                          <% end %>
+                        <% end %>
+
+                        <% if !submission.document_file.attached? || (current_user == submission.uploaded_by || current_user.admin?) %>
+                          <button class="btn btn-outline-warning upload-btn"
+                                  data-submission-id="<%= submission.id %>"
+                                  title="Cargar/Recargar documento">
+                            <i class="bi bi-upload"></i>
+                          </button>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- MODALES (sin cambios) -->
+  <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="previewModalLabel">Previsualización</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="previewContent" style="max-height: 70vh; overflow-y: auto;">
+          <div class="text-center">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="uploadModalLabel">Cargar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="documentFile" class="form-label">Selecciona un archivo:</label>
+              <input type="file" class="form-control" id="documentFile" name="document_file" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Cargar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="validateModalLabel">Validar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="validateForm" method="POST">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="validationNotes" class="form-label">Notas (opcional):</label>
+              <textarea class="form-control" id="validationNotes" name="validation_notes" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Validar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rejectModalLabel">Rechazar Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="rejectForm" method="POST">
+          <div class="modal-body">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <div class="mb-3">
+              <label for="rejectionReason" class="form-label">Motivo del rechazo:</label>
+              <textarea class="form-control" id="rejectionReason" name="rejection_reason" rows="3" required></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Rechazar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
+
+  document.querySelectorAll('.preview-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      const documentType = this.dataset.documentType;
+      const previewContent = document.getElementById('previewContent');
+      previewContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
+
+      fetch(`/business_transactions/${btxId}/document_submissions/${submissionId}/preview.json`)
+        .then(r => r.json())
+        .then(data => {
+          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.analysis.status_label || 'Pendiente'}</p>`;
+          
+          if (data.file_url) {
+            if (data.content_type?.startsWith('image/')) {
+              html += `<img src="${data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
+            } else if (data.content_type === 'application/pdf') {
+              html += `<embed src="${data.file_url}" style="width: 100%; height: 60vh;" type="application/pdf">`;
+            } else {
+              html += `<p class="alert alert-info">Archivo no previewable. <a href="${data.file_url}" target="_blank">Descargar</a></p>`;
+            }
+          } else {
+            html += '<p class="alert alert-warning">No hay archivo cargado</p>';
+          }
+          
+          if (data.analysis.legibility_score) {
+            html += `<hr><p><strong>Puntuación de legibilidad:</strong> ${data.analysis.legibility_score}%</p>`;
+          }
+          html += '</div>';
+          previewContent.innerHTML = html;
+
+          // ZOOM DE IMÁGENES CON SCROLL
+          document.addEventListener('wheel', function(event) {
+            const img = document.querySelector('.preview-wrapper img');
+            if (!img) return;
+            
+            if (event.target === img || img.contains(event.target)) {
+              event.preventDefault();
+              
+              if (event.deltaY < 0) {
+                if (img.classList.contains('zoomed-2x')) return;
+                if (img.classList.contains('zoomed')) {
+                  img.classList.remove('zoomed');
+                  img.classList.add('zoomed-2x');
+                } else {
+                  img.classList.add('zoomed');
+                }
+              } else {
+                if (img.classList.contains('zoomed-2x')) {
+                  img.classList.remove('zoomed-2x');
+                  img.classList.add('zoomed');
+                } else if (img.classList.contains('zoomed')) {
+                  img.classList.remove('zoomed');
+                }
+              }
+            }
+          }, { passive: false });
+
+          // CLICK PARA ZOOM
+          document.addEventListener('click', function(event) {
+            const img = event.target.closest('.preview-wrapper img');
+            if (!img) return;
+            
+            if (img.classList.contains('zoomed-2x')) {
+              img.classList.remove('zoomed-2x');
+              img.classList.remove('zoomed');
+            } else if (img.classList.contains('zoomed')) {
+              img.classList.remove('zoomed');
+              img.classList.add('zoomed-2x');
+            } else {
+              img.classList.add('zoomed');
+            }
+          });
+        })
+        .catch(err => {
+          previewContent.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+        });
+
+      const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+      modal.show();
+    });
+  });
+
+  // UPLOAD
+  document.querySelectorAll('.upload-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('uploadForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/upload`;
+      const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+
+  // VALIDATE
+  document.querySelectorAll('.validate-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('validateForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/validate_document`;
+      const modal = new bootstrap.Modal(document.getElementById('validateModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('validateForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('validateModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+
+  // REJECT
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const submissionId = this.dataset.submissionId;
+      document.getElementById('rejectForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/reject_document`;
+      const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+      modal.show();
+    });
+  });
+
+  document.getElementById('rejectForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const action = this.action;
+    fetch(action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+      location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+  });
+});
+</script>
+
+<style>
+.preview-wrapper {
+  padding: 20px;
+  max-height: 70vh;
+  overflow: auto;
+  text-align: center;
+  position: relative;
+}
+
+.preview-wrapper img {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+  transform-origin: center;
+  zoom: 1;
+}
+
+.preview-wrapper img.zoomed {
+  cursor: zoom-out;
+  zoom: 1.5;
+}
+
+.preview-wrapper img.zoomed-2x {
+  cursor: zoom-out;
+  zoom: 2;
+}
+
+.preview-wrapper embed {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  max-width: 95%;
+  margin: 0 auto;
+  display: block;
+}
+
+.modal-dialog {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  max-width: 90vw !important;
+}
+
+.modal-lg {
+  max-width: 90vw !important;
+}
+
+.modal-backdrop.show {
+  opacity: 0.99;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+body.modal-open {
+  transition: none !important;
+}
+
+/* ESTILOS PARA LAS PESTAÑAS */
+.nav-tabs {
+  border-bottom: 2px solid #e9ecef;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6c757d;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.nav-tabs .nav-link.active {
+  border-bottom-color: #0d6efd;
+  color: #0d6efd;
+  background: none;
+}
+
+.nav-tabs .badge {
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+/* BADGES DE ESTADOS PERSONALIZADOS */
+.badge.bg-rechazado {
+  background-color: #dc3545 !important; /* Rojo */
+  color: white;
+}
+
+.badge.bg-validado {
+  background-color: #28a745 !important; /* Verde */
+  color: white;
+}
+
+.badge.bg-pendiente {
+  background-color: #ffc107 !important; /* Amarillo */
+  color: #333;
+}
+
+.badge.bg-desconocido {
+  background-color: #6c757d !important; /* Gris */
+  color: white;
+}
+
+</style>
+
+*******
+app/views/document_submissions/_document_status_badge.html.erb
+*******
+
+<!-- app/views/document_submissions/_document_status_badge.html.erb -->
+
+<% validation_status = submission.validation_status %>
+<% 
+  case validation_status
+  when 'pending_review'
+    badge_class = 'bg-warning text-dark'
+    icon = 'bi-hourglass-split'
+    text = 'Pendiente revisión'
+  when 'approved'
+    badge_class = 'bg-success'
+    icon = 'bi-check-circle'
+    text = 'Aprobado'
+  when 'rejected'
+    badge_class = 'bg-danger'
+    icon = 'bi-x-circle'
+    text = 'Rechazado'
+  when 'expired'
+    badge_class = 'bg-secondary'
+    icon = 'bi-exclamation-triangle'
+    text = 'Expirado'
+  else
+    badge_class = 'bg-secondary'
+    icon = 'bi-question-circle'
+    text = 'Sin estado'
+  end
+%>
+
+<span class="badge <%= badge_class %>">
+  <i class="bi <%= icon %>"></i>
+  <%= text %>
+</span>
+
+*******
+app/views/document_submissions/_preview.html.erb
+*******
+
+<!-- app/views/document_submissions/_preview.html.erb -->
+
+<div class="preview-container" data-turbo="false">
+  <!-- Imagen del documento -->
+  <div class="document-preview mb-4">
+    <% if submission.document_file.present? %>
+      <% if submission.document_file.content_type.include?('pdf') %>
+        <embed src="<%= url_for(submission.document_file) %>" 
+               type="application/pdf" 
+               style="width: 100%; height: 600px;" />
+      <% else %>
+        <img src="<%= url_for(submission.document_file) %>" 
+             alt="<%= submission.document_type.name %>" 
+             class="img-fluid border rounded">
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Análisis de calidad -->
+  <% if submission.analysis_result.present? %>
+    <div class="analysis-results card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="bi bi-bar-chart"></i> Análisis de Calidad
+        </h6>
+      </div>
+      <div class="card-body">
+        <% analysis = submission.analysis_result %>
+        <% if analysis['legibility'].present? %>
+          <div class="mb-3">
+            <small class="text-muted">Legibilidad</small>
+            <div class="progress" style="height: 25px;">
+              <div class="progress-bar" role="progressbar" 
+                   style="width: <%= analysis['legibility']['score'] %>%"
+                   aria-valuenow="<%= analysis['legibility']['score'] %>" 
+                   aria-valuemin="0" 
+                   aria-valuemax="100">
+                <%= analysis['legibility']['score'].round(1) %>%
+              </div>
+            </div>
+          </div>
+        <% end %>
+        
+        <% if analysis['metadata'].present? %>
+          <div class="metadata-section">
+            <small class="fw-bold">Datos extraídos:</small>
+            <ul class="small">
+              <% analysis['metadata'].each do |key, value| %>
+                <% if value.present? && value != [] %>
+                  <li><strong><%= key.humanize %>:</strong> <%= value.inspect %></li>
+                <% end %>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Notas -->
+  <div class="notes-section card">
+    <div class="card-header">
+      <h6 class="mb-0">
+        <i class="bi bi-chat-dots"></i> Notas
+      </h6>
+    </div>
+    <div class="card-body">
+      <% if submission.document_notes.any? %>
+        <div class="notes-list" style="max-height: 200px; overflow-y: auto;">
+          <% submission.document_notes.order(created_at: :desc).each do |note| %>
+            <div class="note-item mb-3 p-3 border rounded" style="background: #f8f9fa;">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <small class="fw-bold"><%= note.user.email %></small>
+                <small class="text-muted"><%= time_ago_in_words(note.created_at) %> ago</small>
+              </div>
+              <p class="mb-2"><%= simple_format(note.content) %></p>
+              
+              <% if current_user.admin? || note.user == current_user %>
+                <form action="<%= delete_note_business_transaction_document_submission_path(@business_transaction, submission, note_id: note.id) %>" 
+                      method="POST" 
+                      style="display: inline;"
+                      data-turbo="false"
+                      onsubmit="return confirm('¿Eliminar nota?')">
+                  <input type="hidden" name="_method" value="delete">
+                  <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-muted text-center py-3">Sin notas aún</p>
+      <% end %>
+
+      <!-- Agregar nota - FETCH SIN RELOAD -->
+      <div class="add-note mt-3">
+        <form id="addNoteForm-<%= submission.id %>" data-turbo="false">
+          <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+          <div class="input-group">
+            <input type="text" 
+                   name="content" 
+                   class="form-control form-control-sm"
+                   placeholder="Agregar nota..."
+                   required>
+            <button type="submit" class="btn btn-sm btn-primary">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de decisión -->
+  <% if (current_user.admin? || current_user.agent?) && submission.document_status&.name != 'validado' %>
+    <div class="preview-actions p-3 border-top bg-white mt-4 d-flex gap-2">
+      <form action="<%= validate_document_business_transaction_document_submission_path(@business_transaction, submission) %>" 
+            method="POST" 
+            style="flex: 1;"
+            data-turbo="false"
+            onsubmit="return confirm('¿Validar este documento?')">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-check-circle"></i> Aceptar
+        </button>
+      </form>
+
+      <button type="button" 
+              class="btn btn-danger flex-grow-1"
+              data-bs-toggle="modal" 
+              data-bs-target="#rejectModal"
+              data-turbo="false"
+              onclick="document.getElementById('rejectForm').action = '<%= reject_document_business_transaction_document_submission_path(@business_transaction, submission) %>'">
+        <i class="bi bi-x-circle"></i> Rechazar
+      </button>
+    </div>
+  <% end %>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Usar event delegation para formularios que se cargan dinámicamente
+  document.addEventListener('submit', function(e) {
+    if (e.target.matches('[id^="addNoteForm-"]')) {
+      e.preventDefault();
+      
+      const form = e.target;
+      const submissionId = form.id.replace('addNoteForm-', '');
+      const businessTransactionId = document.body.dataset.businessTransactionId || window.location.pathname.split('/')[2];
+      
+      const formData = new FormData(form);
+      const url = `/business_transactions/${businessTransactionId}/document_submissions/${submissionId}/add_note`;
+      
+      fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': formData.get('authenticity_token'),
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        form.reset();
+        alert('✅ Nota agregada');
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al agregar nota');
+      });
+    }
+  });
+});
+</script>
+
+<style>
+.note-item { 
+  transition: background-color 0.2s ease; 
+}
+
+.preview-container {
+  /* Prevenir que Turbo actualice esto */
+  transition: none !important;
+}
+</style>
+*******
+app/models/document_note.rb
+*******
+
+# app/models/document_note.rb
+class DocumentNote < ApplicationRecord
+  belongs_to :document_submission
+  belongs_to :user
+  
+  validates :content, presence: true
+  validates :note_type, presence: true, inclusion: { in: %w[comment status_change] }
+  
+  scope :recent, -> { order(created_at: :desc) }
+  scope :comments, -> { where(note_type: 'comment') }
+  scope :status_changes, -> { where(note_type: 'status_change') }
+  
+  # Solo el autor puede borrar su última nota propia
+  def deletable_by?(user)
+    self.user == user && self == document_submission.document_notes.recent.first
+  end
+end
+
+*******
+app/models/document_requirement.rb
+*******
+
+class DocumentRequirement < ApplicationRecord
+  belongs_to :document_type
+
+  # Validaciones Rails + DB
+  validates :property_type, presence: true
+  validates :transaction_type, presence: true
+  validates :client_type, presence: true
+  validates :person_type, presence: true
+  validates :valid_from, presence: true
+  validates :is_required, inclusion: { in: [ true, false ] }
+  validate  :valid_until_after_valid_from
+
+  scope :applicable, ->(date = Date.current) {
+    where("valid_from <= ? AND (valid_until IS NULL OR valid_until >= ?)", date, date)
+  }
+
+  private
+
+  def valid_until_after_valid_from
+    return if valid_until.blank? || valid_from.blank?
+    errors.add(:valid_until, "debe ser posterior a valid_from") if valid_until < valid_from
+  end
+end
+
+*******
+app/models/document_review.rb
+*******
+
+# app/models/document_review.rb
+class DocumentReview < ApplicationRecord
+  # ========================================================================
+  # RELACIONES
+  # ========================================================================
+  
+  belongs_to :document_submission
+  belongs_to :user
+  
+  # ========================================================================
+  # VALIDACIONES
+  # ========================================================================
+  
+  validates :action, presence: true, inclusion: { 
+    in: %w[validado rechazado solicitado_correccion revisado aprobado observado]
+  }
+  
+  validates :reviewed_at, presence: true
+  validates :notes, presence: true, if: -> { action == 'rechazado' }
+  
+  # ========================================================================
+  # SCOPES
+  # ========================================================================
+  
+  scope :recent, -> { order(reviewed_at: :desc) }
+  scope :by_action, ->(action) { where(action: action) }
+  scope :approved, -> { where(action: 'validado') }
+  scope :rejected, -> { where(action: 'rechazado') }
+  scope :pending_correction, -> { where(action: 'solicitado_correccion') }
+  
+  scope :by_reviewer, ->(user) { where(user: user) }
+  scope :in_date_range, ->(start_date, end_date) { 
+    where(reviewed_at: start_date..end_date) 
+  }
+  
+  # ========================================================================
+  # CALLBACKS
+  # ========================================================================
+  
+  before_validation :set_reviewed_at, on: :create
+  after_create :notify_submission_owner, if: -> { should_notify? }
+  
+  # ========================================================================
+  # MÉTODOS DE INSTANCIA
+  # ========================================================================
+  
+  def approved?
+    action == 'validado'
+  end
+  
+  def rejected?
+    action == 'rechazado'
+  end
+  
+  def needs_correction?
+    action == 'solicitado_correccion'
+  end
+  
+  def reviewer_name
+    user.email
+  end
+  
+  def action_display
+    {
+      'validado' => 'Validado',
+      'rechazado' => 'Rechazado',
+      'solicitado_correccion' => 'Solicitud de Corrección',
+      'revisado' => 'Revisado',
+      'aprobado' => 'Aprobado',
+      'observado' => 'Observado'
+    }[action] || action.titleize
+  end
+  
+  def badge_class
+    case action
+    when 'validado', 'aprobado' then 'bg-success'
+    when 'rechazado' then 'bg-danger'
+    when 'solicitado_correccion', 'observado' then 'bg-warning'
+    when 'revisado' then 'bg-info'
+    else 'bg-secondary'
+    end
+  end
+  
+  # ========================================================================
+  # MÉTODOS PRIVADOS
+  # ========================================================================
+  
+  private
+  
+  def set_reviewed_at
+    self.reviewed_at ||= Time.current
+  end
+  
+  def should_notify?
+    # Notificar solo en acciones críticas
+    %w[validado rechazado solicitado_correccion].include?(action)
+  end
+  
+  def notify_submission_owner
+    # TODO: Implementar notificación (email, Turbo Stream, etc.)
+    # DocumentReviewNotificationJob.perform_later(id)
+  end
+end
+
+*******
+app/models/document_status.rb
+*******
+
+class DocumentStatus < ApplicationRecord
+  has_many :document_submissions
+  
+  validates :name, presence: true, uniqueness: true
+  validates :position, presence: true, numericality: { only_integer: true }
+  validates :color, presence: true
+  validates :icon, presence: true
+  
+  scope :active, -> { where(active: true) }
+  scope :by_position, -> { order(:position) }
+  
+  # Métodos de conveniencia para estados comunes
+  def self.pendiente_solicitud
+    find_by(name: 'pendiente_solicitud')
+  end
+  
+  def self.solicitado_cliente
+    find_by(name: 'solicitado_cliente')
+  end
+  
+  def self.recibido_revision
+    find_by(name: 'recibido_revision')
+  end
+  
+  def self.validado_vigente
+    find_by(name: 'validado_vigente')
+  end
+  
+  def self.rechazado
+    find_by(name: 'rechazado')
+  end
+  
+  def self.vencido
+    find_by(name: 'vencido')
+  end
+end
+
+*******
+app/models/document_submission.rb
+*******
+
+# app/models/document_submission.rb
+
+class DocumentSubmission < ApplicationRecord
+  # ========================================================================
+  # RELACIONES
+  # ========================================================================
+  
+  belongs_to :business_transaction
+  belongs_to :document_type
+  belongs_to :document_status, optional: true
+  belongs_to :submitted_by, polymorphic: true, optional: true
+  belongs_to :validated_by, class_name: 'User', optional: true
+  belongs_to :uploaded_by, class_name: 'User', optional: true, 
+             foreign_key: 'uploaded_by_id'
+  belongs_to :business_transaction_co_owner, optional: true
+  belongs_to :validation_user, class_name: 'User', optional: true, 
+             foreign_key: 'validation_user_id'
+
+  has_many :document_notes, dependent: :destroy
+  has_many :document_reviews, dependent: :destroy
+
+  # Active Storage
+  has_one_attached :document_file do |attachable|
+    attachable.variant :thumb, resize_to_limit: [200, 200]
+    attachable.variant :medium, resize_to_limit: [800, 800]
+  end
+
+  # ========================================================================
+  # VALIDACIONES
+  # ========================================================================
+  
+  validates :party_type, presence: true, inclusion: { 
+    in: %w[oferente adquiriente copropietario copropietario_principal]
+  }
+  
+  validates :business_transaction_co_owner_id, 
+    presence: true, 
+    if: -> { party_type.in?(%w[copropietario copropietario_principal]) }
+  
+  validates :analysis_status, 
+    inclusion: { in: %w[pending processing completed failed] },
+    allow_nil: true
+  
+  validates :validation_status, presence: true, inclusion: {
+    in: %w[pending_review approved rejected expired]
+  }, allow_nil: true
+
+  validates :business_transaction_id, presence: true
+  validates :document_type_id, presence: true
+
+  # Active Storage validations
+  validate :validate_document_file_type
+  validate :validate_document_file_size
+
+  # ========================================================================
+  # SCOPES - SIN DUPLICADOS
+  # ========================================================================
+  
+  # Por partido (oferente/adquiriente/copropietario)
+  scope :for_oferente, -> { where(party_type: 'oferente') }
+  scope :for_adquiriente, -> { where(party_type: 'adquiriente') }
+  scope :for_copropietario, -> { where(party_type: ['copropietario', 'copropietario_principal']) }
+  scope :for_co_owner, ->(co_owner) { where(business_transaction_co_owner: co_owner) }
+  scope :by_party, ->(party) { where(party_type: party) }
+
+  # Por estado del documento
+  scope :pending, -> { 
+    joins(:document_status).where(document_statuses: { name: 'pendiente_solicitud' }) 
+  }
+  scope :completed, -> { 
+    joins(:document_status).where(document_statuses: { name: 'validado_vigente' }) 
+  }
+  scope :validated, -> { 
+    where.not(validated_at: nil).where(validation_status: 'approved')
+  }
+  scope :rejected, -> { 
+    where(validation_status: 'rejected')
+  }
+
+  # Por carga del documento
+  scope :pending_upload, -> { where(submitted_at: nil) }
+  scope :uploaded, -> { where.not(submitted_at: nil) }
+
+  # Por análisis
+  scope :pending_analysis, -> { where(analysis_status: 'pending') }
+  scope :analyzed, -> { where.not(analysis_status: 'pending') }
+  scope :auto_validated, -> { where(auto_validated: true) }
+  scope :pending_validation, -> { where(validation_status: ['pending_review', nil]) }
+
+  # Por fecha de expiración
+  scope :expired, -> { where('expiry_date < ?', Date.current) }
+  scope :expiring_soon, -> { where('expiry_date BETWEEN ? AND ?', Date.current, 30.days.from_now) }
+  scope :valid_date, -> { where('expiry_date IS NULL OR expiry_date >= ?', Date.current) }
+
+  # ========================================================================
+  # CALLBACKS
+  # ========================================================================
+  
+  before_create :set_default_status
+  after_create_commit :schedule_analysis, if: :document_file_attached?
+  after_update :notify_status_change, if: :saved_change_to_document_status_id?
+
+  # ========================================================================
+  # MÉTODOS DE ESTADO - SIN DUPLICADOS
+  # ========================================================================
+
+  # Verifica si el documento ha sido analizado
+  def analyzed?
+    analysis_status.present? && analysis_status != 'pending'
+  end
+
+  # Verifica si el documento está expirado
+  def expired?
+    return false unless expiry_date.present?
+    expiry_date < Date.current
+  end
+
+  # Verifica si está próximo a expirar (30 días)
+  def expiring_soon?
+    return false unless expiry_date.present?
+    days_until_expiry = (expiry_date - Date.current).to_i
+    days_until_expiry >= 0 && days_until_expiry <= 30
+  end
+
+  # Verifica si fue validado
+  def validated?
+    validated_at.present? && validation_status == 'approved'
+  end
+
+  # Verifica si el documento es válido para usar (MÉTODO CRÍTICO)
+  def valid_for_use?
+    uploaded? && validated? && !expired?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE ESTADO - COMPATIBILIDAD
+  # ========================================================================
+
+  def pending?
+    document_status&.name == 'pendiente_solicitud'
+  end
+  
+  def completed?
+    document_status&.name.in?(['validado_vigente', 'validado'])
+  end
+  
+  def uploaded?
+    submitted_at.present?
+  end
+  
+  def pending_validation?
+    uploaded? && validation_status.in?(['pending_review', nil])
+  end
+  
+  def has_files?
+    document_file.attached?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE LEGIBILIDAD Y ANÁLISIS
+  # ========================================================================
+
+  def legibility_status
+    return 'unknown' if legibility_score.nil? || legibility_score.zero?
+    
+    case legibility_score
+    when 0...40 then 'poor'
+    when 40...70 then 'fair'
+    when 70...90 then 'good'
+    else 'excellent'
+    end
+  end
+
+  def analysis_status_label
+    case analysis_status
+    when 'pending' then 'Pendiente'
+    when 'processing' then 'Procesando'
+    when 'completed' then 'Completado'
+    when 'failed' then 'Error'
+    else 'Desconocido'
+    end
+  end
+
+  # ========================================================================
+  # MÉTODOS DE CAMBIO DE ESTADO
+  # ========================================================================
+  
+  def mark_as_received!
+    return unless document_status
+    
+    update!(
+      document_status: DocumentStatus.find_by(name: 'recibido_revision'),
+      submitted_at: Time.current
+    )
+  end
+  
+  def mark_as_validated!(user, notes: nil)
+    update!(
+      document_status: DocumentStatus.find_by(name: 'validado'),
+      validated_by: user,
+      validated_at: Time.current,
+      validation_notes: notes,
+      validation_status: 'approved'
+    )
+  end
+  
+  def reject!(reason, user)
+    document_reviews.create!(
+      user: user,
+      action: 'rechazado',
+      notes: reason
+    )
+    
+    update!(
+      document_status: DocumentStatus.find_by(name: 'rechazado'),
+      validated_by: user,
+      validated_at: Time.current,
+      validation_notes: reason,
+      validation_status: 'rejected'
+    )
+  end
+
+  # ========================================================================
+  # MÉTODOS DE VISUALIZACIÓN Y FORMATO
+  # ========================================================================
+
+  def status_badge_class
+    return 'bg-secondary' unless uploaded?
+    
+    case validation_status
+    when 'approved' then 'bg-success'
+    when 'rejected' then 'bg-danger'
+    when 'expired' then 'bg-dark'
+    when 'pending_review' then 'bg-warning'
+    else 'bg-info'
+    end
+  end
+
+  def party_display_name
+    case party_type
+    when 'oferente'
+      business_transaction_co_owner.present? ? 
+        "#{business_transaction_co_owner.person_name} (Copropietario)" : 
+        'Oferente'
+    when 'adquiriente'
+      'Adquiriente'
+    when 'copropietario', 'copropietario_principal'
+      business_transaction_co_owner.present? ? 
+        business_transaction_co_owner.person_name : 
+        'Copropietario'
+    else
+      party_type.titleize
+    end
+  end
+
+  def download_url
+    Rails.application.routes.url_helpers.rails_blob_path(
+      document_file, 
+      disposition: 'attachment'
+    ) if uploaded?
+  end
+  
+  def can_reupload?
+    validation_status.in?(['rejected', 'expired']) || submitted_at.blank?
+  end
+
+  # ========================================================================
+  # MÉTODOS DE NOTAS Y REVIEWS
+  # ========================================================================
+
+  def latest_review
+    document_reviews.recent.first
+  end
+
+  def reviews_count
+    document_reviews.count
+  end
+
+  def reviewed_by?(user)
+    document_reviews.exists?(user: user)
+  end
+
+  def review_history
+    document_reviews.recent.includes(:user)
+  end
+
+  def last_note
+    document_notes.recent.first
+  end
+
+  def add_note(user, content, note_type = 'comment')
+    document_notes.create!(
+      user: user,
+      content: content,
+      note_type: note_type
+    )
+  end
+
+  # ========================================================================
+  # MÉTODOS PRIVADOS
+  # ========================================================================
+  
+  private
+  
+  def validate_document_file_type
+    return unless document_file.attached?
+    
+    allowed_types = %w[image/png image/jpg image/jpeg application/pdf image/heic]
+    unless allowed_types.include?(document_file.content_type)
+      errors.add(:document_file, 'debe ser PNG, JPG, HEIC o PDF')
+    end
+  end
+  
+  def validate_document_file_size
+    return unless document_file.attached?
+    
+    if document_file.byte_size > 10.megabytes
+      errors.add(:document_file, 'no debe exceder 10MB')
+    end
+  end
+  
+  def schedule_analysis
+    DocumentAnalysisJob.perform_later(id) if defined?(DocumentAnalysisJob)
+  end
+  
+  def document_file_attached?
+    document_file.attached?
+  end
+
+  def set_default_status
+    self.document_status ||= DocumentStatus.find_by(name: 'pendiente_solicitud')
+    self.analysis_status ||= 'pending'
+    self.validation_status ||= 'pending_review'
+  end
+
+  def notify_status_change
+    # DocumentStatusNotificationJob.perform_later(self.id)
+  end
+end
+
+*******
+app/models/document_type.rb
+*******
+
+# app/models/document_type.rb
+class DocumentType < ApplicationRecord
+     include AutoSluggable
+  belongs_to :replacement_document,
+             class_name: 'DocumentType',
+             optional: true,
+             foreign_key: 'replacement_document_id'
+
+  has_many :replaced_documents,
+           class_name: 'DocumentType',
+           foreign_key: 'replacement_document_id',
+           dependent: :nullify
+
+  has_many :document_requirements, dependent: :destroy
+  has_many :document_validity_rules, dependent: :destroy
+  has_many :property_documents, dependent: :destroy
+
+  # Validaciones
+  validates :name, presence: true, uniqueness: true, db_uniqueness: true
+  validates :category, presence: true
+  validates :valid_from, presence: true
+  validates :is_active, inclusion: { in: [true, false] }
+  validate  :valid_until_after_valid_from
+
+  # Nota: display_name ya no es obligatorio, pero si está vacío,
+  # el método display_name devolverá el name
+  validates :requirement_context,
+            inclusion: { in: %w[general person property acquisition contract],
+                         allow_blank: true }
+
+  # Scopes
+  scope :current, -> {
+    where('valid_from <= ? AND (valid_until IS NULL OR valid_until >= ?)', Date.current, Date.current)
+  }
+
+  scope :mandatory, -> { where(mandatory: true) }
+  scope :blocking, -> { where(blocks_transaction: true) }
+  scope :by_context, ->(context) { where(requirement_context: context) }
+  scope :by_person_type, ->(type) { where(applies_to_person_type: type) }
+
+  scope :ordered, -> { order(:position, :name) }
+
+  # Validaciones
+  validates :position, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+
+  # Métodos personalizados
+  def display_name
+    super.presence || name
+  end
+
+  def long_description
+    "#{display_name}: #{description}"
+  end
+
+  def valid_on?(date)
+    valid_from <= date && (valid_until.nil? || valid_until >= date)
+  end
+
+  private
+
+  def valid_until_after_valid_from
+    return if valid_until.blank? || valid_from.blank?
+    if valid_until < valid_from
+      errors.add(:valid_until, 'debe ser posterior a valid_from')
+    end
+  end
+end
+
+*******
+app/models/document_type.rb_bkp
+*******
+
+# app/models/document_type.rb
+class DocumentType < ApplicationRecord
+  belongs_to :replacement_document,
+             class_name: 'DocumentType',
+             optional: true,
+             foreign_key: 'replacement_document_id'
+
+  has_many :replaced_documents,
+           class_name: 'DocumentType',
+           foreign_key: 'replacement_document_id',
+           dependent: :nullify
+
+  has_many :document_requirements, dependent: :destroy
+  has_many :document_validity_rules, dependent: :destroy
+  has_many :property_documents, dependent: :destroy
+
+  # Validaciones
+  validates :name, presence: true, uniqueness: true, db_uniqueness: true
+  validates :category, presence: true
+  validates :valid_from, presence: true
+  validates :is_active, inclusion: { in: [true, false] }
+  validate  :valid_until_after_valid_from
+
+  # Nota: display_name ya no es obligatorio, pero si está vacío,
+  # el método display_name devolverá el name
+  validates :requirement_context,
+            inclusion: { in: %w[general person property acquisition contract],
+                         allow_blank: true }
+
+  # Scopes
+  scope :current, -> {
+    where('valid_from <= ? AND (valid_until IS NULL OR valid_until >= ?)', Date.current, Date.current)
+  }
+
+  scope :mandatory, -> { where(mandatory: true) }
+  scope :blocking, -> { where(blocks_transaction: true) }
+  scope :by_context, ->(context) { where(requirement_context: context) }
+  scope :by_person_type, ->(type) { where(applies_to_person_type: type) }
+
+  # Métodos personalizados
+  def display_name
+    super.presence || name
+  end
+
+  def long_description
+    "#{display_name}: #{description}"
+  end
+
+  def valid_on?(date)
+    valid_from <= date && (valid_until.nil? || valid_until >= date)
+  end
+
+  private
+
+  def valid_until_after_valid_from
+    return if valid_until.blank? || valid_from.blank?
+    if valid_until < valid_from
+      errors.add(:valid_until, 'debe ser posterior a valid_from')
+    end
+  end
+end
+
+*******
+app/models/document_validity_rule.rb
+*******
+
+class DocumentValidityRule < ApplicationRecord
+  belongs_to :document_type
+
+  # Validaciones Rails + DB
+  validates :validity_period_months, presence: true,
+            numericality: { only_integer: true, greater_than: 0 },
+            db_numericality: { only_integer: true, greater_than: 0 }
+  validates :valid_from, presence: true
+  validates :is_active, inclusion: { in: [ true, false ] }
+  validate  :valid_until_after_valid_from
+
+  scope :current, -> {
+    where(is_active: true)
+      .where("valid_from <= ? AND (valid_until IS NULL OR valid_until >= ?)", Date.current, Date.current)
+  }
+
+  def self.for(document_type)
+    current.find_by(document_type: document_type)
+  end
+
+  private
+
+  def valid_until_after_valid_from
+    return if valid_until.blank? || valid_from.blank?
+    errors.add(:valid_until, "debe ser posterior a valid_from") if valid_until < valid_from
+  end
+end

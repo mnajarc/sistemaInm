@@ -1,4 +1,5 @@
 # app/models/document_submission.rb
+# 🔥 VERSIÓN LIMPIA: SIN validation_status ENUM - SOLO document_status
 
 class DocumentSubmission < ApplicationRecord
   # ========================================================================
@@ -16,14 +17,17 @@ class DocumentSubmission < ApplicationRecord
   belongs_to :validation_user, class_name: 'User', optional: true, 
              foreign_key: 'validation_user_id'
 
+
   has_many :document_notes, dependent: :destroy
   has_many :document_reviews, dependent: :destroy
+
 
   # Active Storage
   has_one_attached :document_file do |attachable|
     attachable.variant :thumb, resize_to_limit: [200, 200]
     attachable.variant :medium, resize_to_limit: [800, 800]
   end
+
 
   # ========================================================================
   # VALIDACIONES
@@ -40,17 +44,16 @@ class DocumentSubmission < ApplicationRecord
   validates :analysis_status, 
     inclusion: { in: %w[pending processing completed failed] },
     allow_nil: true
-  
-  validates :validation_status, presence: true, inclusion: {
-    in: %w[pending_review approved rejected expired]
-  }, allow_nil: true
+
 
   validates :business_transaction_id, presence: true
   validates :document_type_id, presence: true
 
+
   # Active Storage validations
   validate :validate_document_file_type
   validate :validate_document_file_size
+
 
   # ========================================================================
   # SCOPES - SIN DUPLICADOS
@@ -63,6 +66,7 @@ class DocumentSubmission < ApplicationRecord
   scope :for_co_owner, ->(co_owner) { where(business_transaction_co_owner: co_owner) }
   scope :by_party, ->(party) { where(party_type: party) }
 
+
   # Por estado del documento
   scope :pending, -> { 
     joins(:document_status).where(document_statuses: { name: 'pendiente_solicitud' }) 
@@ -71,26 +75,32 @@ class DocumentSubmission < ApplicationRecord
     joins(:document_status).where(document_statuses: { name: 'validado_vigente' }) 
   }
   scope :validated, -> { 
-    where.not(validated_at: nil).where(validation_status: 'approved')
+    joins(:document_status).where(document_statuses: { name: 'validado_vigente' })
   }
   scope :rejected, -> { 
-    where(validation_status: 'rejected')
+    joins(:document_status).where(document_statuses: { name: 'rechazado' })
   }
+
 
   # Por carga del documento
   scope :pending_upload, -> { where(submitted_at: nil) }
   scope :uploaded, -> { where.not(submitted_at: nil) }
 
+
   # Por análisis
   scope :pending_analysis, -> { where(analysis_status: 'pending') }
   scope :analyzed, -> { where.not(analysis_status: 'pending') }
   scope :auto_validated, -> { where(auto_validated: true) }
-  scope :pending_validation, -> { where(validation_status: ['pending_review', nil]) }
+  scope :pending_validation, -> { 
+    joins(:document_status).where(document_statuses: { name: 'pendiente_validacion' })
+  }
+
 
   # Por fecha de expiración
   scope :expired, -> { where('expiry_date < ?', Date.current) }
   scope :expiring_soon, -> { where('expiry_date BETWEEN ? AND ?', Date.current, 30.days.from_now) }
   scope :valid_date, -> { where('expiry_date IS NULL OR expiry_date >= ?', Date.current) }
+
 
   # ========================================================================
   # CALLBACKS
@@ -100,20 +110,24 @@ class DocumentSubmission < ApplicationRecord
   after_create_commit :schedule_analysis, if: :document_file_attached?
   after_update :notify_status_change, if: :saved_change_to_document_status_id?
 
+
   # ========================================================================
   # MÉTODOS DE ESTADO - SIN DUPLICADOS
   # ========================================================================
+
 
   # Verifica si el documento ha sido analizado
   def analyzed?
     analysis_status.present? && analysis_status != 'pending'
   end
 
+
   # Verifica si el documento está expirado
   def expired?
     return false unless expiry_date.present?
     expiry_date < Date.current
   end
+
 
   # Verifica si está próximo a expirar (30 días)
   def expiring_soon?
@@ -122,19 +136,23 @@ class DocumentSubmission < ApplicationRecord
     days_until_expiry >= 0 && days_until_expiry <= 30
   end
 
-  # Verifica si fue validado
+
+  # Verifica si fue validado - BASADO EN document_status
   def validated?
-    validated_at.present? && validation_status == 'approved'
+    validated_at.present? && document_status&.name == 'validado_vigente'
   end
+
 
   # Verifica si el documento es válido para usar (MÉTODO CRÍTICO)
   def valid_for_use?
     uploaded? && validated? && !expired?
   end
 
+
   # ========================================================================
   # MÉTODOS DE ESTADO - COMPATIBILIDAD
   # ========================================================================
+
 
   def pending?
     document_status&.name == 'pendiente_solicitud'
@@ -149,16 +167,18 @@ class DocumentSubmission < ApplicationRecord
   end
   
   def pending_validation?
-    uploaded? && validation_status.in?(['pending_review', nil])
+    uploaded? && document_status&.name == 'pendiente_validacion'
   end
   
   def has_files?
     document_file.attached?
   end
 
+
   # ========================================================================
   # MÉTODOS DE LEGIBILIDAD Y ANÁLISIS
   # ========================================================================
+
 
   def legibility_status
     return 'unknown' if legibility_score.nil? || legibility_score.zero?
@@ -171,6 +191,7 @@ class DocumentSubmission < ApplicationRecord
     end
   end
 
+
   def analysis_status_label
     case analysis_status
     when 'pending' then 'Pendiente'
@@ -181,8 +202,9 @@ class DocumentSubmission < ApplicationRecord
     end
   end
 
+
   # ========================================================================
-  # MÉTODOS DE CAMBIO DE ESTADO
+  # MÉTODOS DE CAMBIO DE ESTADO - BASADOS EN document_status
   # ========================================================================
   
   def mark_as_received!
@@ -196,11 +218,10 @@ class DocumentSubmission < ApplicationRecord
   
   def mark_as_validated!(user, notes: nil)
     update!(
-      document_status: DocumentStatus.find_by(name: 'validado'),
+      document_status: DocumentStatus.find_by(name: 'validado_vigente'),
       validated_by: user,
       validated_at: Time.current,
-      validation_notes: notes,
-      validation_status: 'approved'
+      validation_notes: notes
     )
   end
   
@@ -215,26 +236,33 @@ class DocumentSubmission < ApplicationRecord
       document_status: DocumentStatus.find_by(name: 'rechazado'),
       validated_by: user,
       validated_at: Time.current,
-      validation_notes: reason,
-      validation_status: 'rejected'
+      validation_notes: reason
     )
   end
+
 
   # ========================================================================
   # MÉTODOS DE VISUALIZACIÓN Y FORMATO
   # ========================================================================
 
+
   def status_badge_class
     return 'bg-secondary' unless uploaded?
-    
-    case validation_status
-    when 'approved' then 'bg-success'
-    when 'rejected' then 'bg-danger'
-    when 'expired' then 'bg-dark'
-    when 'pending_review' then 'bg-warning'
-    else 'bg-info'
+
+    case document_status&.name
+    when 'validado_vigente' then 'bg-success'
+    when 'rechazado' then 'bg-danger'
+    when 'vencido' then 'bg-dark'
+    when 'pendiente_solicitud' then 'bg-warning'
+    when 'recibido_revision' then 'bg-info'
+    when 'solicitado_cliente' then 'bg-info'
+    when 'observaciones' then 'bg-warning'
+    else 'bg-secondary'
     end
   end
+
+
+
 
   def party_display_name
     case party_type
@@ -253,6 +281,7 @@ class DocumentSubmission < ApplicationRecord
     end
   end
 
+
   def download_url
     Rails.application.routes.url_helpers.rails_blob_path(
       document_file, 
@@ -261,32 +290,39 @@ class DocumentSubmission < ApplicationRecord
   end
   
   def can_reupload?
-    validation_status.in?(['rejected', 'expired']) || submitted_at.blank?
+    document_status&.name.in?(['rechazado', 'expirado']) || submitted_at.blank?
   end
+
 
   # ========================================================================
   # MÉTODOS DE NOTAS Y REVIEWS
   # ========================================================================
 
+
   def latest_review
     document_reviews.recent.first
   end
+
 
   def reviews_count
     document_reviews.count
   end
 
+
   def reviewed_by?(user)
     document_reviews.exists?(user: user)
   end
+
 
   def review_history
     document_reviews.recent.includes(:user)
   end
 
+
   def last_note
     document_notes.recent.first
   end
+
 
   def add_note(user, content, note_type = 'comment')
     document_notes.create!(
@@ -295,6 +331,7 @@ class DocumentSubmission < ApplicationRecord
       note_type: note_type
     )
   end
+
 
   # ========================================================================
   # MÉTODOS PRIVADOS
@@ -327,11 +364,12 @@ class DocumentSubmission < ApplicationRecord
     document_file.attached?
   end
 
+
   def set_default_status
     self.document_status ||= DocumentStatus.find_by(name: 'pendiente_solicitud')
     self.analysis_status ||= 'pending'
-    self.validation_status ||= 'pending_review'
   end
+
 
   def notify_status_change
     # DocumentStatusNotificationJob.perform_later(self.id)

@@ -16,7 +16,7 @@
       <p class="text-muted mb-0">
         <strong>Folio:</strong> <%= @form.initial_contact_folio || "Sin folio" %> |
         <strong>Agente:</strong> <%= @form.agent && @form.agent.user ? @form.agent.user.name : "No asignado" %> |
-        <strong>Estado:</strong> <span class="badge bg-<%= status_badge_class(@form.status) %>"><%= @form.status.humanize %></span>
+        <strong>Estado:</strong> <span class="badge <%= status_badge_class(@form.status) %>"><%= @form.status.humanize %></span>
         <% if @form.completed_at %>
           | <strong>Completado:</strong> <%= l(@form.completed_at, format: :short) %>
         <% end %>

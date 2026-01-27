@@ -1,0 +1,214 @@
+<div class="container-fluid mt-4">
+  <!-- ENCABEZADO -->
+  <div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+      <h1 class="h3 text-gray-800">
+        <i class="bi bi-speedometer2 me-2"></i>Panel de Control
+      </h1>
+      <p class="text-muted mb-0">Bienvenido, <strong><%= current_user.full_name %></strong> (<%= current_user.role_name %>)</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <span class="badge bg-primary fs-6">
+        <i class="bi bi-shield-lock me-1"></i> Nivel de Acceso: <%= current_user.role_level %>
+      </span>
+    </div>
+  </div>
+
+  <!-- TARJETAS DE ESTADÍSTICAS (KPIs) -->
+  <div class="row g-3 mb-4">
+    <!-- Usuarios -->
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-start border-primary border-4 shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Usuarios Totales</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @stats[:total_users] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-people fs-2 text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transacciones Activas -->
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-start border-success border-4 shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Transacciones Activas</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @stats[:active_transactions] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-currency-dollar fs-2 text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documentos Pendientes -->
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-start border-warning border-4 shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Docs. Pendientes</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @stats[:pending_documents] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-file-earmark-text fs-2 text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Propiedades -->
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-start border-info border-4 shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Propiedades</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800"><%= @stats[:total_properties] %></div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-house fs-2 text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- COLUMNA IZQUIERDA: MENÚ RÁPIDO Y TRANSACCIONES -->
+    <div class="col-lg-8">
+      
+      <!-- ACCESOS DIRECTOS (MENÚ DINÁMICO) -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">Accesos Directos</h6>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <% if @accessible_menu_items.any? %>
+              <% @accessible_menu_items.each do |item| %>
+                <div class="col-6 col-md-4 col-lg-3 mb-3">
+                  <a href="<%= item.path %>" class="text-decoration-none text-dark">
+                    <div class="p-3 border rounded hover-bg-light">
+                      <div class="fs-1 mb-2 text-primary">
+                        <% if item.icon.present? %>
+                          <i class="<%= item.icon.start_with?('bi-') ? item.icon : "bi bi-#{item.icon}" %>"></i>
+                        <% else %>
+                          <i class="bi bi-link"></i>
+                        <% end %>
+                      </div>
+                      <div class="small fw-bold"><%= item.display_name %></div>
+                    </div>
+                  </a>
+                </div>
+              <% end %>
+            <% else %>
+              <div class="col-12 text-muted">No hay menús configurados.</div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÚLTIMAS TRANSACCIONES -->
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+          <h6 class="m-0 font-weight-bold text-primary">Últimas Transacciones</h6>
+          <%= link_to "Ver todas", business_transactions_path, class: "btn btn-sm btn-outline-primary" %>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Folio</th>
+                  <th>Propiedad</th>
+                  <th>Operación</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if @recent_transactions.any? %>
+                  <% @recent_transactions.each do |bt| %>
+                    <tr>
+                      <td>#<%= bt.id %></td>
+                      <td>
+                        <div class="fw-bold"><%= bt.property.street %> <%= bt.property.exterior_number %></div>
+                        <div class="small text-muted"><%= bt.property.municipality %></div>
+                      </td>
+                      <td><%= bt.operation_type.name %></td>
+                      <td>
+                        <span class="badge bg-secondary"><%= bt.business_status.name %></span>
+                      </td>
+                      <td>
+                        <%= link_to business_transaction_path(bt), class: "btn btn-sm btn-primary" do %>
+                          <i class="bi bi-eye"></i>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                <% else %>
+                  <tr><td colspan="5" class="text-center py-3">No hay transacciones recientes.</td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: DOCUMENTOS PENDIENTES -->
+    <div class="col-lg-4">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-warning bg-opacity-10">
+          <h6 class="m-0 font-weight-bold text-warning-dark">
+            <i class="bi bi-exclamation-triangle me-1"></i> Documentos Pendientes
+          </h6>
+        </div>
+        <div class="list-group list-group-flush">
+          <% if @pending_documents.any? %>
+            <% @pending_documents.each do |doc| %>
+              <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1 fw-bold"><%= doc.document_type.name %></h6>
+                  <small class="text-muted"><%= time_ago_in_words(doc.created_at) %></small>
+                </div>
+                <p class="mb-1 small">Transacción #<%= doc.business_transaction_id %></p>
+                
+                <div class="mt-2">
+                   <%= link_to "Revisar", business_transaction_document_submissions_path(doc.business_transaction), class: "btn btn-xs btn-outline-warning w-100" %>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="p-3 text-center text-muted">¡Todo al día! No hay documentos pendientes.</div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hover-bg-light:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+    border-color: #0d6efd !important;
+  }
+  .border-start.border-4 {
+    border-left-width: 4px !important;
+  }
+  .text-gray-300 { color: #dddfeb !important; }
+  .text-gray-800 { color: #5a5c69 !important; }
+</style>

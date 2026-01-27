@@ -1,0 +1,67 @@
+<turbo-stream action="replace" target="document-row-<%= @document_submission.id %>" method="morph">
+  <template>
+    <tr id="document-row-<%= @document_submission.id %>">
+      <td>
+        <strong><%= @document_submission.document_type.name %></strong>
+      </td>
+      <td>
+        <span class="badge <%= @document_submission.status_badge_class %>">
+          <%= @document_submission.document_status&.name || "Sin Estado" %>
+        </span>
+      </td>
+      <td>
+        <small><%= @document_submission.created_at.strftime('%d/%m/%Y') %></small>
+      </td>
+      <td>
+        <small><%= @document_submission.validated_at&.strftime('%d/%m/%Y') %></small>
+      </td>
+      <td>
+        <div class="btn-group btn-group-sm" role="group">
+          <button class="btn btn-outline-primary preview-btn" data-submission-id="<%= @document_submission.id %>" data-document-type="<%= @document_submission.document_type.name %>" title="Ver previsualización">
+            <i class="bi bi-eye"></i>
+          </button>
+          <a href="/business_transactions/<%= @business_transaction.id %>/document_submissions/<%= @document_submission.id %>/download" class="btn btn-outline-info" title="Descargar">
+            <i class="bi bi-download"></i>
+          </a>
+          <button class="btn btn-outline-warning upload-btn" data-submission-id="<%= @document_submission.id %>" title="Cargar/Recargar documento">
+            <i class="bi bi-upload"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  </template>
+</turbo-stream>
+
+<turbo-stream action="append" target="document_notes_list">
+  <template>
+    <div class="mb-3 pb-3 border-bottom">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <small class="text-muted">
+            <span class="badge bg-success">status_change</span>
+            <strong><%= @current_user&.email || "Sistema" %></strong> •
+            just now
+          </small>
+          <p class="mb-0 mt-2"><strong>✅ Documento validado</strong></p>
+          <% if @validation_notes.present? %>
+            <p class="mb-0 text-muted small"><em><%= @validation_notes %></em></p>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </template>
+</turbo-stream>
+
+<turbo-stream action="remove" target="no_notes_message"></turbo-stream>
+
+<turbo-stream action="replace" target="validated_count">
+  <template>
+    <%= @validated_count %>
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="pending_count">
+  <template>
+    <%= @pending_count %>
+  </template>
+</turbo-stream>

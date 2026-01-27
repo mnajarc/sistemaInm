@@ -1,0 +1,15 @@
+<!-- ✅ Mostrar alert de error -->
+<%= turbo_stream.prepend("form_note_container") do %>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert" id="note_error">
+    ❌ Error al agregar comentario: <%= @note.errors.full_messages.join(", ") %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<% end %>
+
+<!-- ✅ Auto-remove alert después de 5 segundos -->
+<script>
+  setTimeout(() => {
+    const alert = document.getElementById('note_error');
+    if (alert) alert.remove();
+  }, 5000);
+</script>

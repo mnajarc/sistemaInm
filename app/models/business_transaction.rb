@@ -119,7 +119,99 @@ end
     "#{operation_type_code}_#{sanitized_name}"
   end
  
+  
+  def create_required_documents_v2!(scenario)
+    return unless scenario.present?
+
+    Rails.logger.info "=" * 80
+    Rails.logger.info "📋 CREANDO DOCUMENTOS REQUERIDOS - V2 (SIN DUPLICADOS)"
+    Rails.logger.info "BT ID: #{id} | Scenario: #{scenario.name}"
+    Rails.logger.info "=" * 80
+
+    # Rastrear documentos creados para evitar duplicados en el mismo proceso
+    created_doc_map = {}  # { "doc_type_id:party_type" => true }
+
+    scenario.scenario_documents.each do |scenario_doc|
+      doc_type = scenario_doc.document_type
+      party_type = scenario_doc.party_type
+      only_principal = scenario_doc.only_for_principal?
+
+      # CLAVE DEDUPLICACIÓN: Prevenir documentos duplicados
+      # Si ya procesamos este tipo de documento para este tipo de parte en este loop, saltamos.
+      doc_key = "#{doc_type.id}:#{party_type}"
+      
+      if created_doc_map[doc_key]
+        Rails.logger.info "⏭️  SALTANDO DUPLICADO: #{doc_type.name} (#{party_type}) - YA CREADO"
+        next
+      end
+
+      Rails.logger.info "\n🔍 Procesando: #{doc_type.name}"
+      Rails.logger.info "   party_type: #{party_type}"
+      Rails.logger.info "   only_principal: #{only_principal}"
+
+      # Determinar copropietarios destino
+      target_co_owners = if only_principal
+                           business_transaction_co_owners.where(role: 'propietario')
+                         else
+                           map_party_type_to_co_owners(party_type)
+                         end
+
+      Rails.logger.info "   Creando para #{target_co_owners.count} copropietario(s):"
+
+      target_co_owners.each do |co_owner|
+        Rails.logger.info "      → #{co_owner.person_name} (#{co_owner.role})"
+
+        # CLAVE IDEMPOTENCIA: find_or_create_by previene duplicados en BD
+        # Si se corre el proceso dos veces, no crea dobles.
+        submission = DocumentSubmission.find_or_create_by!(
+          business_transaction_id: id,
+          business_transaction_co_owner_id: co_owner.id,
+          document_type_id: doc_type.id
+        ) do |sub|
+          sub.party_type = party_type
+          sub.notes = "Requerido por escenario: #{scenario.name}"
+          # Si necesitas copiar más atributos del scenario_doc, hazlo aquí
+        end
+
+        Rails.logger.info "         ✅ DocSub ID: #{submission.id}"
+      end
+
+      # Marcar como creado para esta combinación
+      created_doc_map[doc_key] = true
+    end
+
+    Rails.logger.info "\n" + "=" * 80
+    Rails.logger.info "✅ RESUMEN FINAL"
+    Rails.logger.info "   Documento combinations procesadas: #{created_doc_map.count}"
+    Rails.logger.info "   Total DocumentSubmissions: #{document_submissions.count}"
+    Rails.logger.info "=" * 80
+  end
+
+
+
   private
+
+
+  def map_party_type_to_co_owners(party_type)
+      case party_type
+      when 'copropietario_principal', 'propietario', 'vendedor', 'dueño'
+        # Ajusta estos roles según tu lógica de negocio exacta
+        business_transaction_co_owners.where(role: 'propietario')
+      when 'adquiriente', 'comprador', 'arrendatario'
+        # Generalmente los documentos de adquiriente se manejan diferente o no tienen co-owners,
+        # pero si tienes co-owners tipo 'comprador', agrégalos aquí.
+        # Si 'adquiriente' es solo la contraparte y no está en co_owners, retorna vacío.
+        [] 
+      when 'copropietario'
+        business_transaction_co_owners.where(role: ['propietario', 'copropietario'])
+      when 'ambos', 'todos'
+        business_transaction_co_owners
+      else
+        []
+      end
+    end
+
+
 
   # ============================================================
   # VALIDACIÓN: No borrar si hay ofertas activas

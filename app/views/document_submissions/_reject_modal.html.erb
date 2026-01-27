@@ -1,0 +1,37 @@
+<!-- app/views/document_submissions/_reject_modal.html.erb -->
+<div id="reject-modal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">❌ Rechazar Documento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      
+      <%= form_with(
+        model: @document_submission,
+        url: business_transaction_document_submission_reject_path(@business_transaction, @document_submission),
+        method: :patch,
+        local: true
+      ) do |f| %>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            ⚠️ Al rechazar, se pedirá al usuario que cargue nuevamente el documento.
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :reason, "Motivo del Rechazo (Requerido)" %>
+            <%= f.text_area :reason, rows: 4, class: "form-control", required: true,
+                placeholder: "Ej: Documento ilegible. Por favor, cargar foto con mejor calidad." %>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <%= f.submit "❌ Rechazar", class: "btn btn-danger" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

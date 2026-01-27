@@ -1,4 +1,6 @@
 <!-- app/views/document_submissions/index.html.erb -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <div class="container-fluid py-4" data-business-transaction-id="<%= @business_transaction.id %>">
 
   <div class="row mb-4">
@@ -26,6 +28,11 @@
     <button id="copy-whatsapp-btn" class="btn btn-success">
       <i class="bi bi-whatsapp"></i> Copiar para WhatsApp
     </button>
+
+    <button id="send-whatsapp-btn" class="btn btn-success">
+      <i class="bi bi-whatsapp"></i> Abrir en WhatsApp
+    </button>
+
     <a href="<%= export_checklist_business_transaction_document_submissions_path(@business_transaction, format: :pdf) %>"
        class="btn btn-primary" target="_blank">
       <i class="bi bi-download"></i> Descargar PDF
@@ -36,30 +43,107 @@
     </a>
   </div>
 
+
+
   <script>
-    document.getElementById('copy-whatsapp-btn')?.addEventListener('click', function() {
+    // Función auxiliar para generar el texto (así no repetimos lógica)
+    function generateChecklistText() {
       const transactionId = <%= @business_transaction.id %>;
       const checklist = <%= @checklist.to_json.html_safe %>;
 
       let text = '📋 CHECKLIST DOCUMENTAL\n';
-      text += '═'.repeat(60) + '\n\n';
+      text += '═'.repeat(40) + '\n\n'; // Reduje un poco el ancho para móviles
       text += `Transacción: #${transactionId}\n`;
       text += `Propiedad: <%= @business_transaction.property.address %>\n`;
       text += `Escenario: <%= @business_transaction.transaction_scenario&.name || 'Sin escenario' %>\n`;
       text += `Fecha: <%= I18n.l(Date.today, format: :long) %>\n\n`;
 
       text += '📊 RESUMEN\n';
-      text += '─'.repeat(60) + '\n';
+      text += '─'.repeat(40) + '\n';
       text += `Total: ${checklist.summary.total} | `;
       text += `Cargados: ${checklist.summary.uploaded} | `;
       text += `Validados: ${checklist.summary.validated} | `;
       text += `Rechazados: ${checklist.summary.rejected} | `;
       text += `Progreso: ${checklist.summary.progress}%\n\n`;
 
-      navigator.clipboard.writeText(text);
-      alert('✅ Copiado al portapapeles');
+      text += '👤 PERSONAS\n';
+      text += '═'.repeat(40) + '\n\n';
+
+      if (checklist.copropietarios && checklist.copropietarios.length > 0) {
+        checklist.copropietarios.forEach(co => {
+          const coOwner = co.co_owner;
+          const documents = co.documents;
+          
+          let totalDocs = 0;
+          if (documents && documents.list) {
+            documents.list.forEach(cat => totalDocs += cat.documents.length);
+          }
+          
+          // Ajuste para móviles: nombres más limpios
+          text += `👨 ${coOwner.name}\n`; 
+          text += `   (${coOwner.role || 'Rol'} - ${coOwner.percentage || 0}%)\n`;
+          text += `   Documentos requeridos: ${totalDocs}\n`;
+          text += '─'.repeat(40) + '\n\n';
+
+          if (documents && documents.list) {
+            documents.list.forEach(category => {
+              if (category.documents && category.documents.length > 0) {
+                text += `📍 ${category.category} (${category.documents.length})\n`;
+                
+                category.documents.forEach(doc => {
+                  // Check logic: si está uploaded (aunque no validado) cuenta como check visual
+                  // O puedes poner status === 'validated' para ser más estricto
+                  const isUploaded = (doc.submission && doc.submission.document_file_attached);
+                  const status = isUploaded ? '✅' : '☐';
+                  const docName = doc.document_type ? doc.document_type.name : 'Documento';
+                  
+                  text += `   ${status} ${docName}\n`;
+                });
+                text += '\n';
+              }
+            });
+          }
+          text += '\n';
+        });
+      } else {
+        text += "No hay copropietarios registrados.\n";
+      }
+      
+      return text;
+    }
+
+    // EVENTO: COPIAR AL PORTAPAPELES
+    document.getElementById('copy-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      navigator.clipboard.writeText(text).then(() => {
+        // Feedback visual temporal en el botón
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> ¡Copiado!';
+        btn.classList.replace('btn-outline-success', 'btn-success');
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHtml;
+          btn.classList.replace('btn-success', 'btn-outline-success');
+        }, 2000);
+      }).catch(err => alert('Error al copiar: ' + err.message));
+    });
+
+    // EVENTO: ABRIR EN WHATSAPP (LA CEREZA 🍒)
+    document.getElementById('send-whatsapp-btn')?.addEventListener('click', function() {
+      const text = generateChecklistText();
+      // encodeURIComponent es vital para que saltos de línea y emojis viajen bien en la URL
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
     });
   </script>
+
+
+
+
+
+
+
 
   <!-- PESTAÑAS POR COPROPIETARIO -->
   <ul class="nav nav-tabs mb-3" role="tablist">
@@ -97,79 +181,18 @@
               </tr>
             </thead>
             <tbody>
+            
               <% co_data[:documents][:list].each do |category| %>
                 <% category[:documents].each do |doc| %>
                   <% submission = doc[:submission] %>
-                  <tr id="document-row-<%= submission.id %>">
-                    <td>
-                      <strong><%= doc[:document_type][:name] %></strong>
-                    </td>
-                    <td>
-                      <% if submission.document_file.attached? %>
-                        <span class="badge bg-<%= submission.document_status&.name || 'secondary' %>">
-                          <%= submission.document_status&.name || 'Desconocido' %>
-                        </span>
-                      <% else %>
-                        <span class="badge bg-secondary">Pendiente Solicitud</span>
-                      <% end %>
-                    </td>
-                    <td>
-                      <% if submission.submitted_at %>
-                        <small><%= submission.submitted_at.strftime('%d/%m/%Y') %></small>
-                      <% else %>
-                        <span class="text-muted">-</span>
-                      <% end %>
-                    </td>
-                    <td>
-                      <% if submission.validated_at %>
-                        <small><%= submission.validated_at.strftime('%d/%m/%Y') %></small>
-                      <% else %>
-                        <span class="text-muted">-</span>
-                      <% end %>
-                    </td>
-                    <td>
-                      <div class="btn-group btn-group-sm" role="group">
-                        <% if submission.document_file.attached? %>
-                          <button class="btn btn-outline-primary preview-btn" 
-                                  data-submission-id="<%= submission.id %>"
-                                  data-document-type="<%= submission.document_type&.name %>"
-                                  title="Ver previsualización">
-                            <i class="bi bi-eye"></i>
-                          </button>
-                          <a href="<%= download_business_transaction_document_submission_path(@business_transaction, submission) %>"
-                             class="btn btn-outline-info"
-                             title="Descargar">
-                            <i class="bi bi-download"></i>
-                          </a>
-                        <% end %>
-
-                        <% if current_user.admin? || current_user.agent? %>
-                          <% if submission.document_file.attached? && !submission.validated? %>
-                            <button class="btn btn-outline-success validate-btn"
-                                    data-submission-id="<%= submission.id %>"
-                                    title="Validar documento">
-                              <i class="bi bi-check-circle"></i>
-                            </button>
-                            <button class="btn btn-outline-danger reject-btn"
-                                    data-submission-id="<%= submission.id %>"
-                                    title="Rechazar documento">
-                              <i class="bi bi-x-circle"></i>
-                            </button>
-                          <% end %>
-                        <% end %>
-
-                        <% if !submission.document_file.attached? || (current_user == submission.uploaded_by || current_user.admin?) %>
-                          <button class="btn btn-outline-warning upload-btn"
-                                  data-submission-id="<%= submission.id %>"
-                                  title="Cargar/Recargar documento">
-                            <i class="bi bi-upload"></i>
-                          </button>
-                        <% end %>
-                      </div>
-                    </td>
-                  </tr>
+                  <%= render "document_submissions/document_row", 
+                      submission: submission, 
+                      business_transaction: @business_transaction %>
                 <% end %>
               <% end %>
+
+
+
             </tbody>
           </table>
         </div>
@@ -274,90 +297,40 @@
 document.addEventListener('DOMContentLoaded', function() {
   const btxId = document.querySelector('[data-business-transaction-id]')?.dataset.businessTransactionId;
 
+  // PREVIEW - CORREGIDO
   document.querySelectorAll('.preview-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
       const submissionId = this.dataset.submissionId;
-      const documentType = this.dataset.documentType;
       const previewContent = document.getElementById('previewContent');
-      previewContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
-
-      fetch(`/business_transactions/${btxId}/document_submissions/${submissionId}/preview.json`)
-        .then(r => r.json())
-        .then(data => {
-          let html = `<div class="preview-wrapper"><h6>${documentType}</h6><p class="text-muted small"><strong>Cargado:</strong> ${data.uploaded_at || 'N/A'} | <strong>Por:</strong> ${data.uploaded_by || 'Sistema'}<br><strong>Estado:</strong> ${data.status || 'Desconocido'} | <strong>Análisis:</strong> ${data.analysis.status_label || 'Pendiente'}</p>`;
-          
-          if (data.file_url) {
-            if (data.content_type?.startsWith('image/')) {
-              html += `<img src="${data.file_url}" style="max-width: 100%; max-height: 60vh; object-fit: contain;" alt="Previsualización">`;
-            } else if (data.content_type === 'application/pdf') {
-              html += `<embed src="${data.file_url}" style="width: 100%; height: 60vh;" type="application/pdf">`;
-            } else {
-              html += `<p class="alert alert-info">Archivo no previewable. <a href="${data.file_url}" target="_blank">Descargar</a></p>`;
-            }
-          } else {
-            html += '<p class="alert alert-warning">No hay archivo cargado</p>';
-          }
-          
-          if (data.analysis.legibility_score) {
-            html += `<hr><p><strong>Puntuación de legibilidad:</strong> ${data.analysis.legibility_score}%</p>`;
-          }
-          html += '</div>';
+      
+      // Mostrar spinner mientras carga
+      previewContent.innerHTML = `
+        <div class="text-center py-5">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      `;
+      
+      // Cargar el contenido del preview
+      fetch(`/business_transactions/${btxId}/document_submissions/${submissionId}/preview`)
+        .then(response => response.text())
+        .then(html => {
           previewContent.innerHTML = html;
-
-          // ZOOM DE IMÁGENES CON SCROLL
-          document.addEventListener('wheel', function(event) {
-            const img = document.querySelector('.preview-wrapper img');
-            if (!img) return;
-            
-            if (event.target === img || img.contains(event.target)) {
-              event.preventDefault();
-              
-              if (event.deltaY < 0) {
-                if (img.classList.contains('zoomed-2x')) return;
-                if (img.classList.contains('zoomed')) {
-                  img.classList.remove('zoomed');
-                  img.classList.add('zoomed-2x');
-                } else {
-                  img.classList.add('zoomed');
-                }
-              } else {
-                if (img.classList.contains('zoomed-2x')) {
-                  img.classList.remove('zoomed-2x');
-                  img.classList.add('zoomed');
-                } else if (img.classList.contains('zoomed')) {
-                  img.classList.remove('zoomed');
-                }
-              }
-            }
-          }, { passive: false });
-
-          // CLICK PARA ZOOM
-          document.addEventListener('click', function(event) {
-            const img = event.target.closest('.preview-wrapper img');
-            if (!img) return;
-            
-            if (img.classList.contains('zoomed-2x')) {
-              img.classList.remove('zoomed-2x');
-              img.classList.remove('zoomed');
-            } else if (img.classList.contains('zoomed')) {
-              img.classList.remove('zoomed');
-              img.classList.add('zoomed-2x');
-            } else {
-              img.classList.add('zoomed');
-            }
-          });
         })
-        .catch(err => {
-          previewContent.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+        .catch(error => {
+          previewContent.innerHTML = `<div class="alert alert-danger">Error al cargar: ${error.message}</div>`;
         });
-
+      
       const modal = new bootstrap.Modal(document.getElementById('previewModal'));
       modal.show();
     });
   });
 
-  // UPLOAD
+
+
+  // UPLOAD - sin cambios
   document.querySelectorAll('.upload-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -385,63 +358,14 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(err => alert('Error: ' + err.message));
   });
 
-  // VALIDATE
-  document.querySelectorAll('.validate-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      const submissionId = this.dataset.submissionId;
-      document.getElementById('validateForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/validate_document`;
-      const modal = new bootstrap.Modal(document.getElementById('validateModal'));
-      modal.show();
-    });
-  });
+  // VALIDATE - NO BUTTONS, NO MODAL
+  // (Se maneja desde preview.html.erb directamente con Turbo)
 
-  document.getElementById('validateForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const action = this.action;
-    fetch(action, {
-      method: 'POST',
-      body: formData,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(r => r.text())
-    .then(() => {
-      bootstrap.Modal.getInstance(document.getElementById('validateModal')).hide();
-      location.reload();
-    })
-    .catch(err => alert('Error: ' + err.message));
-  });
-
-  // REJECT
-  document.querySelectorAll('.reject-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      const submissionId = this.dataset.submissionId;
-      document.getElementById('rejectForm').action = `/business_transactions/${btxId}/document_submissions/${submissionId}/reject_document`;
-      const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
-      modal.show();
-    });
-  });
-
-  document.getElementById('rejectForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const action = this.action;
-    fetch(action, {
-      method: 'POST',
-      body: formData,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(r => r.text())
-    .then(() => {
-      bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
-      location.reload();
-    })
-    .catch(err => alert('Error: ' + err.message));
-  });
+  // REJECT - NO BUTTONS, NO MODAL
+  // (Se maneja desde preview.html.erb directamente con Turbo)
 });
 </script>
+
 
 <style>
 .preview-wrapper {
