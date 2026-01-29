@@ -17,4 +17,17 @@
   </div>
 
   <%= render 'form', form: @initial_contact_form %>
+
+  <script>
+  document.addEventListener('turbo:submit-start', function(e) {
+    const coOwnersField = document.querySelector('[name="initial_contact_form[acquisition_details][co_owners_count]"]');
+    console.log('🔴 TURBO SUBMIT START - co_owners_count:', coOwnersField.value);
+  });
+
+  document.addEventListener('turbo:before-cache', function(e) {
+    const coOwnersField = document.querySelector('[name="initial_contact_form[acquisition_details][co_owners_count]"]');
+    console.log('🟡 TURBO BEFORE CACHE - co_owners_count:', coOwnersField.value);
+  });
+  </script>
+
 </div>

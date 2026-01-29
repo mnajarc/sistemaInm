@@ -300,10 +300,10 @@
         </div>
         
         <div class="col-md-6 mb-3">
-          <%= label_tag 'acquisition_details_co_owners_count', 'Número de copropietarios',
+          <%= label_tag 'acquisition_details_creditors_count', 'Número de copropietarios',
                         class: 'form-label' %>
-          <%= number_field_tag 'initial_contact_form[acquisition_details][co_owners_count]',
-                              form.acquisition_details['co_owners_count'] || 1,
+          <%= number_field_tag 'initial_contact_form[acquisition_details][creditors_count]',
+                              form.acquisition_details['creditors_count'] || 1,
                               class: 'form-control', min: 1 %>
         </div>
       </div>

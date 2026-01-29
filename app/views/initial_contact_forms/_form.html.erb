@@ -2,6 +2,7 @@
 <!-- FORMULARIO REFACTORIZADO - 4 SECCIONES -->
 
 <%= form_with(model: form, local: true, html: { class: 'initial-contact-form', id: 'contactForm' }) do |f| %>
+
   <%# ✅ CAMPO OCULTO PARA AGENTE %>
   <%= f.hidden_field :agent_id, value: form.agent_id || current_user.agent&.id %>
   
@@ -895,4 +896,3 @@
 
 <!-- JAVASCRIPT -->
 <%= render 'form_javascript' %>
-

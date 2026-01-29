@@ -29,6 +29,32 @@ class BusinessTransactionCoOwner < ApplicationRecord
   end
 
 
+  # =================================================================
+  # HELPERS PARA RÉGIMEN MATRIMONIAL
+  # =================================================================
+
+  def is_mancomunado?
+    person_name == 'Cónyuge - Por definir' && role == 'copropietario'
+  end
+
+  def regime_label
+    if is_mancomunado?
+      'Sociedad Conyugal (Bienes Mancomunados)'
+    else
+      'Copropietario Comercial / Soltero'
+    end
+  end
+
+  scope :mancomunados, lambda {
+    where("person_name = ?", 'Cónyuge - Por definir').where(role: 'copropietario')
+  }
+
+  scope :copropietarios_comerciales, lambda {
+    where("person_name != ?", 'Cónyuge - Por definir')
+  }
+
+
+
   private
 
   # ============================================================

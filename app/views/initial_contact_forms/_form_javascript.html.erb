@@ -465,8 +465,36 @@ function clearHiddenSectionFields(exceptSectionId) {
   // VALIDACIÓN ANTES DE SUBMIT
   // ========================================================================
   const form = document.getElementById('contactForm');
+  // 🔴 CAPTURE FORM DATA BEFORE SUBMIT
+  const originalSubmit = form.submit;
+  form.submit = function() {
+    const formData = new FormData(this);
+    const params = new URLSearchParams(formData);
+    console.log('🟢 FORM DATA BEFORE SUBMIT:');
+    console.log('co_owners_count:', params.get('initial_contact_form[acquisition_details][co_owners_count]'));
+    console.log('Full params:', params.toString());
+    originalSubmit.call(this);
+  };
   
   if (form) {
+    // Debugger para co_owners_count
+    const coOwnersInput = document.querySelector('[name="initial_contact_form[acquisition_details][co_owners_count]"]');
+    if (coOwnersInput) {
+      coOwnersInput.addEventListener('change', function() {
+        console.log('🔴 co_owners_count input changed to:', this.value);
+      });
+      
+      form.addEventListener('submit', function(e) {
+        console.log('🟠 SUBMIT - co_owners_count ANTES:', coOwnersInput.value);
+        // Asegurar que tenga el valor
+        if (coOwnersInput.value === '' || coOwnersInput.value === '0') {
+          coOwnersInput.value = '1';
+        }
+        console.log('🟠 SUBMIT - co_owners_count DESPUÉS:', coOwnersInput.value);
+        updateRequiredFields();
+      });
+    }
+
     form.addEventListener('submit', function(e) {
       updateRequiredFields();
       console.log('📝 Form submitting...');
@@ -561,6 +589,11 @@ function clearHiddenSectionFields(exceptSectionId) {
   console.log('✅ JavaScript initialization complete');
 }
 
+
+
+
+
+
 // ========================================================================
 // EVENTOS TURBO
 // ========================================================================
@@ -576,6 +609,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeInitialContactForm();
   }
 });
+
+
 </script>
 
 <style>

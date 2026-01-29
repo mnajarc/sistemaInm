@@ -66,6 +66,9 @@ class InitialContactForm < ApplicationRecord
   before_save :set_converted_at, if: -> { status_changed? && converted? }
   before_save :auto_generate_opportunity_identifier
   before_save :auto_generate_property_id
+  before_save :ensure_co_owners_count_is_integer
+  after_initialize :initialize_acquisition_details
+
 
   # ============================================================
   # MÉTODOS PÚBLICOS - HELPERS PARA VISTAS
@@ -373,6 +376,21 @@ class InitialContactForm < ApplicationRecord
   # MÉTODOS PRIVADOS - GENERACIÓN DE IDENTIFICADORES
   # ============================================================
   private
+
+  def initialize_acquisition_details
+    if self.acquisition_details.blank?
+      self.acquisition_details = { 'co_owners_count' => 1 }
+    elsif self.acquisition_details['co_owners_count'].blank?
+      self.acquisition_details['co_owners_count'] = 1
+    end
+  end
+
+  def ensure_co_owners_count_is_integer
+    if acquisition_details.present? && acquisition_details['co_owners_count'].present?
+      acquisition_details['co_owners_count'] = acquisition_details['co_owners_count'].to_i
+    end
+  end
+
 
   def should_generate_identifier?
     general_conditions['owner_or_representative_name'].present? &&
@@ -896,51 +914,62 @@ class InitialContactForm < ApplicationRecord
   end
 
   def create_co_owners!(business_transaction, primary_client)
-    heirs_count = acquisition_details['heirs_count'].to_i
+    # Detectar si es herencia
+    is_heritage = business_transaction.property_acquisition_method&.code == 'herencia'
     
-    if heirs_count <= 1
-      BusinessTransactionCoOwner.create!(
-        business_transaction: business_transaction,
+    # Obtener conteo según tipo
+    count = if is_heritage
+              (acquisition_details['heirs_count'] || 1).to_i
+            else
+              (acquisition_details['co_owners_count'] || 1).to_i
+            end
+    
+    # Tipo de propietario
+    owner_type = is_heritage ? 'heredero' : 'copropietario'
+    
+    # Cálculos
+    percentage_each = (100.0 / count).round(2)
+    is_mancomunado = !is_heritage && (general_conditions['marriage_regime_id'].to_i == 4)
+    owner_percentage = is_mancomunado ? (percentage_each / 2).round(2) : percentage_each
+
+    # Juan
+    business_transaction.business_transaction_co_owners.create!(
+      client: primary_client,
+      person_name: general_conditions['owner_or_representative_name'],
+      percentage: owner_percentage,
+      role: 'propietario',
+      active: true
+    )
+
+    # Cónyuge (solo si copropietarios + mancomunado)
+    if is_mancomunado
+      business_transaction.business_transaction_co_owners.create!(
         client: primary_client,
-        percentage: 100,
-        person_name: primary_client.full_name,
-        role: 'propietario',
+        person_name: "Cónyuge de #{general_conditions['owner_or_representative_name']}",
+        percentage: owner_percentage,
+        role: 'copropietario',
         active: true
       )
-    else
-      percentage_per_heir = 100 / heirs_count
-      
-      BusinessTransactionCoOwner.create!(
-        business_transaction: business_transaction,
-        client: primary_client,
-        percentage: percentage_per_heir,
-        person_name: primary_client.full_name,
-        role: 'propietario',
-        active: true
-      )
-      
-      (heirs_count - 1).times do |index|
-        BusinessTransactionCoOwner.create!(
-          business_transaction: business_transaction,
-          client: nil,
-          percentage: percentage_per_heir,
-          person_name: "Heredero #{index + 2}",
-          role: 'copropietario',
-          active: true
-        )
-      end
     end
     
-    Rails.logger.info "✅ #{business_transaction.business_transaction_co_owners.count} copropietarios creados"
+    # Resto
+    (count - 1).times do |i|
+      business_transaction.business_transaction_co_owners.create!(
+        person_name: "#{owner_type.capitalize} #{i + 2} - Por definir",
+        percentage: percentage_each,
+        role: owner_type,
+        active: true
+      )
+    end
   end
 
 
-def create_required_documents!(business_transaction, scenario)
-  return unless scenario.present?
+  def create_required_documents!(business_transaction, scenario)
+    return unless scenario.present?
 
-  # USAR LA NUEVA VERSIÓN V2
-  business_transaction.create_required_documents_v2!(scenario)
-end
+    # USAR LA NUEVA VERSIÓN V2
+    business_transaction.create_required_documents_v2!(scenario)
+  end
 
 
 
@@ -1071,5 +1100,6 @@ end
     return value if [true, false].include?(value)
     value.to_s.strip.downcase == 'true'
   end
+
 
 end

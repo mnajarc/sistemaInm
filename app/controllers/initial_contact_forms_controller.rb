@@ -103,54 +103,54 @@ class InitialContactFormsController < ApplicationController
     load_form_data
   end
   
-def create
-  @initial_contact_form = InitialContactForm.new(form_params)
-  @initial_contact_form.agent = current_user.agent unless @initial_contact_form.agent.present?
+  def create
+    @initial_contact_form = InitialContactForm.new(form_params)
+    @initial_contact_form.agent = current_user.agent unless @initial_contact_form.agent.present?
 
-  unless @initial_contact_form.agent.present?
-    redirect_to root_path, alert: "No tienes un agente asignado. Contacta al administrador."
-    return
-  end
+    unless @initial_contact_form.agent.present?
+      redirect_to root_path, alert: "No tienes un agente asignado. Contacta al administrador."
+      return
+    end
 
-  # Detectar qué botón se presionó
-  @initial_contact_form.status = case
-                                   when params[:save_draft].present? then :draft
-                                   when params[:complete].present? then :completed
-                                   else :draft
-                                   end
-
-
-  # 🔴 DEBUG: Ver qué está pasando
-  puts "=" * 80
-  puts "🔍 DEBUG: Initial Contact Form Data"
-  puts "=" * 80
-  puts "general_conditions: #{@initial_contact_form.general_conditions.inspect}"
-  puts "property_info: #{@initial_contact_form.property_info.inspect}"
-  puts "acquisition_details: #{@initial_contact_form.acquisition_details.inspect}"
-  puts "=" * 80
+    # Detectar qué botón se presionó
+    @initial_contact_form.status = case
+                                    when params[:save_draft].present? then :draft
+                                    when params[:complete].present? then :completed
+                                    else :draft
+                                    end
 
 
-
-  if @initial_contact_form.save
-    notice_message = @initial_contact_form.auto_generated_identifier ? 
-                     "✅ Formulario creado. Identificador: #{@initial_contact_form.opportunity_identifier}" :
-                     "✅ Formulario creado exitosamente"
-    
-    redirect_to @initial_contact_form, notice: notice_message
-  else
-
-    # 🔴 DEBUG: Ver errores
+    # 🔴 DEBUG: Ver qué está pasando
     puts "=" * 80
-    puts "❌ ERRORES DE VALIDACIÓN:"
-    puts @initial_contact_form.errors.full_messages.inspect
+    puts "🔍 DEBUG: Initial Contact Form Data"
+    puts "=" * 80
+    puts "general_conditions: #{@initial_contact_form.general_conditions.inspect}"
+    puts "property_info: #{@initial_contact_form.property_info.inspect}"
+    puts "acquisition_details: #{@initial_contact_form.acquisition_details.inspect}"
     puts "=" * 80
 
 
-    # ✅ AQUÍ: Pasar la variable de instancia a la vista
-    load_form_data
-    render :new, status: :unprocessable_entity
+
+    if @initial_contact_form.save
+      notice_message = @initial_contact_form.auto_generated_identifier ? 
+                      "✅ Formulario creado. Identificador: #{@initial_contact_form.opportunity_identifier}" :
+                      "✅ Formulario creado exitosamente"
+      
+      redirect_to @initial_contact_form, notice: notice_message
+    else
+
+      # 🔴 DEBUG: Ver errores
+      puts "=" * 80
+      puts "❌ ERRORES DE VALIDACIÓN:"
+      puts @initial_contact_form.errors.full_messages.inspect
+      puts "=" * 80
+
+
+      # ✅ AQUÍ: Pasar la variable de instancia a la vista
+      load_form_data
+      render :new, status: :unprocessable_entity
+    end
   end
-end
 
   def edit
     @initial_contact_form = InitialContactForm.find(params[:id])
@@ -189,7 +189,13 @@ end
                                     end
     
     # 💾 GUARDAR
+    Rails.logger.info "🔍 DEBUG ANTES DE SAVE:"
+    Rails.logger.info "acquisition_details = #{@initial_contact_form.acquisition_details.inspect}"
+    Rails.logger.info "co_owners_count = #{@initial_contact_form.acquisition_details['co_owners_count'].inspect}"
+    Rails.logger.info "co_owners_count class = #{@initial_contact_form.acquisition_details['co_owners_count'].class}"
     if @initial_contact_form.save
+      Rails.logger.info "✅ DESPUÉS DE SAVE:"
+      Rails.logger.info "acquisition_details = #{@initial_contact_form.acquisition_details.inspect}"
       notice_message = @initial_contact_form.auto_generated_identifier ? 
                         '✅ Formulario actualizado. ⚠️ Identificador generado automáticamente.' :
                         '✅ Formulario actualizado exitosamente'
@@ -230,35 +236,6 @@ end
 
 
 
-  def convert_to_transaction_anterior
-    @form = InitialContactForm.find(params[:id])
-
-    @transaction = @form.convert_to_transaction!
-
-    if @transaction
-      redirect_to business_transaction_path(@transaction),
-                  notice: '✅ Convertido a Transacción de Negocio exitosamente'
-    else
-      redirect_to @form, alert: "❌ No se pudo convertir el formulario"
-    end
-  rescue StandardError => e
-    Rails.logger.error "Error en convert_to_transaction: #{e.class} - #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-    redirect_to @form, alert: "❌ Error inesperado: #{e.message}"
-  end
-
-
-
-
-
-
-
-
-
-
-
-
-
   
   def suggest_acquisition_method
     suggestion = AcquisitionMethodSuggestion.create!(
@@ -285,7 +262,39 @@ end
     end
   end
   
+  
   def update_property_from_modal
+    @form = InitialContactForm.find(params[:id])
+    
+    # Actualizar property_info
+    @form.property_info = {
+      'street' => params.dig(:property_info, :street),
+      'exterior_number' => params.dig(:property_info, :exterior_number),
+      'interior_number' => params.dig(:property_info, :interior_number),
+      'neighborhood' => params.dig(:property_info, :neighborhood),
+      'municipality' => params.dig(:property_info, :municipality),
+      'city' => params.dig(:property_info, :city),
+      'postal_code' => params.dig(:property_info, :postal_code),
+      'country' => 'México'
+    }
+    
+    # CORRECCIÓN: Usar deep_merge en lugar de reemplazar
+    current_acquisition_details = @form.acquisition_details || {}
+    @form.acquisition_details = current_acquisition_details.merge({
+      'state' => params.dig(:acquisition_details, :state),
+      'land_use' => params.dig(:acquisition_details, :land_use)
+    }.compact)  # compact elimina nils
+    
+    if @form.save
+      redirect_to @form, notice: "✅ Datos de propiedad actualizados"
+    else
+      render :edit_property_modal, status: :unprocessable_entity
+    end
+  end
+
+
+
+  def update_property_from_modal_anterior
     # Actualizar property_info
     @form.property_info = {
       'street' => params.dig(:property_info, :street),
@@ -312,12 +321,12 @@ end
   end
   
 
-def edit_client_modal
-  @form = InitialContactForm.find(params[:id])
-  
-  # En lugar de renderizar un modal, redirigir al CRUD de clientes
-  redirect_to edit_client_path(@form.id), notice: 'Editar datos del cliente'
-end
+  def edit_client_modal
+    @form = InitialContactForm.find(params[:id])
+    
+    # En lugar de renderizar un modal, redirigir al CRUD de clientes
+    redirect_to edit_client_path(@form.id), notice: 'Editar datos del cliente'
+  end
 
 
 
@@ -329,7 +338,7 @@ end
   
   def edit_co_owners_modal
     @form_id = params[:id]
-    @co_owners_count = @form.acquisition_details&.dig('co_owners_count')&.to_i || 1
+    @co_owners_count = @form.acquisition_details&.dig('co_owners_count')&.to_i
     @co_ownership_links = @form.business_transaction&.co_ownership_links || []
     
     respond_to do |format|
@@ -438,35 +447,6 @@ end
 
   private
 
-  def create_co_owners!(transaction)
-    # Extraer conteo desde acquisition_details
-    count = (@form.acquisition_details['co_owners_count'] || 1).to_i
-    
-    # Calcular porcentaje
-    percentage_each = (100.0 / count).round(2)
-    
-    # Crear copropietario principal
-    transaction.business_transaction_co_owners.create!(
-      client: transaction.offering_client,
-      person_name: @form.general_conditions['owner_or_representative_name'],
-      percentage: percentage_each,
-      role: 'propietario',
-      active: true
-    )
-    
-    # Crear placeholders para los demás
-    if count > 1
-      (count - 1).times do |i|
-        transaction.business_transaction_co_owners.create!(
-          person_name: "Copropietario #{i + 2} - Por definir",
-          percentage: percentage_each,
-          role: 'copropietario',
-          active: true
-        )
-      end
-    end
-  end
-
   def set_form
     @form = InitialContactForm.find(params[:id])
   end
@@ -549,7 +529,8 @@ end
         :donor_name,
         :donor_relationship,
         :donor_relationship_other,
-        :beneficiaries_count
+        :beneficiaries_count,
+        :creditors_count
       ],
       
       property_info: [
