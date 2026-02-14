@@ -260,7 +260,7 @@
 
   
   <!-- INDICADOR DE PROGRESO -->
-  <div class="card mb-4">
+  <div class="card mb-0">
     <div class="card-body">
       <div class="d-flex justify-content-between mb-2">
         <span>Progreso de completitud</span>
@@ -366,8 +366,6 @@
                                      { class: 'form-select', required: true } %>
             </div>
             
-          
-
             <!-- DESPUÉS: Campos separados -->
             <div class="card mb-4">
               <div class="card-header bg-info text-white">
@@ -696,22 +694,36 @@
                             id: 'land_use_select',
                             class: 'form-select',
                             required: true %>
-              <small class="text-muted">Clasificación del inmueble</small>
+              <small class="text-muted">Clasificación de uso de inmueble</small>
             </div>
 
 
-
-
-
-
-
-
-
+            <div class="col-md-6 mb-3">
+              <%= f.label 'property_info[property_use]', 'Tipo de inmueble *', class: 'form-label' %>
+              <%= select_tag 'initial_contact_form[property_info][property_use]',
+                            options_from_collection_for_select(
+                              PropertyType.active.order(:sort_order),
+                              :id,
+                              :display_name,
+                              form.property_info['property_use'] # ← usar la clave correcta
+                            ),
+                            prompt: 'Selecciona tipo de inmueble...',
+                            id: 'property_type_select',
+                            class: 'form-select',
+                            required: true %>
+              <small class="text-muted">Ej: casa, departamento, terreno, edificio, local, bodega</small>
+            </div>
 
           </div>
 
         </div>
       </div>
+      
+      <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN (INLINE) -->
+      <%= render 'conditional_fields', form: form, f: f %>
+    
+    <!-- ========================================================== -->
+
       
       <!-- CAMPOS CONDICIONALES POR MÉTODO DE ADQUISICIÓN (INLINE) -->
       <%= render 'conditional_fields', form: form, f: f %>

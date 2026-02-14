@@ -120,14 +120,6 @@ class InitialContactFormsController < ApplicationController
                                     end
 
 
-    # 🔴 DEBUG: Ver qué está pasando
-    puts "=" * 80
-    puts "🔍 DEBUG: Initial Contact Form Data"
-    puts "=" * 80
-    puts "general_conditions: #{@initial_contact_form.general_conditions.inspect}"
-    puts "property_info: #{@initial_contact_form.property_info.inspect}"
-    puts "acquisition_details: #{@initial_contact_form.acquisition_details.inspect}"
-    puts "=" * 80
 
 
 
@@ -139,11 +131,6 @@ class InitialContactFormsController < ApplicationController
       redirect_to @initial_contact_form, notice: notice_message
     else
 
-      # 🔴 DEBUG: Ver errores
-      puts "=" * 80
-      puts "❌ ERRORES DE VALIDACIÓN:"
-      puts @initial_contact_form.errors.full_messages.inspect
-      puts "=" * 80
 
 
       # ✅ AQUÍ: Pasar la variable de instancia a la vista
@@ -153,12 +140,10 @@ class InitialContactFormsController < ApplicationController
   end
 
   def edit
-    @initial_contact_form = InitialContactForm.find(params[:id])
     load_form_data
   end
 
   def update
-    @initial_contact_form = InitialContactForm.find(params[:id])
     
     # 🔧 AUTO-VINCULAR PROPIEDAD SI NO TIENE
     if @initial_contact_form.property_id.blank? && @initial_contact_form.property_info.present?
@@ -189,13 +174,7 @@ class InitialContactFormsController < ApplicationController
                                     end
     
     # 💾 GUARDAR
-    Rails.logger.info "🔍 DEBUG ANTES DE SAVE:"
-    Rails.logger.info "acquisition_details = #{@initial_contact_form.acquisition_details.inspect}"
-    Rails.logger.info "co_owners_count = #{@initial_contact_form.acquisition_details['co_owners_count'].inspect}"
-    Rails.logger.info "co_owners_count class = #{@initial_contact_form.acquisition_details['co_owners_count'].class}"
     if @initial_contact_form.save
-      Rails.logger.info "✅ DESPUÉS DE SAVE:"
-      Rails.logger.info "acquisition_details = #{@initial_contact_form.acquisition_details.inspect}"
       notice_message = @initial_contact_form.auto_generated_identifier ? 
                         '✅ Formulario actualizado. ⚠️ Identificador generado automáticamente.' :
                         '✅ Formulario actualizado exitosamente'
@@ -217,7 +196,6 @@ class InitialContactFormsController < ApplicationController
 
 
   def convert_to_transaction
-    @form = InitialContactForm.find(params[:id])
 
     @transaction = @form.convert_to_transaction!
 
@@ -294,31 +272,6 @@ class InitialContactFormsController < ApplicationController
 
 
 
-  def update_property_from_modal_anterior
-    # Actualizar property_info
-    @form.property_info = {
-      'street' => params.dig(:property_info, :street),
-      'exterior_number' => params.dig(:property_info, :exterior_number),
-      'interior_number' => params.dig(:property_info, :interior_number),
-      'neighborhood' => params.dig(:property_info, :neighborhood),
-      'municipality' => params.dig(:property_info, :municipality),
-      'city' => params.dig(:property_info, :city),
-      'postal_code' => params.dig(:property_info, :postal_code),
-      'country' => 'México'
-    }
-    
-    # Actualizar acquisition_details
-    @form.acquisition_details = (@form.acquisition_details || {}).merge({
-      'state' => params.dig(:acquisition_details, :state),
-      'land_use' => params.dig(:acquisition_details, :land_use)
-    })
-    
-    if @form.save
-      redirect_to @form, notice: "✅ Datos de propiedad actualizados"
-    else
-      render :edit_property_modal, status: :unprocessable_entity
-    end
-  end
   
 
   def edit_client_modal
@@ -448,7 +401,8 @@ class InitialContactFormsController < ApplicationController
   private
 
   def set_form
-    @form = InitialContactForm.find(params[:id])
+    @initial_contact_form = InitialContactForm.find(params[:id])
+    @form = @initial_contact_form 
   end
   
   def authorize_form
