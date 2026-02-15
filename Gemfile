@@ -95,11 +95,11 @@ group :test do
   gem 'rspec-rails'
   gem 'factory_bot_rails'
   gem 'faker'
-  gem 'shoulda-matchers', '~> 5.0'
+  gem 'shoulda-matchers'
 end
 
 gem 'wicked_pdf'
-gem 'wkhtmltopdf-binary'
+gem 'wkhtmltopdf-binary', require: false
 gem 'prawn'
 gem 'prawn-table'
 

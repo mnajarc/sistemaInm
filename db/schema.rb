@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_24_061704) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -427,7 +427,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_24_061704) do
     t.index ["auto_validated"], name: "index_document_submissions_on_auto_validated"
     t.index ["business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_co_owner_id"
     t.index ["business_transaction_id", "business_transaction_co_owner_id"], name: "idx_doc_sub_on_bt_id_and_co_owner_id"
+    t.index ["business_transaction_id", "document_type_id", "business_transaction_co_owner_id"], name: "idx_unique_doc_per_co_owner", unique: true, where: "(business_transaction_co_owner_id IS NOT NULL)"
     t.index ["business_transaction_id", "document_type_id", "party_type"], name: "idx_submissions_transaction_document_party"
+    t.index ["business_transaction_id", "document_type_id", "party_type"], name: "idx_unique_doc_per_transaction", unique: true, where: "(business_transaction_co_owner_id IS NULL)"
     t.index ["business_transaction_id", "document_type_id"], name: "idx_on_business_transaction_id_document_type_id_834da31061"
     t.index ["business_transaction_id", "party_type"], name: "idx_doc_sub_on_bt_id_and_party"
     t.index ["business_transaction_id"], name: "index_document_submissions_on_business_transaction_id"

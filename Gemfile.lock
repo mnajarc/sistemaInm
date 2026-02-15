@@ -478,7 +478,7 @@ DEPENDENCIES
   rubocop-rails-omakase
   ruby-vips
   sassc-rails
-  shoulda-matchers (~> 5.0)
+  shoulda-matchers
   solid_cable
   solid_cache
   solid_queue

@@ -1,4 +1,5 @@
 class BusinessTransaction < ApplicationRecord
+  include FolioGenerator
   belongs_to :listing_agent, class_name: "User"
   belongs_to :current_agent, class_name: "User"
   belongs_to :selling_agent, class_name: "User", optional: true
@@ -13,7 +14,6 @@ class BusinessTransaction < ApplicationRecord
  
   after_create :assign_transaction_scenario_by_category
   after_commit :setup_documents_on_creation, on: :create
-  # after_create :setup_required_documents
   before_destroy :check_active_offers  
   before_destroy :reset_initial_contact_form  
 
@@ -92,32 +92,19 @@ end
     business_transaction_co_owners.active.count == 1
   end
 
-  def generate_initial_contact_folio(agent_initials, date)
-    last_sequence = InitialContactForm
-      .where("initial_contact_folio LIKE ?", "#{agent_initials}#{date.strftime('%d%m%y')}%")
-      .maximum('initial_contact_folio')
-    
-    sequence_number = if last_sequence.present?
-                        (last_sequence.split('_').last.to_i + 1).to_s.rjust(2, '0')
-                      else
-                        '01'
-                      end
-    
-    "#{agent_initials}#{date.strftime('%d%m%y')}_#{sequence_number}"
-  end
   
-  def generate_property_identifier(operation_type_code, property_name)
-    sanitized_name = property_name
-      .strip
-      .downcase
-      .gsub(/[áéíóú]/, 'a' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u')
-      .gsub(/[^a-z0-9\s-]/, '')
-      .gsub(/\s+/, '_')
-      .gsub(/-+/, '_')
-      .gsub(/^_|_$/, '')
-    
-    "#{operation_type_code}_#{sanitized_name}"
-  end
+def generate_property_identifier(operation_type_code, property_name)
+  sanitized_name = StringNormalizer.unaccent(property_name)
+    .strip
+    .downcase
+    .gsub(/[^a-z0-9\s-]/, '')
+    .gsub(/[\s-]+/, '_')
+    .gsub(/^_|_$/, '')
+
+  "#{operation_type_code}_#{sanitized_name}"
+end
+
+
  
   
   def create_required_documents_v2!(scenario)
@@ -303,26 +290,17 @@ end
 # ============================================================
 
 
-    def setup_documents_on_creation
-      return unless transaction_scenario.present?
-      
-      DocumentSetupService.new(self).setup_required_documents
-    rescue StandardError => e
-      Rails.logger.error "❌ Error creando documentos para transacción #{id}: #{e.message}"
-      raise
-    end
+  def setup_documents_on_creation
+    return if initial_contact_form.present?
+    return unless transaction_scenario.present?
 
-def setup_required_documents
-  return unless transaction_scenario.present?
-  
-  begin
-    service = DocumentSetupService.new(self)
-    service.setup_required_documents
-    Rails.logger.info "✅ Documentos requeridos creados automáticamente"
+    
+    DocumentSetupService.new(self).setup_required_documents
   rescue StandardError => e
-    Rails.logger.error "❌ Error creando documentos: #{e.message}"
+    Rails.logger.error "❌ Error creando documentos para transacción #{id}: #{e.message}"
+    raise
   end
-end
+
 
   def must_have_co_owners
     active_co_owners = if new_record?

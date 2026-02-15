@@ -65,23 +65,23 @@
     </div>
     
     <div class="mb-3">
-      <%= label_tag 'tax_exemption_estimated_capital_gain', 'Ganancia de capital estimada (MXN)', class: 'form-label' %>
-      <%= number_field_tag 'initial_contact_form[tax_exemption][estimated_capital_gain]',
+      <% label_tag 'tax_exemption_estimated_capital_gain', 'Ganancia de capital estimada (MXN)', class: 'form-label' %>
+      <% number_field_tag 'initial_contact_form[tax_exemption][estimated_capital_gain]',
                           form.tax_exemption['estimated_capital_gain'],
                           class: 'form-control',
                           step: '0.01',
                           min: '0' %>
-      <small class="text-muted">(Precio de venta - Precio de compra)</small>
+      <%# <small class="text-muted">(Precio de venta - Precio de compra)</small> %>
     </div>
     
-    <div class="alert alert-success mt-3">
-      <strong>Resultado:</strong>
-      <% if form.qualifies_for_tax_exemption? %>
-        ✅ <strong>Podría calificar para exención ISR</strong>
-      <% else %>
-        ⚠️ <strong>Probablemente NO califica para exención</strong> - Requiere asesoría fiscal
-      <% end %>
-    </div>
+    <%# <div class="alert alert-success mt-3"> %>
+      <%# <strong>Resultado:</strong> %>
+      <%# <% if form.qualifies_for_tax_exemption? %> 
+        <%# ✅ <strong>Podría calificar para exención ISR</strong> %>
+      <%# <% else %> 
+        <%# ⚠️ <strong>Probablemente NO califica para exención</strong> - Requiere asesoría fiscal %>
+      <%# <% end %>
+    <%# </div> %>
   </div>
 </div>
 

@@ -119,7 +119,9 @@
             
             <dt class="col-sm-6">Tipo inmueble:</dt>
             <dd class="col-sm-6">
-              <%= @form.general_conditions['domicile_type']&.humanize || 'No especificado' %>
+              <% if @form.property_info['property_use'].present? %>
+                <%= PropertyType.find_by(id: @form.property_info['property_use'])&.display_name || @form.property_info['property_use']&.humanize || 'No especificado' %>
+              <% end %>
             </dd>
             
             <dt class="col-sm-6">Método adquisición:</dt>

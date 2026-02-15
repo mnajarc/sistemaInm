@@ -5,17 +5,17 @@ class Client < ApplicationRecord
   has_many :offered_transactions, class_name: 'BusinessTransaction', foreign_key: 'offering_client_id'
   has_many :acquired_transactions, class_name: 'BusinessTransaction', foreign_key: 'acquiring_client_id'
   has_many :contracts
-  has_many :transaction_co_owners, class_name: 'BusinessTransactionCoOwner'
+  has_many :transaction_co_owners, class_name: 'BusinessTransactionCoOwner', dependent: :nullify
   has_many :initial_contact_forms
-  has_many :business_transactions_as_offering_client, 
-           class_name: "BusinessTransaction", 
-           foreign_key: "offering_client_id",
-           dependent: :nullify
-  has_many :business_transactions_as_acquiring_client,
-           class_name: "BusinessTransaction",
-           foreign_key: "acquiring_client_id",
-           dependent: :nullify
-  has_many :business_transactions
+  # has_many :business_transactions_as_offering_client, 
+           # class_name: "BusinessTransaction", 
+           # foreign_key: "offering_client_id",
+           # dependent: :nullify
+  # has_many :business_transactions_as_acquiring_client,
+           # class_name: "BusinessTransaction",
+           # foreign_key: "acquiring_client_id",
+           # dependent: :nullify
+  # has_many :business_transactions
   has_many :offers_made, class_name: 'Offer', foreign_key: 'offerer_id'
   has_many :active_offers, -> { active }, class_name: 'Offer', foreign_key: 'offerer_id'
   has_many :pending_offers, -> { joins(:offer_status).where(offer_statuses: { name: 'pending' }) }, 
@@ -49,6 +49,9 @@ class Client < ApplicationRecord
   # ============================================================
   before_validation :clean_names
   before_validation :compose_full_name
+  # Para no eliminar clientes que participen en transacciones activas
+  before_destroy :prevent_destroy_with_active_participations
+
 
   scope :active, -> { where(active: true) }
   scope :with_system_user, -> { where.not(user_id: nil) }
@@ -123,6 +126,18 @@ class Client < ApplicationRecord
   # MÉTODOS PRIVADOS
   # ============================================================
   private
+
+  def prevent_destroy_with_active_participations
+    active_co_ownerships = BusinessTransactionCoOwner
+      .where(client_id: id, active: true)
+      .joins(:business_transaction)
+      .merge(BusinessTransaction.active)
+
+    if active_co_ownerships.exists?
+      errors.add(:base, "No se puede eliminar: el cliente participa como copropietario en #{active_co_ownerships.count} transacción(es) activa(s)")
+      throw :abort
+    end
+  end
 
   # 🔧 ÚNICO callback que arma full_name
   def compose_full_name
