@@ -95,47 +95,93 @@ class DocumentChecklistService
   end
 
 
-def documents_by_co_owner
-  co_owners = @transaction.business_transaction_co_owners.all
-  
-  return [] if co_owners.empty?
-  
-  co_owners.map.with_index do |co_owner, index|
-    # ✅ FIJO: El principal recibe AMBOS tipos de documentos
-    if index.zero?  # Es el principal
-      submissions = @transaction.document_submissions
-                                .where(business_transaction_co_owner: co_owner)
-                                .where(party_type: ['copropietario_principal', 'copropietario'])
-    else  # Son los herederos
-      submissions = @transaction.document_submissions
-                                .where(party_type: 'copropietario', 
-                                      business_transaction_co_owner: co_owner)
-    end
-    
-    submissions = submissions
-                  .includes(:document_type, :document_status)
-                  .order('document_types.category, document_types.name')
-    
-    {
-      co_owner: {
-        id: co_owner.id,
-        name: co_owner.person_name.presence || co_owner.client&.full_name || "Copropietario ##{co_owner.id}",
-        client_name: co_owner.client&.full_name,
-        role: co_owner.role,
-        percentage: co_owner.percentage,
-        deceased: co_owner.deceased,
-        active: co_owner.active,
-        is_primary: index.zero?
-      },
-      documents: {
-        total: submissions.count,
-        uploaded: submissions.select(&:uploaded?).count,
-        validated: submissions.select { |s| s.validated_at.present? }.count,
-        list: group_by_category(submissions)
+
+  def documents_by_co_owner
+    co_owners = @transaction.business_transaction_co_owners.where(active: true).order(:id)
+
+    return [] if co_owners.empty?
+
+    co_owners.map do |co_owner|
+      # ✅ USAR is_primary PARA IDENTIFICAR
+      is_primary = co_owner.is_primary
+      
+      # El principal recibe documentos de ambos tipos
+      if is_primary
+        submissions = @transaction.document_submissions
+                                  .where(business_transaction_co_owner: co_owner)
+                                  .where(party_type: ['copropietario_principal', 'copropietario'])
+      else
+        submissions = @transaction.document_submissions
+                                  .where(party_type: 'copropietario',
+                                        business_transaction_co_owner: co_owner)
+      end
+
+      submissions = submissions
+                    .includes(:document_type, :document_status)
+                    .order('document_types.category, document_types.name')
+
+      {
+        co_owner: {
+          id: co_owner.id,
+          name: co_owner.person_name.presence || co_owner.client&.full_name || "Copropietario ##{co_owner.id}",
+          client_name: co_owner.client&.full_name,
+          role: co_owner.role,
+          percentage: co_owner.percentage,
+          deceased: co_owner.deceased,
+          active: co_owner.active,
+          is_primary: is_primary  # ✅ AHORA VIENE DEL FLAG
+        },
+        documents: {
+          total: submissions.count,
+          uploaded: submissions.select(&:uploaded?).count,
+          validated: submissions.select { |s| s.validated_at.present? }.count,
+          list: group_by_category(submissions)
+        }
       }
-    }
+    end
   end
-end
+
+  def documents_by_co_owner_anterior
+    co_owners = @transaction.business_transaction_co_owners.all
+    
+    return [] if co_owners.empty?
+    
+    co_owners.map.with_index do |co_owner, index|
+      # ✅ FIJO: El principal recibe AMBOS tipos de documentos
+      if index.zero?  # Es el principal
+        submissions = @transaction.document_submissions
+                                  .where(business_transaction_co_owner: co_owner)
+                                  .where(party_type: ['copropietario_principal', 'copropietario'])
+      else  # Son los herederos
+        submissions = @transaction.document_submissions
+                                  .where(party_type: 'copropietario', 
+                                        business_transaction_co_owner: co_owner)
+      end
+      
+      submissions = submissions
+                    .includes(:document_type, :document_status)
+                    .order('document_types.category, document_types.name')
+      
+      {
+        co_owner: {
+          id: co_owner.id,
+          name: co_owner.person_name.presence || co_owner.client&.full_name || "Copropietario ##{co_owner.id}",
+          client_name: co_owner.client&.full_name,
+          role: co_owner.role,
+          percentage: co_owner.percentage,
+          deceased: co_owner.deceased,
+          active: co_owner.active,
+          is_primary: index.zero?
+        },
+        documents: {
+          total: submissions.count,
+          uploaded: submissions.select(&:uploaded?).count,
+          validated: submissions.select { |s| s.validated_at.present? }.count,
+          list: group_by_category(submissions)
+        }
+      }
+    end
+  end
 
 
 

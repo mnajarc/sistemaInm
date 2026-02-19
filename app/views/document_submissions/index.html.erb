@@ -90,15 +90,33 @@
               if (category.documents && category.documents.length > 0) {
                 text += `📍 ${category.category} (${category.documents.length})\n`;
                 
+
                 category.documents.forEach(doc => {
-                  // Check logic: si está uploaded (aunque no validado) cuenta como check visual
-                  // O puedes poner status === 'validated' para ser más estricto
-                  const isUploaded = (doc.submission && doc.submission.document_file_attached);
-                  const status = isUploaded ? '✅' : '☐';
-                  const docName = doc.document_type ? doc.document_type.name : 'Documento';
-                  
-                  text += `   ${status} ${docName}\n`;
+                  const submission = doc.submission || {};
+                  const isUploaded = !!submission.uploaded; // viene del formatter
+                  const statusIcon = isUploaded ? '✅' : '☐';
+
+                  const docName = doc.document_type
+                    ? (doc.document_type.name || 'Documento')
+                    : 'Documento';
+
+                  // status textual: usamos doc.status.name / display_name
+                  const statusInfo = doc.status || {};
+                  let rawStatus =
+                    statusInfo.display_name ||
+                    statusInfo.name ||
+                    (isUploaded ? 'cargado' : 'pendiente');
+
+                  const statusText = String(rawStatus)
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, c => c.toUpperCase());
+
+                  text += `   ${statusIcon} ${docName} [${statusText}]\n`;
                 });
+
+
+
+                
                 text += '\n';
               }
             });

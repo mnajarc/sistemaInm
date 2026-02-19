@@ -104,3 +104,4 @@ gem 'prawn'
 gem 'prawn-table'
 
 gem "whenever", require: false
+gem "csv"

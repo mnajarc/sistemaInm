@@ -4,6 +4,10 @@
 
 import { application } from "./application"
 
+import ClientSearchController from "./client_search_controller"
+application.register("client-search", ClientSearchController)
+
+
 import CoOwnersController from "./co_owners_controller"
 application.register("co-owners", CoOwnersController)
 

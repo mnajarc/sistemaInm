@@ -1,0 +1,13 @@
+<div id="client_form_errors">
+  <% if client.errors.any? %>
+    <div class="alert alert-danger alert-dismissible fade show">
+      <h5><%= pluralize(client.errors.count, "error") %>:</h5>
+      <ul>
+        <% client.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% end %>
+</div>

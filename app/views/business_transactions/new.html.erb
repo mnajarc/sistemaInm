@@ -422,9 +422,13 @@
       document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Script de modales cargado - FORM HTML PURO');
 
+        // ============================================================
         // GUARDAR NUEVA PROPIEDAD
+        // ============================================================
         document.getElementById('savePropertyBtn')?.addEventListener('click', function(e) {
           e.preventDefault();
+          console.log('💾 Guardando nueva propiedad...');
+          
           const formData = new FormData();
           formData.append('property[title]', document.getElementById('prop_title').value);
           formData.append('property[property_type_id]', document.getElementById('prop_type').value);
@@ -452,31 +456,55 @@
             },
             body: formData
           })
-          .then(r => r.json())
+          .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
           .then(data => {
+            console.log('✅ Propiedad creada:', data);
             if (data.id) {
               const select = document.getElementById('property_id');
               const option = new Option(data.title || data.address, data.id, true, true);
               select.add(option);
               bootstrap.Modal.getInstance(document.getElementById('newPropertyModal')).hide();
               document.getElementById('newPropertyForm').reset();
-              alert('✅ Propiedad creada');
+              alert('✅ Propiedad creada: ' + (data.title || data.address));
             } else {
               alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
             }
           })
-          .catch(e => alert('❌ Error de conexión'));
+          .catch(e => {
+            console.error('❌ Error al crear propiedad:', e);
+            alert('❌ Error de conexión al crear propiedad');
+          });
         });
 
+        // ============================================================
         // GUARDAR NUEVO CLIENTE
+        // ============================================================
         document.getElementById('saveClientBtn')?.addEventListener('click', function(e) {
           e.preventDefault();
+          console.log('💾 Guardando nuevo cliente...');
+          
+          const clientName = document.getElementById('client_name').value.trim();
+          const clientEmail = document.getElementById('client_email').value.trim();
+          
+          if (!clientName) {
+            alert('❌ El nombre del cliente es obligatorio');
+            return;
+          }
+
+          // Separar nombre en partes (simple)
+          const nameParts = clientName.split(' ');
+          const firstNames = nameParts.slice(0, -1).join(' ') || clientName;
+          const firstSurname = nameParts[nameParts.length - 1] || clientName;
+
           const formData = new FormData();
-          formData.append('client[name]', document.getElementById('client_name').value);
-          formData.append('client[email]', document.getElementById('client_email').value);
+          formData.append('client[first_names]', firstNames);
+          formData.append('client[first_surname]', firstSurname);
+          formData.append('client[email]', clientEmail);
           formData.append('client[phone]', document.getElementById('client_phone').value);
-          formData.append('client[address]', document.getElementById('client_address').value);
-          formData.append('client[active]', document.getElementById('client_active').checked);
+          formData.append('client[notes]', document.getElementById('client_address').value);
 
           fetch('<%= clients_path %>', {
             method: 'POST',
@@ -486,22 +514,47 @@
             },
             body: formData
           })
-          .then(r => r.json())
+          .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
           .then(data => {
+            console.log('✅ Cliente creado:', data);
             if (data.id) {
-              const name = data.display_name || data.name;
-              document.getElementById('offering_client_id').add(new Option(name, data.id, true, true));
-              document.getElementById('acquiring_client_id').add(new Option(name, data.id));
+              // Construir nombre completo
+              const displayName = data.display_name || `${data.first_names} ${data.first_surname}`;
+              
+              // Agregar a AMBOS selects de clientes
+              const offeringSelect = document.getElementById('offering_client_id');
+              const acquiringSelect = document.getElementById('acquiring_client_id');
+              
+              if (offeringSelect) {
+                const option1 = new Option(displayName, data.id, true, true);
+                offeringSelect.add(option1);
+                console.log('✅ Cliente agregado a offering_client_id');
+              }
+              
+              if (acquiringSelect) {
+                const option2 = new Option(displayName, data.id);
+                acquiringSelect.add(option2);
+                console.log('✅ Cliente agregado a acquiring_client_id');
+              }
+              
+              // Cerrar modal y limpiar
               bootstrap.Modal.getInstance(document.getElementById('newClientModal')).hide();
               document.getElementById('newClientForm').reset();
-              alert('✅ Cliente creado');
+              alert('✅ Cliente creado: ' + displayName);
             } else {
-              alert('❌ Error: ' + (data.errors?.[0] || 'Error desconocido'));
+              alert('❌ Error: ' + (data.errors?.join(', ') || 'Error desconocido'));
             }
           })
-          .catch(e => alert('❌ Error de conexión'));
+          .catch(e => {
+            console.error('❌ Error al crear cliente:', e);
+            alert('❌ Error de conexión al crear cliente');
+          });
         });
-      });
+
+      }); // Fin DOMContentLoaded
       </script>
 
     </div>

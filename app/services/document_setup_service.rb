@@ -19,6 +19,46 @@ class DocumentSetupService
   private
 
   def setup_for_copropietarios
+    co_owners = @transaction.business_transaction_co_owners.where(active: true)
+    return if co_owners.empty?
+    
+    # ✅ IDENTIFICAR AL PRINCIPAL
+    principal = co_owners.find_by(is_primary: true) || co_owners.order(:id).first
+    
+    # Asegurar que tiene el flag
+    principal.update_column(:is_primary, true) unless principal.is_primary
+    
+    Rails.logger.info "📋 Setup documentos para #{co_owners.count} copropietarios"
+    Rails.logger.info "   Principal: #{principal.display_name} (ID: #{principal.id})"
+    
+    co_owners.each do |co_owner|
+      # ✅ DETERMINAR party_type según is_primary
+      party_type = co_owner.is_primary ? 'copropietario_principal' : 'copropietario'
+      
+      Rails.logger.info "   → #{co_owner.display_name}: #{party_type}"
+      
+      @transaction.transaction_scenario
+                  .scenario_documents
+                  .for_party(party_type)
+                  .required
+                  .includes(:document_type)
+                  .each do |sc_doc|
+        @transaction.document_submissions.find_or_create_by!(
+          document_type: sc_doc.document_type,
+          party_type: party_type,
+          business_transaction_co_owner: co_owner
+        ) do |ds|
+          ds.document_status = DocumentStatus.pendiente_solicitud
+          ds.expiry_date = calculate_expiry(sc_doc)
+        end
+      end
+    end
+    
+    Rails.logger.info "✅ Setup completado"
+  end
+
+
+  def setup_for_copropietarios_anterior
     co_owners = @transaction.business_transaction_co_owners.all
     
     return if co_owners.empty?

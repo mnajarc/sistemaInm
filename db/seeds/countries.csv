@@ -1,0 +1,20 @@
+# db/seeds/countries.rb
+require "csv"
+
+csv_path = Rails.root.join("db/data/countries.csv")
+
+unless File.exist?(csv_path)
+  puts "⚠️  No se encontró #{csv_path}. Saltando seed de países."
+  next
+end
+
+CSV.foreach(csv_path, headers: true) do |row|
+  Country.find_or_create_by!(alpha2_code: row["alpha2"].strip.upcase) do |c|
+    c.name        = row["name"].strip
+    c.alpha3_code = row["alpha3"]&.strip&.upcase
+    c.nationality = row[nil]&.strip  # si tu CSV no tiene esta columna, déjalo nil
+  end
+end
+
+puts "✅ #{Country.count} países cargados"
+

@@ -13,7 +13,12 @@ class BusinessTransaction < ApplicationRecord
   belongs_to :property_acquisition_method, optional: true
  
   after_create :assign_transaction_scenario_by_category
+  after_create :set_primary_coowner_from_legal_representation
   after_commit :setup_documents_on_creation, on: :create
+  after_commit :setup_documents_for_new_coowners, on: :update
+  after_commit :update_primary_coowner_flag, on: :update
+  after_save :check_ownership_percentage_total
+
   before_destroy :check_active_offers  
   before_destroy :reset_initial_contact_form  
 
@@ -24,9 +29,24 @@ class BusinessTransaction < ApplicationRecord
   has_many :business_transaction_co_owners, inverse_of: :business_transaction, dependent: :destroy
   has_many :offers, dependent: :destroy
   alias_method :co_owners, :business_transaction_co_owners
+  
   accepts_nested_attributes_for :business_transaction_co_owners,
-                                allow_destroy: true,
-                                reject_if: proc { |attributes| attributes['client_id'].blank? && attributes['person_name'].blank? }
+    allow_destroy: true,
+    reject_if: proc { |attrs|
+      Rails.logger.info "🔍 REJECT_IF evaluando: #{attrs.inspect}"
+      should_reject = attrs['client_id'].blank? && attrs['person_name'].blank?
+
+      Rails.logger.info "🔍 NESTED ATTRS COPROPIETARIO:"
+      Rails.logger.info "   client_id: #{attrs['client_id'].inspect}"
+      Rails.logger.info "   person_name: #{attrs['person_name'].inspect}"
+      Rails.logger.info "   role: #{attrs['role'].inspect}"
+      Rails.logger.info "   percentage: #{attrs['percentage'].inspect}"
+      Rails.logger.info "   _destroy: #{attrs['_destroy'].inspect}"
+      Rails.logger.info "   → RECHAZAR: #{should_reject}"
+      
+      should_reject
+
+    }
   accepts_nested_attributes_for :property, allow_destroy: false, reject_if: :all_blank
 
   validates :start_date, presence: true
@@ -177,6 +197,297 @@ end
 
 
   private
+
+  def check_ownership_percentage_total
+    return if business_transaction_co_owners.empty?
+
+    active_co_owners = business_transaction_co_owners.where(active: true)
+    return if active_co_owners.empty?
+
+    total = active_co_owners.sum(:percentage)
+
+    if total < 100
+      Rails.logger.warn "⚠️  BT ##{id}: Porcentajes suman #{total.round(2)}% (venta parcial)"
+    elsif total > 100
+      Rails.logger.warn "⚠️  BT ##{id}: Porcentajes suman #{total.round(2)}% (revisar datos)"
+    else
+      Rails.logger.info "✅ BT ##{id}: Porcentajes suman 100%"
+    end
+  end
+
+
+
+  def set_primary_coowner_from_legal_representation
+    return unless legal_representation.is_a?(Hash)
+    return if business_transaction_co_owners.empty?
+    
+    principal_name = legal_representation.dig('owner_name')
+    
+    principal = if principal_name.present?
+                  # Buscar por nombre en legal_representation
+                  business_transaction_co_owners.find do |co|
+                    co.person_name == principal_name || 
+                    co.client&.display_name == principal_name
+                  end
+                else
+                  # Fallback: usar lógica legacy
+                  business_transaction_co_owners.find(&:should_be_primary?) ||
+                  business_transaction_co_owners.order(:id).first
+                end
+    
+    if principal
+      principal.update_column(:is_primary, true)
+      Rails.logger.info "✅ Principal auto-asignado: #{principal.display_name}"
+    end
+  end
+
+
+
+  def update_primary_coowner_flag
+    return unless legal_representation.is_a?(Hash)
+    
+    principal_name = legal_representation.dig('owner_name')
+    return if principal_name.blank?
+    
+    # Encontrar el copropietario que coincide con owner_name
+    new_principal = business_transaction_co_owners.where(active: true).find do |co|
+      co.person_name == principal_name || co.client&.display_name == principal_name
+    end
+    
+    return unless new_principal
+    
+    # Si cambió el principal, actualizar flags
+    current_primary = business_transaction_co_owners.find_by(is_primary: true)
+    
+    if current_primary&.id != new_principal.id
+      Rails.logger.info "🔄 Cambiando copropietario principal: #{current_primary&.display_name} → #{new_principal.display_name}"
+      
+      # Quitar flag del anterior
+      current_primary&.update_column(:is_primary, false)
+      
+      # Asignar flag al nuevo
+      new_principal.update_column(:is_primary, true)
+      
+      # ✅ REASIGNAR DOCUMENTOS DE PRINCIPAL
+      reassign_principal_documents(current_primary, new_principal)
+    end
+  end
+
+  def reassign_principal_documents(old_principal, new_principal)
+    return unless old_principal && new_principal
+    
+    # Documentos que solo debe tener el principal
+    principal_docs = document_submissions.where(
+      party_type: 'copropietario_principal',
+      business_transaction_co_owner: old_principal
+    )
+    
+    Rails.logger.info "   Reasignando #{principal_docs.count} documentos principales"
+    
+    principal_docs.each do |doc|
+      # Verificar si el nuevo principal ya tiene este tipo de documento
+      existing = document_submissions.find_by(
+        document_type: doc.document_type,
+        party_type: 'copropietario_principal',
+        business_transaction_co_owner: new_principal
+      )
+      
+      if existing
+        # Ya existe, eliminar el del anterior
+        doc.destroy
+      else
+        # Reasignar al nuevo principal
+        doc.update_column(:business_transaction_co_owner_id, new_principal.id)
+      end
+    end
+    
+    # Cambiar los documentos del viejo principal a tipo 'copropietario'
+    document_submissions.where(
+      party_type: 'copropietario_principal',
+      business_transaction_co_owner: old_principal
+    ).update_all(party_type: 'copropietario')
+    
+    # Generar documentos principales faltantes para el nuevo
+    transaction_scenario
+      .scenario_documents
+      .for_party('copropietario_principal')
+      .required
+      .includes(:document_type)
+      .each do |sc_doc|
+        document_submissions.find_or_create_by!(
+          document_type: sc_doc.document_type,
+          party_type: 'copropietario_principal',
+          business_transaction_co_owner: new_principal
+        ) do |ds|
+          ds.document_status = DocumentStatus.find_by(name: 'pendiente_solicitud')
+        end
+      end
+    
+    Rails.logger.info "✅ Documentos reasignados correctamente"
+  end
+
+  def setup_documents_for_new_coowners
+    return unless transaction_scenario.present?
+    
+    Rails.logger.info "🔍 Verificando nuevos copropietarios para generar documentos..."
+    
+    # ✅ IDENTIFICAR AL PRINCIPAL desde legal_representation
+    principal_name = legal_representation.dig('owner_name') if legal_representation.is_a?(Hash)
+    
+    principal_co_owner = if principal_name.present?
+                          # Buscar por coincidencia de nombre
+                          business_transaction_co_owners
+                            .where(active: true)
+                            .find { |co| co.person_name == principal_name || co.client&.display_name == principal_name }
+                        else
+                          # Fallback: el primero creado
+                          business_transaction_co_owners.where(active: true).order(:id).first
+                        end
+    
+    if principal_co_owner
+      Rails.logger.info "   Principal identificado: #{principal_co_owner.display_name} (ID: #{principal_co_owner.id})"
+      principal_co_owner.update_column(:is_primary, true) unless principal_co_owner.is_primary
+    else
+      Rails.logger.warn "⚠️  No se pudo identificar al copropietario principal"
+    end
+    
+    # Buscar copropietarios SIN documentos
+    business_transaction_co_owners.where(active: true).each do |co_owner|
+      next if co_owner.document_submissions.any?
+      
+      is_primary = (co_owner.id == principal_co_owner&.id)
+      party_type = is_primary ? 'copropietario_principal' : 'copropietario'
+      
+      Rails.logger.info "📄 Generando documentos para #{co_owner.display_name}"
+      Rails.logger.info "   → Es principal: #{is_primary} | party_type: #{party_type}"
+      
+      # Generar documentos según escenario
+      transaction_scenario
+        .scenario_documents
+        .for_party(party_type)
+        .required
+        .includes(:document_type)
+        .each do |sc_doc|
+          document_submissions.find_or_create_by!(
+            document_type: sc_doc.document_type,
+            party_type: party_type,
+            business_transaction_co_owner: co_owner
+          ) do |ds|
+            ds.document_status = DocumentStatus.find_by(name: 'pendiente_solicitud')
+            
+            # Calcular fecha de expiración
+            metadata_validity = sc_doc.document_type.metadata.is_a?(Hash) ? 
+                                sc_doc.document_type.metadata['validity_months'] : nil
+            
+            if metadata_validity.present? && metadata_validity.to_i.positive?
+              ds.expiry_date = Date.current + metadata_validity.to_i.months
+            end
+          end
+        end
+      
+      Rails.logger.info "✅ Documentos generados para #{co_owner.display_name}"
+    end
+  end
+
+
+  def setup_documents_for_new_coowners_anterior_1
+    return unless transaction_scenario.present?
+    
+    Rails.logger.info "🔍 Verificando nuevos copropietarios para generar documentos..."
+    
+    # ✅ IDENTIFICAR CORRECTAMENTE AL PRINCIPAL
+    # El principal es el primer co_owner con role != 'copropietario' o el primero si todos son iguales
+    principal_co_owner = business_transaction_co_owners
+                          .order(:id)  # Ordenar por ID (el primero creado)
+                          .where(active: true)
+                          .first
+    
+    Rails.logger.info "   Principal: #{principal_co_owner&.display_name} (ID: #{principal_co_owner&.id})"
+    
+    # Buscar copropietarios SIN documentos
+    business_transaction_co_owners.where(active: true).each do |co_owner|
+      next if co_owner.document_submissions.any?
+      
+      Rails.logger.info "📄 Generando documentos para nuevo copropietario #{co_owner.id} (#{co_owner.display_name})"
+      
+      # ✅ DETERMINAR SI ES PRINCIPAL O ADICIONAL
+      is_primary = (co_owner.id == principal_co_owner&.id)
+      party_type = is_primary ? 'copropietario_principal' : 'copropietario'
+      
+      Rails.logger.info "   → Es principal: #{is_primary} | party_type: #{party_type}"
+      
+      # Generar documentos según escenario
+      transaction_scenario
+        .scenario_documents
+        .for_party(party_type)
+        .required
+        .includes(:document_type)
+        .each do |sc_doc|
+          document_submissions.find_or_create_by!(
+            document_type: sc_doc.document_type,
+            party_type: party_type,
+            business_transaction_co_owner: co_owner
+          ) do |ds|
+            ds.document_status = DocumentStatus.find_by(name: 'pendiente_solicitud')
+            
+            # Calcular fecha de expiración
+            metadata_validity = sc_doc.document_type.metadata.is_a?(Hash) ? 
+                                sc_doc.document_type.metadata['validity_months'] : nil
+            
+            if metadata_validity.present? && metadata_validity.to_i.positive?
+              ds.expiry_date = Date.current + metadata_validity.to_i.months
+            end
+          end
+        end
+      
+      Rails.logger.info "✅ Documentos generados para #{co_owner.display_name}"
+    end
+  end
+
+
+
+  def setup_documents_for_new_coowners_anterior
+    return unless transaction_scenario.present?
+    
+    Rails.logger.info "🔍 Verificando nuevos copropietarios para generar documentos..."
+    
+    # Buscar copropietarios SIN documentos
+    business_transaction_co_owners.where(active: true).each do |co_owner|
+      next if co_owner.document_submissions.any?
+      
+      Rails.logger.info "📄 Generando documentos para nuevo copropietario #{co_owner.id} (#{co_owner.display_name})"
+      
+      # Determinar si es principal o adicional
+      is_primary = business_transaction_co_owners.order(:id).first.id == co_owner.id
+      party_type = is_primary ? 'copropietario_principal' : 'copropietario'
+      
+      # Generar documentos según escenario
+      transaction_scenario
+        .scenario_documents
+        .for_party(party_type)
+        .required
+        .includes(:document_type)
+        .each do |sc_doc|
+          document_submissions.find_or_create_by!(
+            document_type: sc_doc.document_type,
+            party_type: party_type,
+            business_transaction_co_owner: co_owner
+          ) do |ds|
+            ds.document_status = DocumentStatus.find_by(name: 'pendiente_solicitud')
+            
+            # Calcular fecha de expiración
+            metadata_validity = sc_doc.document_type.metadata.is_a?(Hash) ? 
+                                sc_doc.document_type.metadata['validity_months'] : nil
+            
+            if metadata_validity.present? && metadata_validity.to_i.positive?
+              ds.expiry_date = Date.current + metadata_validity.to_i.months
+            end
+          end
+        end
+      
+      Rails.logger.info "✅ Documentos generados para #{co_owner.display_name}"
+    end
+  end
 
 
   def map_party_type_to_co_owners(party_type)

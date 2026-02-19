@@ -70,17 +70,6 @@
             <dt class="col-sm-4">Tipo:</dt>
             <dd class="col-sm-8"><%= @transaction.property&.property_type&.display_name %></dd>
 
-            <dt class="col-sm-4">Área Construida:</dt>
-            <dd class="col-sm-8"><%= @transaction.property&.built_area_m2 %> m²</dd>
-
-            <dt class="col-sm-4">Área Terreno:</dt>
-            <dd class="col-sm-8"><%= @transaction.property&.lot_area_m2 %> m²</dd>
-
-            <dt class="col-sm-4">Recámaras:</dt>
-            <dd class="col-sm-8"><%= @transaction.property&.bedrooms %></dd>
-
-            <dt class="col-sm-4">Baños:</dt>
-            <dd class="col-sm-8"><%= @transaction.property&.bathrooms %></dd>
           </dl>
         </div>
       </div>
@@ -115,6 +104,7 @@
         </div>
       </div>
 
+
       <!-- SECCIÓN 4: COPROPIETARIOS -->
       <% if @transaction.business_transaction_co_owners.any? %>
         <div class="card mb-4">
@@ -122,51 +112,122 @@
             <h5 class="mb-0"><i class="fas fa-users me-2"></i>Propietarios/Copropietarios</h5>
           </div>
           <div class="card-body">
+            
+            <!-- ✅ AGREGAR: Advertencia de porcentaje -->
+            <% total_percentage = @transaction.business_transaction_co_owners.sum(:percentage) %>
+            
+            <% if total_percentage < 100 %>
+              <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <div>
+                  <strong>Venta parcial:</strong> Esta transacción representa el <strong><%= total_percentage.round(2) %>%</strong> de la propiedad.
+                  El <%= (100 - total_percentage).round(2) %>% restante no está incluido en esta operación.
+                </div>
+              </div>
+            <% elsif total_percentage > 100 %>
+              <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <div>
+                  <strong>Revisar porcentajes:</strong> La suma total es <strong><%= total_percentage.round(2) %>%</strong>.
+                  Verifica que los datos sean correctos.
+                </div>
+              </div>
+            <% end %>
+
+            <!-- TU TABLA ORIGINAL (con pequeñas mejoras) -->
             <div class="table-responsive">
               <table class="table table-sm table-hover">
                 <thead class="table-light">
                   <tr>
                     <th>Nombre</th>
-                    <th>Porcentaje</th>
-                    <th>Rol</th>
-                    <th>Tipo</th>
+                    <th class="text-center">Porcentaje</th>
+                    <th class="text-center">Rol</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <% @transaction.business_transaction_co_owners.each do |co_owner| %>
+                  <% @transaction.business_transaction_co_owners.order(:id).each do |co_owner| %>
                     <tr>
                       <td>
+                        <!-- ✅ MEJORAR: Agregar estrella al principal -->
+                        <% if co_owner.primary? %>
+                          <i class="bi bi-star-fill text-warning me-1" title="Copropietario principal"></i>
+                        <% end %>
                         <strong><%= co_owner.display_name %></strong>
                       </td>
-                      <td>
-                        <span class="badge bg-info"><%= co_owner.percentage %>%</span>
+                      <td class="text-center">
+                        <span class="badge bg-info"><%= number_to_percentage(co_owner.percentage, precision: 2) %></span>
                       </td>
-                      <td>
+                      <td class="text-center">
                         <span class="badge bg-secondary"><%= co_owner.role&.humanize %></span>
                       </td>
-                      <td>
-                        <% if co_owner.is_primary? %>
-                          <span class="badge bg-success">Principal</span>
+                      <td class="text-center">
+                        <!-- ✅ MEJORAR: Cambiar "Secundario" por "Adicional" -->
+                        <% if co_owner.primary? %>
+                          <span class="badge bg-success">
+                            <i class="bi bi-star me-1"></i>Principal
+                          </span>
                         <% else %>
-                          <span class="badge bg-secondary">Secundario</span>
+                          <span class="badge bg-secondary">Adicional</span>
+                        <% end %>
+                      </td>
+                      <td class="text-center">
+                        <!-- ✅ AGREGAR: Estado del copropietario -->
+                        <% if co_owner.deceased %>
+                          <span class="badge bg-dark">
+                            <i class="bi bi-x-circle me-1"></i>Fallecido
+                          </span>
+                        <% else %>
+                          <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Activo
+                          </span>
                         <% end %>
                       </td>
                     </tr>
                   <% end %>
                 </tbody>
+                
+                <!-- ✅ MEJORAR: Footer con colores condicionales -->
+                <tfoot class="table-light">
+                  <tr class="fw-bold">
+                    <td class="text-end">Total en esta transacción:</td>
+                    <td class="text-center">
+                      <% if total_percentage == 100 %>
+                        <span class="badge bg-success fs-6">
+                          <%= number_to_percentage(total_percentage, precision: 2) %>
+                        </span>
+                      <% elsif total_percentage < 100 %>
+                        <span class="badge bg-info fs-6">
+                          <%= number_to_percentage(total_percentage, precision: 2) %>
+                        </span>
+                      <% else %>
+                        <span class="badge bg-warning text-dark fs-6">
+                          <%= number_to_percentage(total_percentage, precision: 2) %>
+                        </span>
+                      <% end %>
+                    </td>
+                    <td colspan="3"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
-            <!-- Resumen de Porcentajes -->
-            <div class="alert alert-info mt-3">
-              <small>
-                <strong>Total Asignado:</strong> 
-                <%= @transaction.business_transaction_co_owners.sum(:percentage) %>%
-              </small>
-            </div>
+            <!-- ✅ OPCIONAL: Información adicional del tipo de copropiedad -->
+            <% if @transaction.co_ownership_type.present? %>
+              <div class="mt-3 p-2 bg-light rounded">
+                <small class="text-muted">
+                  <i class="bi bi-info-circle me-1"></i>
+                  <strong>Tipo de copropiedad:</strong> 
+                  <%= @transaction.co_ownership_type.display_name %>
+                </small>
+              </div>
+            <% end %>
+
           </div>
         </div>
       <% end %>
+
 
       <!-- SECCIÓN 5: AGENTES -->
       <div class="card mb-4">

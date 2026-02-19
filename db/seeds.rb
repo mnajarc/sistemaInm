@@ -609,6 +609,11 @@ load Rails.root.join('db', 'seeds', '03_land_use_types.rb')
 puts "\n✅ Seeds completados exitosamente"
 
 
+puts "🌍 Cargando catálogo de países..."
+load Rails.root.join('db', 'seeds', 'countries.rb')
+
+
+
 
 puts "🌱 Sembrando RelationshipTypes..."
 

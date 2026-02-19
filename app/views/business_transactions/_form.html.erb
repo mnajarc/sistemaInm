@@ -94,7 +94,7 @@
   </div>
 
   <!-- SECCIÓN 4: COPROPIEDAD -->
-  <div class="card mb-4">
+  <div class="card mb-4" data-controller="co-owners">
     <div class="card-header bg-warning text-dark">
       <h5 class="mb-0"><i class="fas fa-users me-2"></i>4. Propietarios/Copropietarios</h5>
     </div>
@@ -102,48 +102,41 @@
       <div class="row mb-3">
         <div class="col-md-6">
           <%= form.label :co_ownership_type_id, "Tipo de Copropiedad", class: "form-label required" %>
-          <%= form.select :co_ownership_type_id, 
+          <%= form.select :co_ownership_type_id,
                          options_from_collection_for_select(@co_ownership_types, :id, :display_name, transaction.co_ownership_type_id),
                          { prompt: "Seleccione tipo de copropiedad..." },
                          { class: "form-select", required: true } %>
         </div>
       </div>
 
-      <!-- Lista de copropietarios existentes -->
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead class="table-light">
-            <tr>
-              <th>Cliente/Nombre</th>
-              <th>Porcentaje</th>
-              <th>Rol</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if transaction.business_transaction_co_owners.any? %>
-              <% transaction.business_transaction_co_owners.each do |co_owner| %>
-                <tr>
-                  <td><%= co_owner.display_name %></td>
-                  <td><%= co_owner.percentage %>%</td>
-                  <td><span class="badge bg-secondary"><%= co_owner.role&.humanize %></span></td>
-                  <td>
-                    <%= link_to "Editar", "#", class: "btn btn-sm btn-outline-primary" %>
-                  </td>
-                </tr>
-              <% end %>
-            <% else %>
-              <tr>
-                <td colspan="4" class="text-center text-muted">
-                  <em>No hay copropietarios registrados</em>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+      <!-- Lista editable de copropietarios -->
+      <div data-co-owners-target="container">
+        <%= form.fields_for :business_transaction_co_owners do |co_owner_form| %>
+          <%= render "business_transactions/co_owner_fields", f: co_owner_form %>
+        <% end %>
+      </div>
+
+      <!-- Template oculto para nuevos copropietarios -->
+      <template data-co-owners-target="template">
+        <%= form.fields_for :business_transaction_co_owners, BusinessTransactionCoOwner.new, child_index: "NEW_RECORD" do |co_owner_form| %>
+          <%= render "business_transactions/co_owner_fields", f: co_owner_form %>
+        <% end %>
+      </template>
+
+      <div class="mt-3 d-flex justify-content-between align-items-center">
+        <button type="button"
+                class="btn btn-outline-primary btn-sm"
+                data-action="click->co-owners#addCoOwner">
+          <i class="fas fa-plus"></i> Agregar copropietario
+        </button>
+
+        <small class="text-muted">
+          Los porcentajes deben sumar 100%. Al elegir un cliente existente, se reutiliza su ficha.
+        </small>
       </div>
     </div>
   </div>
+
 
   <!-- SECCIÓN 5: DETALLES FINANCIEROS -->
   <div class="card mb-4">
@@ -152,26 +145,55 @@
     </div>
     <div class="card-body">
       <div class="row">
-        <div class="col-md-6 mb-3">
-          <%= form.label :price, "Precio de Operación", class: "form-label required" %>
+        <div class="col-md-4 mb-3">
+          <%= form.label :market_analysis_price, "Precio de Mercado (Análisis)", class: "form-label" %>
           <div class="input-group">
             <span class="input-group-text">$</span>
-            <%= form.number_field :price, 
-                                 class: "form-control", 
-                                 step: 0.01, 
-                                 min: 0,
-                                 required: true %>
+            <%= form.number_field :market_analysis_price,
+                                class: "form-control",
+                                step: 0.01,
+                                min: 0,
+                                placeholder: "0.00" %>
           </div>
+          <small class="text-muted">Valor estimado según análisis de mercado</small>
         </div>
 
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
+          <%= form.label :suggested_price, "Precio Sugerido", class: "form-label" %>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <%= form.number_field :suggested_price,
+                                class: "form-control",
+                                step: 0.01,
+                                min: 0,
+                                placeholder: "0.00" %>
+          </div>
+          <small class="text-muted">Precio sugerido al cliente</small>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <%= form.label :price, "Precio de Contrato", class: "form-label required" %>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <%= form.number_field :price,
+                                class: "form-control",
+                                step: 0.01,
+                                min: 0,
+                                required: true %>
+          </div>
+          <small class="text-muted">Precio acordado para la operación</small>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
           <%= form.label :commission_percentage, "Comisión (%)", class: "form-label" %>
           <div class="input-group">
-            <%= form.number_field :commission_percentage, 
-                                 class: "form-control", 
-                                 step: 0.01, 
-                                 min: 0, 
-                                 max: 100 %>
+            <%= form.number_field :commission_percentage,
+                                class: "form-control",
+                                step: 0.01,
+                                min: 0,
+                                max: 100 %>
             <span class="input-group-text">%</span>
           </div>
         </div>
@@ -180,8 +202,8 @@
       <div class="row">
         <div class="col-12">
           <%= form.label :notes, "Notas", class: "form-label" %>
-          <%= form.text_area :notes, 
-                            class: "form-control", 
+          <%= form.text_area :notes,
+                            class: "form-control",
                             rows: 3,
                             placeholder: "Notas adicionales sobre la transacción..." %>
         </div>
@@ -197,5 +219,8 @@
     <%= form.submit transaction.persisted? ? "Actualizar Transacción" : "Crear Transacción", 
                    class: "btn btn-primary btn-lg px-5" %>
   </div>
+
+
+
 
 <% end %>

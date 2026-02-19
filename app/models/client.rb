@@ -1,6 +1,15 @@
 class Client < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :marriage_regime, optional: true
+  belongs_to :nationality_country,
+             class_name: "Country",
+             optional: true
+
+  belongs_to :birth_country,
+             class_name: "Country",
+             optional: true
+
+
 
   has_many :offered_transactions, class_name: 'BusinessTransaction', foreign_key: 'offering_client_id'
   has_many :acquired_transactions, class_name: 'BusinessTransaction', foreign_key: 'acquiring_client_id'
@@ -27,6 +36,15 @@ class Client < ApplicationRecord
   has_many :co_owners, 
           through: :co_ownership_links,
           source: :co_owner_client
+  has_many :client_addresses, dependent: :destroy
+  has_many :addresses, through: :client_addresses
+
+  accepts_nested_attributes_for :client_addresses,
+    allow_destroy: true
+
+  # ============================================================
+  # VALIDACIONES
+  # ============================================================
 
   validates :full_name, presence: true
   validates :email,
@@ -43,6 +61,13 @@ class Client < ApplicationRecord
   validates :first_names, presence: true
   validates :first_surname, presence: true
   validates :civil_status, presence: true
+  validates :rfc,
+            allow_blank: true,
+            format: {
+              with: /\A[ A-Z0-9&Ñ]{12,13}\z/,
+              message: "no parece un RFC válido"
+            }
+
 
   # ============================================================
   # CALLBACKS - ORDEN IMPORTANTE
@@ -51,7 +76,24 @@ class Client < ApplicationRecord
   before_validation :compose_full_name
   # Para no eliminar clientes que participen en transacciones activas
   before_destroy :prevent_destroy_with_active_participations
+  before_save :normalize_rfc
 
+
+  # ============================================================
+  # SCOPES
+  # ============================================================
+  
+  # Búsqueda por nombre completo o email (case-insensitive)
+  scope :search_by_full_name_or_email, ->(query) {
+    return none if query.blank?
+    
+    sanitized = "%#{sanitize_sql_like(query.to_s.strip)}%"
+    
+    where(
+      "CONCAT(first_names, ' ', first_surname, ' ', COALESCE(second_surname, '')) ILIKE :q OR email ILIKE :q",
+      q: sanitized
+    )
+  }
 
   scope :active, -> { where(active: true) }
   scope :with_system_user, -> { where.not(user_id: nil) }
@@ -62,7 +104,10 @@ class Client < ApplicationRecord
   # ============================================================
   # MÉTODOS PÚBLICOS
   # ============================================================
-  
+   def normalize_rfc
+    self.rfc = rfc.to_s.strip.upcase.presence
+  end
+ 
   def display_name
     full_name.presence || "#{first_names} #{first_surname}".strip
   end
@@ -123,6 +168,38 @@ class Client < ApplicationRecord
   end
 
   # ============================================================
+  # HELPERS DE NACIONALIDAD
+  # ============================================================
+  def nationality_name
+    nationality_country&.nationality || nationality_country&.name
+  end
+
+  def nationality_code
+    nationality_country&.alpha2_code
+  end
+
+  def mexican?
+    nationality_code == "MX"
+  end
+
+  def foreign?
+    nationality_country.present? && !mexican?
+  end
+
+  # ============================================================
+  # HELPERS DE DIRECCIÓN
+  # ============================================================
+  def fiscal_address
+    client_addresses.includes(:address).find_by(address_type: "fiscal")&.address
+  end
+
+  def home_address
+    client_addresses.includes(:address).find_by(address_type: "particular")&.address
+  end
+
+
+
+  # ============================================================
   # MÉTODOS PRIVADOS
   # ============================================================
   private
@@ -138,6 +215,7 @@ class Client < ApplicationRecord
       throw :abort
     end
   end
+
 
   # 🔧 ÚNICO callback que arma full_name
   def compose_full_name

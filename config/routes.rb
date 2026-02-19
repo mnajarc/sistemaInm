@@ -6,7 +6,11 @@ Rails.application.routes.draw do
     resources :transactions, only: [:index, :show]
   end
 
-  resources :clients, only: [:index, :new, :create, :edit, :update, :show, :destroy]
+  resources :clients, only: [:index, :new, :create, :edit, :update, :show, :destroy] do
+    collection do
+      get :search
+    end
+  end
 
   root "properties#index"
   resources :properties

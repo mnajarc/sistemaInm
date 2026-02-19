@@ -60,6 +60,50 @@ class BusinessTransactionsController < ApplicationController
   end
 
   def update
+    normalize_coowner_params
+    authorize @transaction
+
+    # 🔥 LOGGING PARA DEBUG (AGREGAR ESTO)
+    Rails.logger.info "🔥 PARAMS RECIBIDOS EN UPDATE:"
+    Rails.logger.info params[:business_transaction].inspect
+    
+    if params[:business_transaction][:business_transaction_co_owners_attributes].present?
+      Rails.logger.info "🔥 CO-OWNERS ATTRIBUTES:"
+      params[:business_transaction][:business_transaction_co_owners_attributes].each do |key, attrs|
+        Rails.logger.info "   [#{key}] => #{attrs.inspect}"
+      end
+    end
+
+    if current_user.admin_or_above? && params[:business_transaction][:current_agent_id].present?
+      reassign_agent
+    end
+
+    if @transaction.update(transaction_params)
+      # 🔥 LOGGING DESPUÉS DE SAVE (AGREGAR ESTO)
+      Rails.logger.info "✅ TRANSACCIÓN ACTUALIZADA"
+      Rails.logger.info "   Co-owners count: #{@transaction.business_transaction_co_owners.count}"
+      Rails.logger.info "   Co-owners IDs: #{@transaction.business_transaction_co_owners.pluck(:id)}"
+      
+      redirect_to @transaction, notice: "Transacción actualizada exitosamente"
+    else
+      # 🔥 LOGGING DE ERRORES (AGREGAR ESTO)
+      Rails.logger.error "❌ ERROR AL ACTUALIZAR TRANSACCIÓN:"
+      Rails.logger.error "   Transaction errors: #{@transaction.errors.full_messages}"
+      
+      # Mostrar errores de nested co_owners
+      @transaction.business_transaction_co_owners.each_with_index do |co, idx|
+        if co.errors.any?
+          Rails.logger.error "   Co-owner [#{idx}] errors: #{co.errors.full_messages}"
+        end
+      end
+      
+      load_form_data
+      render :edit, status: :unprocessable_content
+    end
+  end
+
+  
+  def update_anterior
     authorize @transaction
 
     if current_user.admin_or_above? && params[:business_transaction][:current_agent_id].present?
@@ -100,6 +144,26 @@ class BusinessTransactionsController < ApplicationController
 
   private
 
+  def normalize_coowner_params
+    return unless params[:business_transaction][:business_transaction_co_owners_attributes]
+    
+    co_owners = params[:business_transaction][:business_transaction_co_owners_attributes]
+    
+    # Si existe la clave "NEW_RECORD", reindexarla
+    if co_owners.key?("NEW_RECORD")
+      new_record_data = co_owners.delete("NEW_RECORD")
+      
+      # Encontrar el índice más alto y sumar 1
+      max_index = co_owners.keys.map(&:to_i).max || 0
+      new_index = max_index + 1
+      
+      co_owners[new_index.to_s] = new_record_data
+      
+      Rails.logger.info "🔧 Normalizado NEW_RECORD → índice #{new_index}"
+      Rails.logger.info "   Data: #{new_record_data.inspect}"
+    end
+  end
+
   def export_base_path
     Rails.env.production? ? '/mnt/nas_docs' : Rails.root.join('tmp', 'exports')
   end
@@ -136,13 +200,15 @@ class BusinessTransactionsController < ApplicationController
     @co_ownership_types = CoOwnershipType.active.order(:sort_order)
     @co_ownership_roles = CoOwnershipRole.active.order(:sort_order)
     @roles = @co_ownership_roles.pluck(:display_name, :name)
+    @countries = Country.ordered
   end
 
   def transaction_params
     params.require(:business_transaction).permit(
       :operation_type_id, :business_status_id, :start_date, :property_id,
       :offering_client_id, :acquiring_client_id, :co_ownership_type_id,
-      :price, :commission_percentage, :notes, :transaction_scenario_id,
+      :price, :market_analysis_price, :suggested_price,
+      :commission_percentage, :notes, :transaction_scenario_id,
       property_attributes: [
         :address, :property_type_id, :built_area_m2, :lot_area_m2,
         :bedrooms, :bathrooms, :street, :exterior_number, :interior_number,

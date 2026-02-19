@@ -1,0 +1,198 @@
+alpha2,alpha3,name,capital,nationality
+AF,AFG,Afganistá,Kabul,TBD
+AL,ALB,Albania,Tirana,TBD
+DE,DEU,Alemania,Berlí,TBD
+AD,AND,Andorra,Andorra la Vieja,TBD
+AO,AGO,Angola,Luanda,TBD
+AG,ATG,Antigua y Barbuda,Saint John,TBD
+SA,SAU,Arabia Saudita,Riad,TBD
+DZ,DZA,Argelia,Argel,TBD
+AR,ARG,Argentina,Buenos Aires,TBD
+AM,ARM,Armenia,Erevá,TBD
+AU,AUS,Australia,Canberra,TBD
+AT,AUT,Austria,Viena,TBD
+AZ,AZE,Azerbaiyá,Bak?,TBD
+BS,BHS,Bahamas,Nasá,TBD
+BD,BGD,Bangladé,Daca,TBD
+BB,BRB,Barbados,Bridgetown,TBD
+BH,BHR,Baréi,Manama,TBD
+BE,BEL,Bélgic,Bruselas,TBD
+BZ,BLZ,Belice,Belmopá,TBD
+BJ,BEN,Bení,Porto-Novo,TBD
+BY,BLR,Bielorrusia,Minsk,TBD
+MM,MMR,Birmania,Naipyid?,TBD
+BO,BOL,Bolivia,Sucre,TBD
+BA,BIH,Bosnia-Herzegovina,Sarajevo,TBD
+BW,BWA,Botsuana,Gaborone,TBD
+BR,BRA,Brasil,Brasilia,TBD
+BN,BRN,Bruné,Bandar Seri Begawan,TBD
+BG,BGR,Bulgaria,Sofí,TBD
+BF,BFA,Burkina Faso,Uagadug?,TBD
+BI,BDI,Burundi,Buyumbura,TBD
+BT,BTN,Butá,Thimphu,TBD
+CV,CPV,Cabo Verde,Praia,TBD
+KH,KHM,Camboya,Nom Pen,TBD
+CM,CMR,Camerú,Yaund?,TBD
+CA,CAN,Canad?,Ottawa,TBD
+QA,QAT,Catar,Doha,TBD
+TD,TCD,Chad,Yamena,TBD
+CL,CHL,Chile,Santiago,TBD
+CN,CHN,China,Pekí,TBD
+CY,CYP,Chipre,Nicosia,TBD
+CO,COL,Colombia,Bogot?,TBD
+KM,COM,Comoras,Moroni,TBD
+CG,COG,Congo,Brazzaville,TBD
+KP,PRK,Corea del Norte,Pionyang,TBD
+KR,KOR,Corea del Sur,Seú,TBD
+CI,CIV,Costa de Marfil,Yamusukro,TBD
+CR,CRI,Costa Rica,San Jos?,TBD
+HR,HRV,Croacia,Zagreb,TBD
+CU,CUB,Cuba,La Habana,TBD
+DK,DNK,Dinamarca,Copenhague,TBD
+DM,DMA,Dominica,Roseau,TBD
+EC,ECU,Ecuador,Quito,TBD
+EG,EGY,Egipto,El Cairo,TBD
+SV,SLV,El Salvador,San Salvador,TBD
+AE,ARE,Emiratos Árabes Unido,Abu Dabi,TBD
+ER,ERI,Eritrea,Asmara,TBD
+SK,SVK,Eslovaquia,Bratislava,TBD
+SI,SVN,Eslovenia,Liubliana,TBD
+ES,ESP,Españ,Madrid,TBD
+US,USA,Estados Unidos,Washington D. C.,TBD
+EE,EST,Estonia,Tallin,TBD
+SZ,SWZ,Esuatini,Mbabane,TBD
+ET,ETH,Etiopí,Adís Abeb,TBD
+PH,PHL,Filipinas,Manila,TBD
+FI,FIN,Finlandia,Helsinki,TBD
+FJ,FJI,Fiyi,Suva,TBD
+FR,FRA,Francia,Parí,TBD
+GA,GAB,Gabó,Libreville,TBD
+GM,GMB,Gambia,Banjul,TBD
+GE,GEO,Georgia,Tiflis,TBD
+GH,GHA,Ghana,Accra,TBD
+GD,GRD,Granada,Saint George,TBD
+GR,GRC,Grecia,Atenas,TBD
+GT,GTM,Guatemala,Guatemala,TBD
+GN,GIN,Guinea,Conakri,TBD
+GQ,GNQ,Guinea Ecuatorial,Malabo,TBD
+GW,GNB,Guinea-Bisá,Bisá,TBD
+GY,GUY,Guyana,Georgetown,TBD
+HT,HTI,Hait?,Puerto Príncip,TBD
+HN,HND,Honduras,Tegucigalpa,TBD
+HU,HUN,Hungrí,Budapest,TBD
+IN,IND,India,Nueva Delhi,TBD
+ID,IDN,Indonesia,Yakarta,TBD
+IQ,IRQ,Irak,Bagdad,TBD
+IR,IRN,Irá,Teherá,TBD
+IE,IRL,Irlanda,Dublí,TBD
+IS,ISL,Islandia,Reikiavik,TBD
+MH,MHL,Islas Marshall,Majuro,TBD
+SB,SLB,Islas Salomó,Honiara,TBD
+IL,ISR,Israel,Jerusalé,TBD
+IT,ITA,Italia,Roma,TBD
+JM,JAM,Jamaica,Kingston,TBD
+JP,JPN,Japó,Tokio,TBD
+JO,JOR,Jordania,Amá,TBD
+KZ,KAZ,Kazajistá,Astan?,TBD
+KE,KEN,Kenia,Nairobi,TBD
+KG,KGZ,Kirguistá,Biskek,TBD
+KI,KIR,Kiribati,Tarawa,TBD
+-,-,Kosovo,Pristina,TBD
+KW,KWT,Kuwait,Kuwait City,TBD
+LA,LAO,Laos,Vientiá,TBD
+LS,LSO,Lesoto,Maseru,TBD
+LV,LVA,Letonia,Riga,TBD
+LB,LBN,Líban,Beirut,TBD
+LR,LBR,Liberia,Monrovia,TBD
+LY,LBY,Libia,Trípol,TBD
+LI,LIE,Liechtenstein,Vaduz,TBD
+LT,LTU,Lituania,Vilna,TBD
+LU,LUX,Luxemburgo,Luxemburgo,TBD
+MK,MKD,Macedonia del Norte,Skopie,TBD
+MG,MDG,Madagascar,Antananarivo,TBD
+MY,MYS,Malasia,Kuala Lumpur,TBD
+MW,MWI,Malaui,Lilongü,TBD
+MV,MDV,Maldivas,Mal?,TBD
+ML,MLI,Mal?,Bamako,TBD
+MT,MLT,Malta,La Valeta,TBD
+MA,MAR,Marruecos,Rabat,TBD
+MU,MUS,Mauricio,Port Louis,TBD
+MR,MRT,Mauritania,Nuakchot,TBD
+MX,MEX,Méxic,Méxic,TBD
+FM,FSM,Micronesia,Palikir,TBD
+MD,MDA,Moldavia,Chisiná,TBD
+MC,MCO,Mónac,Mónac,TBD
+MN,MNG,Mongolia,Ulán Bato,TBD
+ME,MNE,Montenegro,Podgorica,TBD
+MZ,MOZ,Mozambique,Maputo,TBD
+NA,NAM,Namibia,Windhoek,TBD
+NR,NRU,Nauru,Yaren,TBD
+NP,NPL,Nepal,Katmand?,TBD
+NI,NIC,Nicaragua,Managua,TBD
+NE,NER,Níge,Niamey,TBD
+NG,NGA,Nigeria,Abuya,TBD
+NO,NOR,Noruega,Oslo,TBD
+NZ,NZL,Nueva Zelanda,Wellington,TBD
+OM,OMN,Omá,Mascate,TBD
+NL,NLD,Países Bajo,?msterdam,TBD
+PK,PAK,Pakistá,Islamabad,TBD
+PW,PLW,Palaos,Melekeok,TBD
+PS,PSE,Palestina,Jerusalén Est,TBD
+PA,PAN,Panam?,Panam?,TBD
+PG,PNG,Papúa Nueva Guine,Puerto Moresby,TBD
+PY,PRY,Paraguay,Asunció,TBD
+PE,PER,Per?,Lima,TBD
+PL,POL,Polonia,Varsovia,TBD
+PT,PRT,Portugal,Lisboa,TBD
+GB,GBR,Reino Unido,Londres,TBD
+CF,CAF,República Centroafrican,Bangui,TBD
+CZ,CZE,República Chec,Praga,TBD
+CD,COD,República Democrática del Con,Kinsasa,TBD
+DO,DOM,República Dominican,Santo Domingo,TBD
+RW,RWA,Ruanda,Kigali,TBD
+RO,ROU,Rumania,Bucarest,TBD
+RU,RUS,Rusia,Mosc?,TBD
+WS,WSM,Samoa,Apia,TBD
+KN,KNA,San Cristóbal y Nieve,Basseterre,TBD
+SM,SMR,San Marino,San Marino,TBD
+VC,VCT,San Vicente y las Granadinas,Kingstown,TBD
+LC,LCA,Santa Lucí,Castries,TBD
+ST,STP,Santo Tomé y Prínci,Santo Tom?,TBD
+SN,SEN,Senegal,Dakar,TBD
+RS,SRB,Serbia,Belgrado,TBD
+SC,SYC,Seychelles,Victoria,TBD
+SL,SLE,Sierra Leona,Freetown,TBD
+SG,SGP,Singapur,Singapur,TBD
+SY,SYR,Siria,Damasco,TBD
+SO,SOM,Somalia,Mogadiscio,TBD
+LK,LKA,Sri Lanka,Sri Jayawardenapura Kotte,TBD
+ZA,ZAF,Sudáfric,Pretoria,TBD
+SD,SDN,Sudá,Jartum,TBD
+SS,SSD,Sudán del Su,Yuba,TBD
+SE,SWE,Suecia,Estocolmo,TBD
+CH,CHE,Suiza,Berna,TBD
+SR,SUR,Surinam,Paramaribo,TBD
+TH,THA,Tailandia,Bangkok,TBD
+TW,TWN,Taiwá,Taipé,TBD
+TZ,TZA,Tanzania,Dodoma,TBD
+TJ,TJK,Tayikistá,Dusamb?,TBD
+TL,TLS,Timor Oriental,Dili,TBD
+TG,TGO,Togo,Lom?,TBD
+TO,TON,Tonga,Nukualofa,TBD
+TT,TTO,Trinidad y Tobago,Puerto Españ,TBD
+TN,TUN,Túne,Túne,TBD
+TM,TKM,Turkmenistá,Asjabad,TBD
+TR,TUR,Turquí,Ankara,TBD
+TV,TUV,Tuvalu,Funafuti,TBD
+UA,UKR,Ucrania,Kiev,TBD
+UG,UGA,Uganda,Kampala,TBD
+UY,URY,Uruguay,Montevideo,TBD
+UZ,UZB,Uzbekistá,Taskent,TBD
+VU,VUT,Vanuatu,Port Vila,TBD
+VA,VAT,Vaticano,Vaticano,TBD
+VE,VEN,Venezuela,Caracas,TBD
+VN,VNM,Vietnam,Hanó,TBD
+YE,YEM,Yemen,San?,TBD
+DJ,DJI,Yibuti,Yibuti,TBD
+ZM,ZMB,Zambia,Lusaka,TBD
+ZW,ZWE,Zimbabue,Harare,TBD

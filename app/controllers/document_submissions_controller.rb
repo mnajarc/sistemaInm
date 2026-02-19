@@ -501,30 +501,179 @@ class DocumentSubmissionsController < ApplicationController
     pdf.table(summary_data, width: pdf.bounds.width, cell_style: { size: 10, padding: 5 }) do |t|
       t.header = true
     end
+
+    pdf.move_down 15
+    pdf.text "DETALLE POR PERSONA", size: 14, style: :bold
+    pdf.move_down 8
+
+    copros = @checklist[:copropietarios] || @checklist["copropietarios"] || []
+
+    if copros.empty?
+      pdf.text "No hay copropietarios registrados.", size: 10
+      return
+    end
+
+    copros.each do |co|
+      co_owner   = co[:co_owner]   || co["co_owner"]   || {}
+      documents  = co[:documents]  || co["documents"]  || {}
+      doc_lists  = documents[:list] || documents["list"] || []
+
+      total_docs = doc_lists.sum { |cat| (cat[:documents] || cat["documents"] || []).size }
+
+      name       = co_owner[:name]       || co_owner["name"]       || "Copropietario"
+      role       = co_owner[:role]       || co_owner["role"]       || "Rol"
+      percentage = co_owner[:percentage] || co_owner["percentage"] || 0
+
+      pdf.text "#{name} (#{role} - #{percentage}%)", size: 12, style: :bold
+      pdf.text "Documentos requeridos: #{total_docs}", size: 10
+      pdf.move_down 4
+
+      doc_lists.each do |category|
+        docs = category[:documents] || category["documents"] || []
+        next if docs.empty?
+
+        cat_name = category[:category] || category["category"] || "Categoría"
+        pdf.text "• #{cat_name} (#{docs.size})", size: 11, style: :bold
+
+        docs.each do |doc|
+          submission = doc[:submission] || doc["submission"]
+
+          attached = submission.respond_to?(:document_file) && submission.document_file.attached?
+          status_icon = attached ? "✅" : "☐"
+
+          raw_doc_type = doc[:document_type] || doc["document_type"]
+          doc_name =
+            if raw_doc_type.respond_to?(:name)
+              raw_doc_type.name
+            elsif raw_doc_type.is_a?(Hash)
+              raw_doc_type[:name] || raw_doc_type["name"] || "Documento"
+            else
+              "Documento"
+            end
+
+          raw_status =
+            if submission.respond_to?(:document_status)
+              submission.document_status&.name
+            elsif submission.is_a?(Hash)
+              submission[:document_status_name] ||
+              submission["document_status_name"] ||
+              (submission.dig(:document_status, :name) rescue nil) ||
+              (submission.dig("document_status", "name") rescue nil)
+            end
+
+          raw_status ||= (attached ? "cargado" : "pendiente")
+          status_text = raw_status.to_s.tr("_", " ").capitalize
+
+          pdf.text "   #{status_icon} #{doc_name} [#{status_text}]", size: 10
+        end
+
+        pdf.move_down 4
+      end
+
+      pdf.move_down 8
+    end
   end
 
-
+  
   def generate_checklist_text
-    output = "CHECKLIST DOCUMENTAL\n"
-    output += "═" * 60 + "\n\n"
+    checklist = @checklist
+
+    output = "📋 CHECKLIST DOCUMENTAL\n"
+    output << "═" * 40 << "\n\n"
+
+    output << "Transacción: ##{@business_transaction.id}\n"
+    output << "Propiedad: #{@business_transaction.property.address}\n"
+    output << "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}\n"
+    output << "Fecha: #{I18n.l(Date.today, format: :long)}\n\n"
+
+    # Resumen
+    summary = checklist[:summary] || checklist["summary"] || {}
+    output << "📊 RESUMEN\n"
+    output << "─" * 40 << "\n"
+    output << "Total: #{summary[:total] || summary['total']} | "
+    output << "Cargados: #{summary[:uploaded] || summary['uploaded']} | "
+    output << "Validados: #{summary[:validated] || summary['validated']} | "
+    output << "Rechazados: #{summary[:rejected] || summary['rejected']} | "
+    output << "Progreso: #{summary[:progress] || summary['progress']}%\n\n"
+
+    output << "👤 PERSONAS\n"
+    output << "═" * 40 << "\n\n"
+
+    copros = checklist[:copropietarios] || checklist["copropietarios"] || []
+
+    if copros.empty?
+      output << "No hay copropietarios registrados.\n"
+      return output
+    end
+
+    copros.each do |co|
+      co_owner   = co[:co_owner]   || co["co_owner"]   || {}
+      documents  = co[:documents]  || co["documents"]  || {}
+      doc_lists  = documents[:list] || documents["list"] || []
+
+      total_docs = doc_lists.sum { |cat| (cat[:documents] || cat["documents"] || []).size }
+
+      name       = co_owner[:name]       || co_owner["name"]       || "Copropietario"
+      role       = co_owner[:role]       || co_owner["role"]       || "Rol"
+      percentage = co_owner[:percentage] || co_owner["percentage"] || 0
+
+      output << "👨 #{name}\n"
+      output << "   (#{role} - #{percentage}%)\n"
+      output << "   Documentos requeridos: #{total_docs}\n"
+      output << "─" * 40 << "\n\n"
+
+      doc_lists.each do |category|
+        docs = category[:documents] || category["documents"] || []
+        next if docs.empty?
+
+        cat_name = category[:category] || category["category"] || "Categoría"
+        output << "📍 #{cat_name} (#{docs.size})\n"
+
+        docs.each do |doc|
+          submission = doc[:submission] || doc["submission"]
+
+          # 1) archivo adjunto
+          attached = submission.respond_to?(:document_file) && submission.document_file.attached?
+          status_icon = attached ? "✅" : "☐"
+
+          # 2) tipo de documento (modelo o hash)
+          raw_doc_type = doc[:document_type] || doc["document_type"]
+
+          doc_name =
+            if raw_doc_type.respond_to?(:name)
+              raw_doc_type.name
+            elsif raw_doc_type.is_a?(Hash)
+              raw_doc_type[:name] || raw_doc_type["name"] || "Documento"
+            else
+              "Documento"
+            end
+
+          # 3) status textual (modelo o hash)
+          raw_status =
+            if submission.respond_to?(:document_status)
+              submission.document_status&.name
+            elsif submission.is_a?(Hash)
+              submission[:document_status_name] ||
+              submission["document_status_name"] ||
+              submission.dig(:document_status, :name) rescue nil ||
+              submission.dig("document_status", "name") rescue nil
+            end
+
+          raw_status ||= (attached ? "cargado" : "pendiente")
+          status_text = raw_status.to_s.tr("_", " ").capitalize
+
+          output << "   #{status_icon} #{doc_name} [#{status_text}]\n"
+        end
 
 
-    output += "Transacción: ##{@business_transaction.id}\n"
-    output += "Propiedad: #{@business_transaction.property.address}\n"
-    output += "Escenario: #{@business_transaction.transaction_scenario&.name || 'Sin escenario'}\n"
-    output += "Fecha: #{I18n.l(Date.today, format: :long)}\n\n"
 
+        output << "\n"
+      end
 
-    output += "RESUMEN\n"
-    output += "─" * 60 + "\n"
-    output += "Total de documentos: #{@checklist[:summary][:total]}\n"
-    output += "Cargados: #{@checklist[:summary][:uploaded]}\n"
-    output += "Pendientes: #{@checklist[:summary][:pending]}\n"
-    output += "Validados: #{@checklist[:summary][:validated]}\n"
-    output += "Rechazados: #{@checklist[:summary][:rejected]}\n"
-    output += "Progreso: #{@checklist[:summary][:progress]}%\n\n"
-
+      output << "\n"
+    end
 
     output
   end
+
 end

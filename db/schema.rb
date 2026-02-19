@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_19_153508) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "citext"
@@ -66,6 +66,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "addresses", force: :cascade do |t|
+    t.string "street"
+    t.string "exterior_number"
+    t.string "interior_number"
+    t.string "neighborhood"
+    t.string "municipality"
+    t.string "state"
+    t.string "country", default: "México"
+    t.string "postal_code"
+    t.string "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["postal_code"], name: "index_addresses_on_postal_code"
+    t.index ["street", "exterior_number", "postal_code"], name: "idx_addresses_lookup"
   end
 
   create_table "agent_transfers", force: :cascade do |t|
@@ -125,6 +141,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "is_primary", default: false
     t.index ["business_transaction_id", "active"], name: "idx_co_owners_transaction_active"
     t.index ["business_transaction_id"], name: "idx_on_business_transaction_id_2d9fea40bb"
     t.index ["client_id"], name: "index_business_transaction_co_owners_on_client_id"
@@ -143,7 +160,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.decimal "commission_percentage", precision: 5, scale: 2, default: "0.0"
     t.text "notes"
     t.text "terms_and_conditions"
-    t.boolean "is_primary", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "listing_agent_id", null: false
@@ -180,6 +196,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.jsonb "property_status", default: {}
     t.jsonb "tax_information", default: {}
     t.jsonb "legal_representation", default: {}
+    t.decimal "market_analysis_price", precision: 15, scale: 2
+    t.decimal "suggested_price", precision: 15, scale: 2
     t.index ["acquiring_client_id"], name: "index_business_transactions_on_acquiring_client_id"
     t.index ["acquisition_legal_act"], name: "index_business_transactions_on_acquisition_legal_act"
     t.index ["business_status_id"], name: "index_business_transactions_on_business_status_id"
@@ -196,7 +214,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.index ["offering_client_id"], name: "index_business_transactions_on_offering_client_id"
     t.index ["operation_type_id"], name: "index_business_transactions_on_operation_type_id"
     t.index ["property_acquisition_method_id"], name: "index_business_transactions_on_property_acquisition_method_id"
-    t.index ["property_id", "is_primary"], name: "index_business_transactions_on_property_id_and_is_primary"
     t.index ["property_id"], name: "index_business_transactions_on_property_id"
     t.index ["property_status"], name: "index_business_transactions_on_property_status", using: :gin
     t.index ["real_folio"], name: "index_business_transactions_on_real_folio"
@@ -219,6 +236,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.index ["sort_order"], name: "index_civil_statuses_on_sort_order"
   end
 
+  create_table "client_addresses", force: :cascade do |t|
+    t.bigint "client_id", null: false
+    t.bigint "address_id", null: false
+    t.string "address_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["address_id"], name: "index_client_addresses_on_address_id"
+    t.index ["client_id", "address_id", "address_type"], name: "idx_client_addresses_unique", unique: true
+    t.index ["client_id", "address_type"], name: "index_client_addresses_on_client_id_and_address_type"
+    t.index ["client_id"], name: "index_client_addresses_on_client_id"
+  end
+
   create_table "clients", force: :cascade do |t|
     t.string "full_name"
     t.string "email"
@@ -238,10 +267,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.string "civil_status"
     t.integer "marriage_regime_id"
     t.text "notes"
+    t.string "rfc"
+    t.string "tax_regime"
+    t.bigint "nationality_country_id"
+    t.bigint "birth_country_id"
+    t.index ["birth_country_id"], name: "index_clients_on_birth_country_id"
     t.index ["client_identifier"], name: "index_clients_on_client_identifier", unique: true
     t.index ["email"], name: "index_clients_on_email", unique: true
     t.index ["first_names"], name: "index_clients_on_first_names"
     t.index ["first_surname"], name: "index_clients_on_first_surname"
+    t.index ["nationality_country_id"], name: "index_clients_on_nationality_country_id"
+    t.index ["rfc"], name: "index_clients_on_rfc"
     t.index ["second_surname"], name: "index_clients_on_second_surname"
     t.index ["user_id"], name: "index_clients_on_user_id"
   end
@@ -337,6 +373,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
     t.datetime "updated_at", null: false
     t.index ["client_id"], name: "index_contracts_on_client_id"
     t.index ["property_id"], name: "index_contracts_on_property_id"
+  end
+
+  create_table "countries", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "alpha2_code", null: false
+    t.string "alpha3_code"
+    t.string "nationality"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["alpha2_code"], name: "index_countries_on_alpha2_code", unique: true
+    t.index ["alpha3_code"], name: "index_countries_on_alpha3_code", unique: true
+    t.index ["name"], name: "index_countries_on_name"
   end
 
   create_table "document_notes", force: :cascade do |t|
@@ -1037,6 +1085,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_07_055051) do
   add_foreign_key "business_transactions", "users", column: "current_agent_id"
   add_foreign_key "business_transactions", "users", column: "listing_agent_id"
   add_foreign_key "business_transactions", "users", column: "selling_agent_id"
+  add_foreign_key "client_addresses", "addresses"
+  add_foreign_key "client_addresses", "clients"
+  add_foreign_key "clients", "countries", column: "birth_country_id"
+  add_foreign_key "clients", "countries", column: "nationality_country_id"
   add_foreign_key "clients", "users"
   add_foreign_key "co_ownership_links", "business_transactions"
   add_foreign_key "co_ownership_links", "clients", column: "co_owner_client_id"

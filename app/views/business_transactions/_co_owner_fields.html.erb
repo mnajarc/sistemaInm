@@ -1,14 +1,34 @@
 <div class="co-owner-item border rounded p-3 mb-3" data-co-owners-target="item">
   <div class="row align-items-center">
-    <div class="col-md-4">
-      <%= f.label :client_id, "Cliente", class: "form-label" %>
-      <%= f.select :client_id,
-                   options_from_collection_for_select(@clients, :id, :display_name),
-                   { prompt: "Seleccionar cliente..." },
-                   { class: "form-select",
-                     data: { action: "change->co-owners#updateClientName" } } %>
+
+    <!-- BÚSQUEDA DE CLIENTE -->
+    <div class="col-md-4" data-controller="client-search">
+      <label class="form-label">Cliente</label>
+      <%= f.hidden_field :client_id, data: { client_search_target: "hiddenField" } %>
+
+      <div class="position-relative">
+        <input type="text"
+               class="form-control"
+               placeholder="Buscar por nombre o email..."
+               value="<%= f.object.client&.display_name %>"
+               data-client-search-target="input"
+               data-action="input->client-search#search"
+               autocomplete="off">
+
+        <div class="list-group position-absolute w-100 shadow-sm"
+             style="display:none; z-index:1050; max-height:200px; overflow-y:auto;"
+             data-client-search-target="results">
+        </div>
+      </div>
+
+      <div data-client-search-target="selectedDisplay" class="mt-1">
+        <% if f.object.client.present? %>
+          <span class="badge bg-success"><%= f.object.client.display_name %></span>
+        <% end %>
+      </div>
     </div>
 
+    <!-- NOMBRE MANUAL (fallback) -->
     <div class="col-md-3">
       <%= f.label :person_name, "O escribir nombre", class: "form-label" %>
       <%= f.text_field :person_name,
@@ -16,6 +36,7 @@
                        class: "form-control" %>
     </div>
 
+    <!-- PORCENTAJE -->
     <div class="col-md-2">
       <%= f.label :percentage, "Porcentaje", class: "form-label" %>
       <div class="input-group">
@@ -30,12 +51,25 @@
       </div>
     </div>
 
+    <!-- ROL -->
     <div class="col-md-2">
       <%= f.label :role, "Rol", class: "form-label" %>
-      <%= f.select :role, @roles, { prompt: "Seleccionar..." }, { class: "form-select" } %>
+     <%= f.select :role, 
+      options_for_select([
+        ['Vendedor', 'vendedor'],
+        ['Copropietario', 'copropietario'],
+        ['Propietario', 'propietario']
+      ], f.object.role.presence || 'copropietario'),  # ← Valor por defecto
+      {},
+      { class: 'form-select', required: true } %>
+ 
+
+
     </div>
 
+    <!-- ELIMINAR -->
     <div class="col-md-1">
+      <%= f.hidden_field :_destroy, value: 0, data: { co_owners_target: "destroyField" } %>
       <label class="form-label">&nbsp;</label>
       <button type="button"
               class="btn btn-outline-danger btn-sm d-block"
@@ -45,4 +79,16 @@
       </button>
     </div>
   </div>
+  <!-- BOTÓN NUEVO CLIENTE (abre modal) -->
+  <div class="row mt-2">
+    <div class="col-md-4">
+      <button type="button"
+              class="btn btn-outline-success btn-sm"
+              data-bs-toggle="modal"
+              data-bs-target="#newClientModal">
+        <i class="fas fa-user-plus"></i> Nuevo cliente
+      </button>
+    </div>
+  </div>
+
 </div>

@@ -1,79 +1,210 @@
 <div class="card">
   <div class="card-body">
-    <%= form_with model: client, local: true do |f| %>
-      
-      <% if client.errors.any? %>
-        <div class="alert alert-danger">
-          <h5><%= pluralize(client.errors.count, "error") %> en el formulario:</h5>
-          <ul>
-            <% client.errors.full_messages.each do |message| %>
-              <li><%= message %></li>
-            <% end %>
-          </ul>
+    <%= form_with model: client,
+                  local: true,
+                  data: { turbo: false },
+                  html: { id: (local_assigns[:as_modal] ? "new_client" : nil) } do |f| %>
+
+      <%= render "clients/form_errors", client: client %>
+
+      <!-- ============================================================ -->
+      <!-- SECCIÓN 1: DATOS PERSONALES -->
+      <!-- ============================================================ -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-person me-2"></i>1. Datos Personales</h5>
         </div>
-      <% end %>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <%= f.label :first_surname, "Primer Apellido *", class: "form-label fw-bold" %>
+              <%= f.text_field :first_surname, class: "form-control", required: true %>
+            </div>
 
-      <!-- Nombre Completo -->
-      <div class="mb-3">
-        <%= f.label :full_name, "Nombre Completo *", class: 'form-label fw-bold' %>
-        <%= f.text_field :full_name, 
-                          class: 'form-control form-control-lg',
-                          placeholder: 'Juan Pérez García',
-                          required: true %>
-        <small class="text-muted">Nombre y apellidos (tal como aparecerá en documentos)</small>
-      </div>
+            <div class="col-md-4 mb-3">
+              <%= f.label :second_surname, "Segundo Apellido", class: "form-label" %>
+              <%= f.text_field :second_surname, class: "form-control" %>
+            </div>
 
-      <!-- Teléfono y Email -->
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <%= f.label :phone, "Teléfono", class: 'form-label' %>
-          <%= f.telephone_field :phone,
-                                class: 'form-control',
-                                placeholder: '(55) 1234-5678' %>
-        </div>
+            <div class="col-md-4 mb-3">
+              <%= f.label :first_names, "Nombres *", class: "form-label fw-bold" %>
+              <%= f.text_field :first_names, class: "form-control", required: true %>
+            </div>
+          </div>
 
-        <div class="col-md-6 mb-3">
-          <%= f.label :email, "Email", class: 'form-label' %>
-          <%= f.email_field :email,
-                            class: 'form-control',
-                            placeholder: 'cliente@email.com' %>
-        </div>
-      </div>
-
-      <!-- Estado Civil -->
-      <div class="mb-3">
-        <%= f.label :civil_status, "Estado Civil", class: 'form-label' %>
-        <%= f.select :civil_status,
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <%= f.label :email, "Correo electrónico", class: "form-label" %>
+              <%= f.email_field :email, class: "form-control" %>
+            </div>
+            <div class="col-md-4 mb-3">
+              <%= f.label :phone, "Teléfono", class: "form-label" %>
+              <%= f.telephone_field :phone, class: "form-control", placeholder: "(55) 1234-5678" %>
+            </div>
+            <div class="col-md-4 mb-3">
+              <%= f.label :civil_status, "Estado Civil", class: "form-label" %>
+              <%= f.select :civil_status,
                     CivilStatus.active.order(:sort_order).map { |s| [s.display_name, s.name] },
-                    { include_blank: 'Selecciona...' },
-                    class: 'form-select' %>
+                    { include_blank: "Selecciona..." },
+                    class: "form-select" %>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :nationality_country_id, "Nacionalidad", class: "form-label" %>
+              <%= f.select :nationality_country_id,
+                    options_from_collection_for_select(@countries, :id, :name, f.object.nationality_country_id),
+                    { prompt: "Seleccione país de nacionalidad..." },
+                    class: "form-select" %>
+            </div>
+            <div class="col-md-6 mb-3">
+              <%= f.label :birth_country_id, "País de nacimiento", class: "form-label" %>
+              <%= f.select :birth_country_id,
+                    options_from_collection_for_select(@countries, :id, :name, f.object.birth_country_id),
+                    { prompt: "Seleccione país de nacimiento..." },
+                    class: "form-select" %>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Notas -->
-      <div class="mb-3">
-        <%= f.label :notes, "Observaciones", class: 'form-label' %>
-        <%= f.text_area :notes,
-                        class: 'form-control',
-                        rows: 3,
-                        placeholder: 'Información adicional relevante...' %>
+      <!-- ============================================================ -->
+      <!-- SECCIÓN 2: DATOS FISCALES -->
+      <!-- ============================================================ -->
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>2. Datos Fiscales</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <%= f.label :rfc, "RFC", class: "form-label" %>
+              <%= f.text_field :rfc,
+                    class: "form-control text-uppercase",
+                    maxlength: 13,
+                    placeholder: "ABCD010101XYZ" %>
+              <small class="text-muted">
+                Captura el RFC tal como aparece en la constancia de situación fiscal.
+              </small>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <%= f.label :tax_regime, "Régimen fiscal", class: "form-label" %>
+              <%= f.text_field :tax_regime,
+                    class: "form-control",
+                    placeholder: "Persona física, RIF, etc." %>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Botones -->
-      <div class="d-flex gap-2 mt-4">
-        <% if form.present? %>
-          <%= f.submit "Guardar y volver al formulario", class: 'btn btn-success flex-grow-1' %>
-          <%= link_to "Cancelar", form, class: 'btn btn-secondary flex-grow-1' %>
-        <% else %>
-          <%= f.submit "Guardar Cliente", class: 'btn btn-success flex-grow-1' %>
-          <%= link_to "Cancelar", clients_path, class: 'btn btn-secondary flex-grow-1' %>
-        <% end %>
+      <!-- ============================================================ -->
+      <!-- SECCIÓN 3: DOMICILIOS -->
+      <!-- ============================================================ -->
+      <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>3. Domicilios</h5>
+        </div>
+        <div class="card-body">
+          <%= f.fields_for :client_addresses do |caf| %>
+            <div class="border rounded p-3 mb-3 bg-light">
+              <div class="row">
+                <div class="col-md-3 mb-2">
+                  <%= caf.label :address_type, "Tipo de domicilio", class: "form-label" %>
+                  <%= caf.select :address_type,
+                        [["Fiscal", "fiscal"],
+                         ["Particular", "particular"],
+                         ["Comercial", "comercial"],
+                         ["Legal", "legal"]],
+                        { prompt: "Selecciona tipo..." },
+                        class: "form-select" %>
+                </div>
+
+                <%= caf.fields_for :address do |af| %>
+                  <div class="col-md-6 mb-2">
+                    <%= af.label :street, "Calle", class: "form-label" %>
+                    <%= af.text_field :street, class: "form-control" %>
+                  </div>
+                  <div class="col-md-3 mb-2">
+                    <%= af.label :exterior_number, "Núm. Ext.", class: "form-label" %>
+                    <%= af.text_field :exterior_number, class: "form-control" %>
+                  </div>
+
+                  <div class="col-md-3 mb-2">
+                    <%= af.label :interior_number, "Núm. Int.", class: "form-label" %>
+                    <%= af.text_field :interior_number, class: "form-control" %>
+                  </div>
+                  <div class="col-md-3 mb-2">
+                    <%= af.label :neighborhood, "Colonia", class: "form-label" %>
+                    <%= af.text_field :neighborhood, class: "form-control" %>
+                  </div>
+                  <div class="col-md-3 mb-2">
+                    <%= af.label :municipality, "Alcaldía/Municipio", class: "form-label" %>
+                    <%= af.text_field :municipality, class: "form-control" %>
+                  </div>
+                  <div class="col-md-3 mb-2">
+                    <%= af.label :state, "Estado", class: "form-label" %>
+                    <%= af.text_field :state, class: "form-control" %>
+                  </div>
+
+                  <div class="col-md-4 mb-2">
+                    <%= af.label :country, "País", class: "form-label" %>
+                    <%= af.text_field :country,
+                          class: "form-control",
+                          value: af.object.country.presence || "México" %>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <%= af.label :postal_code, "Código Postal", class: "form-label" %>
+                    <%= af.text_field :postal_code, class: "form-control" %>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <%= af.label :notes, "Notas", class: "form-label" %>
+                    <%= af.text_field :notes, class: "form-control",
+                          placeholder: "Entre calles, referencia, etc." %>
+                  </div>
+                <% end %>
+              </div>
+
+              <% if caf.object.persisted? %>
+                <div class="text-end mt-2">
+                  <label class="text-danger">
+                    <%= caf.check_box :_destroy %> Eliminar este domicilio
+                  </label>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
       </div>
 
-      <!-- Campo oculto para form_id -->
-      <% if form.present? %>
-        <%= hidden_field_tag :form_id, form.id %>
+      <!-- ============================================================ -->
+      <!-- SECCIÓN 4: NOTAS -->
+      <!-- ============================================================ -->
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>4. Notas</h5>
+        </div>
+        <div class="card-body">
+          <%= f.label :notes, "Observaciones", class: "form-label" %>
+          <%= f.text_area :notes, class: "form-control", rows: 3,
+                placeholder: "Información adicional relevante..." %>
+        </div>
+      </div>
+
+      <!-- Campo oculto return_to (lo conservamos) -->
+      <%= hidden_field_tag :return_to, request.fullpath %>
+
+      <!-- Botones solo para pantalla normal -->
+      <% unless local_assigns[:as_modal] %>
+        <div class="d-flex gap-2 mt-4">
+          <%= f.submit client.persisted? ? "Actualizar Cliente" : "Guardar Cliente",
+                class: "btn btn-success flex-grow-1" %>
+          <%= link_to "Cancelar", clients_path, class: "btn btn-secondary flex-grow-1" %>
+        </div>
       <% end %>
 
     <% end %>
   </div>
 </div>
+

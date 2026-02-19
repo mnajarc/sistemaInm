@@ -96,6 +96,7 @@ GEM
     crass (1.0.6)
     cssbundling-rails (1.4.3)
       railties (>= 6.0.0)
+    csv (3.3.5)
     database_validations (1.1.1)
       activerecord (>= 4.2.0)
     date (3.4.1)
@@ -454,6 +455,7 @@ DEPENDENCIES
   bundler-audit
   cocoon
   cssbundling-rails
+  csv
   database_validations
   debug
   devise
